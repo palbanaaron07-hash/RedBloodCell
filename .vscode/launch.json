@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "pwa-chrome",
+            "request": "launch",
+            "name": "Launch Chrome against 127.0.0.1",
+            "preLaunchTask": "npm: dev",
+            "url": "http://127.0.0.1:5173/homie.html",
+            "webRoot": "${workspaceFolder}",
+            "serverReadyAction": {
+                "pattern": "127\\.0\\.0\\.1:5173|\\:5173",
+                "action": "openExternally",
+                "uriFormat": "http://127.0.0.1:5173/homie.html"
+            }
+        }
+    ]
+}

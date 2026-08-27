@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learn More - VeinDrop</title>
+  <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="home.css?v=20260827c" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+
+<body class="info-page">
+  <main>
+    <header class="topbar">
+      <a class="brand" href="homie.html" aria-label="Back to VeinDrop home">
+        <div class="brand-icon" aria-hidden="true">
+          <img src="assets/veindrop-mark.svg" alt="" />
+        </div>
+        <span class="brand-name">VeinDrop</span>
+      </a>
+
+      <p class="appbar-copy">&copy; 2026 Blood Bank Management System</p>
+
+      <div class="top-actions">
+        <a class="ghost-link login-link" href="homie.html">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+          <span>Back Home</span>
+        </a>
+      </div>
+    </header>
+
+    <section class="info-hero">
+      <p class="info-kicker">System guide</p>
+      <h1>How VeinDrop supports blood donation workflows.</h1>
+      <p>
+        Learn how donor registration, emergency requests, inventory tracking, and admin monitoring work together in the system.
+      </p>
+    </section>
+
+    <section class="info-sections" aria-label="Feature information">
+      <article class="info-block" id="donor-registration">
+        <div class="info-icon"><i class="fa-solid fa-user-plus" aria-hidden="true"></i></div>
+        <div>
+          <p class="info-label">Donor Registration</p>
+          <h2>Collect accurate donor records before matching.</h2>
+          <p>
+            Donors submit their blood type, contact details, address, availability, and health-related information. Admins can review each donor profile, update lifecycle status, and control whether a donor appears on the patient map.
+          </p>
+          <ul>
+            <li>Stores donor profile and blood type information</li>
+            <li>Tracks availability and donation history</li>
+            <li>Lets admins verify map visibility before patients see donor areas</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="info-block" id="emergency-requests">
+        <div class="info-icon"><i class="fa-solid fa-truck-medical" aria-hidden="true"></i></div>
+        <div>
+          <p class="info-label">Emergency Requests</p>
+          <h2>Prioritize urgent blood needs.</h2>
+          <p>
+            Patients submit requests with needed blood type, quantity, hospital, and urgency. The admin dashboard helps staff review pending requests, approve or reject them, and coordinate available inventory.
+          </p>
+          <ul>
+            <li>Supports urgent request tagging</li>
+            <li>Tracks request status from pending to fulfilled</li>
+            <li>Helps admins coordinate with patients and hospitals</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="info-block" id="blood-inventory">
+        <div class="info-icon"><i class="fa-solid fa-flask-vial" aria-hidden="true"></i></div>
+        <div>
+          <p class="info-label">Blood Inventory</p>
+          <h2>Monitor stock levels and availability.</h2>
+          <p>
+            Inventory records show available units by blood type, stock status, and expiry-related information. When requests are fulfilled, stock can be deducted so the dashboard reflects current availability.
+          </p>
+          <ul>
+            <li>Displays blood units by type</li>
+            <li>Highlights low or critical stock levels</li>
+            <li>Supports stock updates from successful donations</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="info-block" id="system-overview">
+        <div class="info-icon"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></div>
+        <div>
+          <p class="info-label">System Overview</p>
+          <h2>Give admins one place to monitor operations.</h2>
+          <p>
+            The admin dashboard summarizes donor activity, request volume, inventory levels, recent donations, and important alerts. It is designed to help staff see what needs attention quickly.
+          </p>
+          <ul>
+            <li>Shows donor and request counts</li>
+            <li>Surfaces urgent and low-stock items</li>
+            <li>Provides profile, lifecycle, inventory, and request tools</li>
+          </ul>
+        </div>
+      </article>
+    </section>
+
+  </main>
+  <script src="pull-to-refresh.js?v=20260824a" defer></script>
+</body>
+
+</html>

@@ -1,0 +1,121 @@
+SYSTEM PROPOSAL — BloodConnect Blood Bank Management System
+
+1) Users and Processes Involved (by User)
+
+A. Patient User
+- Register/Login
+  - Creates an account and signs in.
+  - System links the authenticated user to a patient profile.
+- Profile Management
+  - Updates personal details (name, blood type needed, contact number, address, etc.).
+- Blood Request Creation
+  - Submits a request containing blood type needed, quantity (units), urgency, and notes.
+  - System records the request with an initial status (typically "pending").
+- Request Tracking
+  - Views the list of requests and current statuses (pending/approved/needs_clarification/rejected/fulfilled).
+  - If an admin adds a note (especially for "needs_clarification"), the patient can open the note and read it.
+- Inventory Awareness (Read-only)
+  - Views overall blood availability dashboard (units per blood type) to understand current stock levels.
+
+B. Admin User
+- Register/Login (Admin Account)
+  - Logs in as an authorized admin.
+  - System enforces admin access to admin pages.
+- Donor Management
+  - Adds donor records.
+  - Updates donor lifecycle (registered → checked_in → approved (medical) → donated / deferred).
+  - Creates inventory records when donors are marked as donated.
+- Inventory Management
+  - Adds/sets/deducts stock for blood types.
+  - Monitors inventory status (available/depleted/expired/quarantined where applicable).
+- Blood Request Workflow Management
+  - Reviews incoming requests.
+  - Moves a request through the lifecycle statuses:
+    - pending → approved
+    - approved → fulfilled
+    - pending/approved → needs_clarification (with a note to the patient)
+    - pending/approved → rejected
+  - Writes an admin note during a status change when clarification is needed.
+  - Fulfillment deducts blood units from inventory and logs audit information.
+- Reporting/Overview
+  - Views dashboard statistics: donors count, pending requests, total units, monthly donations, etc.
+
+C. System / Database Processes (Automatic)
+- Authentication Session Handling
+  - Maintains user session (Supabase Auth).
+- Real-time Updates
+  - Subscribes to relevant database change events so that patient dashboards can refresh when the admin updates request status.
+- Audit Logging (Best-effort)
+  - Records status change entries in a request status log (who changed what, when, and why).
+
+
+2) Significant Features of the Proposed System
+
+- Secure Role-Based Access
+  - Separates patient and admin dashboards.
+  - Prevents non-admin users from accessing admin operations.
+
+- Blood Request Lifecycle Workflow
+  - Standardized statuses: pending, approved, needs_clarification, rejected, fulfilled.
+  - Enforces that fulfillment should only occur via explicit admin action (Fulfill transition).
+
+- Admin Notes + Patient Visibility
+  - Admin can attach a note during request status transitions (e.g., for needs_clarification).
+  - Patient can click the status badge to view the note in a modal when a note exists.
+
+- Inventory-Driven Fulfillment
+  - When a request is fulfilled, the system deducts the requested units from available inventory.
+  - Prevents fulfillment if stock is insufficient.
+
+- Responsive, Mobile-Friendly UI
+  - Dashboards adapt to smaller screens.
+  - Tables can scroll horizontally on mobile.
+  - Header profile dropdown behavior is mobile-appropriate.
+
+- Real-time Patient Updates
+  - Patient request lists automatically refresh when admins change request status.
+
+- Auditing and Accountability
+  - Tracks status transitions in an audit table for traceability.
+
+
+3) Main Algorithm Used in the Proposed System
+
+Primary Algorithm: Request Status Transition Workflow (State Machine) with Inventory Deduction
+
+Goal:
+- Ensure each blood request follows valid status transitions and only becomes "fulfilled" when the admin explicitly triggers fulfillment and the inventory deduction succeeds.
+
+Algorithm Overview:
+1. Input
+   - requestId, currentStatus, targetStatus
+   - reason (required)
+   - note (optional)
+
+2. Validate Transition (State Machine Rules)
+   - Determine allowed transitions based on currentStatus.
+   - Block invalid transitions (e.g., fulfilling a non-approved request).
+
+3. Validate Inventory for Critical Transitions
+   - If targetStatus is "approved": ensure stock is not zero (stock availability check).
+   - If targetStatus is "fulfilled": ensure availableUnits >= requestedUnits.
+
+4. Execute Transition
+   - If targetStatus is "fulfilled":
+     a) Select candidate inventory rows for the needed blood type.
+     b) Deduct units across one or more inventory rows until requestedUnits is met.
+     c) If any deduction fails, abort and do not set request to fulfilled.
+   - Update blood_request.status = targetStatus.
+   - If an admin note is provided, store it with the request (blood_request.note).
+
+5. Audit and Notify
+   - Insert a record into blood_request_status_log containing oldStatus, newStatus, reason, note, admin identifier, and timestamp.
+   - If targetStatus is "needs_clarification": queue a patient notification message.
+
+6. Real-time Propagation
+   - Clients subscribed to request changes (patient dashboard) refresh the request list and show the new status/note.
+
+Key Data Structures / Concepts:
+- Finite State Machine (FSM) for request lifecycle.
+- Greedy deduction over inventory candidate rows (deduct from oldest/linked stock first until satisfied).
+- Audit log as an append-only history of transitions.

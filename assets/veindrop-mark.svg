@@ -1,0 +1,25 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>VeinDrop</title>
+  <defs>
+    <linearGradient id="surface" x1="10" y1="6" x2="54" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B5162A"/>
+      <stop offset="0.52" stop-color="#870617"/>
+      <stop offset="1" stop-color="#5B0010"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="22" y1="16" x2="42" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F7E9EB"/>
+    </linearGradient>
+    <filter id="shadow" x="10" y="8" width="44" height="49" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#340008" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#surface)"/>
+  <path d="M49 15C43.4 16.8 39.3 16.9 35.7 14.9C34.2 14.1 32.9 13 32 12C31.1 13 29.8 14.1 28.3 14.9C24.7 16.9 20.6 16.8 15 15C16.3 25.1 17.9 33.3 21.5 40.3C24.2 45.5 27.8 49.2 32 52C36.2 49.2 39.8 45.5 42.5 40.3C46.1 33.3 47.7 25.1 49 15Z" fill="url(#drop)" filter="url(#shadow)"/>
+  <path d="M20.5 22.5C23.4 23.5 25.7 25.1 27.4 27.6L32 34.4L36.6 27.6C38.3 25.1 40.6 23.5 43.5 22.5" stroke="#8D0719" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 34.4V43" stroke="#8D0719" stroke-width="3.8" stroke-linecap="round"/>
+  <circle cx="20.5" cy="22.5" r="3.2" fill="#8D0719"/>
+  <circle cx="43.5" cy="22.5" r="3.2" fill="#8D0719"/>
+  <circle cx="32" cy="43" r="3.2" fill="#8D0719"/>
+  <path d="M9 22V14C9 11.2 11.2 9 14 9H22" stroke="white" stroke-opacity="0.22" stroke-width="2" stroke-linecap="round"/>
+</svg>

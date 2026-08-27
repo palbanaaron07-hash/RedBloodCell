@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+  <title id="title">AI-style blood inventory illustration</title>
+  <desc id="desc">An original futuristic blood inventory dashboard with smart shelves, stock bars, and blood bag data tiles.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="78%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#e6f2ef"/>
+      <stop offset="0.82" stop-color="#fff5f5"/>
+      <stop offset="1" stop-color="#f3cbd1"/>
+    </radialGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#24463e" flood-opacity="0.21"/>
+    </filter>
+  </defs>
+  <rect width="900" height="520" fill="#ffffff"/>
+  <g opacity="0.3" stroke="#8a0303" stroke-width="3">
+    <path d="M88 118h170l62 62h174M106 404h152l76-80h154M590 118h134l62 66h70"/>
+    <circle cx="258" cy="118" r="8" fill="#8a0303"/><circle cx="494" cy="180" r="8" fill="#8a0303"/><circle cx="724" cy="118" r="8" fill="#8a0303"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="112" y="104" width="676" height="316" rx="34" fill="#ffffff" fill-opacity="0.78" stroke="#ffffff" stroke-width="2"/>
+    <rect x="160" y="162" width="580" height="16" rx="8" fill="#8a0303"/>
+    <rect x="160" y="312" width="580" height="16" rx="8" fill="#8a0303"/>
+    <g fill="#ffffff" stroke="#d59aa3" stroke-width="4">
+      <rect x="188" y="104" width="102" height="130" rx="20"/>
+      <rect x="326" y="104" width="102" height="130" rx="20"/>
+      <rect x="464" y="104" width="102" height="130" rx="20"/>
+      <rect x="602" y="104" width="102" height="130" rx="20"/>
+      <rect x="256" y="250" width="102" height="130" rx="20"/>
+      <rect x="394" y="250" width="102" height="130" rx="20"/>
+      <rect x="532" y="250" width="102" height="130" rx="20"/>
+    </g>
+    <g fill="#8a0303">
+      <path d="M222 145c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M360 145c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M498 145c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M636 145c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M290 291c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M428 291c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+      <path d="M566 291c0-18 25-42 25-42s25 24 25 42a25 25 0 0 1-50 0z"/>
+    </g>
+    <g stroke="#8a0303" stroke-width="8" stroke-linecap="round">
+      <path d="M212 210h54M350 210h34M488 210h48M626 210h62M280 356h58M418 356h44M556 356h36"/>
+    </g>
+  </g>
+  <rect x="646" y="358" width="134" height="60" rx="22" fill="#8a0303"/>
+  <path d="M678 388h70M678 374h42M678 402h52" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+</svg>

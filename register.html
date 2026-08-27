@@ -1,0 +1,885 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register - BloodConnect</title>
+  <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="register.css?v=20260827l" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+
+<body>
+    <div class="glass-rect-layer" aria-hidden="true">
+      <span class="glass-rect glass-rect-left-wide"></span>
+      <span class="glass-rect glass-rect-left-slim"></span>
+      <span class="glass-rect glass-rect-right-wide"></span>
+      <span class="glass-rect glass-rect-right-slim"></span>
+    </div>
+    <div class="form-card">
+
+      <a href="homie.html" class="home-fab" aria-label="Go to previous step or page">
+        <i class="fa-solid fa-arrow-left-long"></i>
+      </a>
+
+      <form action="#" method="POST" class="register-form" novalidate>
+
+          <!-- Alert message -->
+          <div id="alertBox" class="toast-alert" role="status" aria-live="polite"></div>
+
+          <!-- Step indicator -->
+          <div class="step-indicator">
+            <div class="step active" id="step-dot-1">
+              <span class="dot">1</span>
+              <span class="step-label">Role</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-dot-2">
+              <span class="dot">2</span>
+              <span class="step-label">Personal</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-dot-3">
+              <span class="dot">3</span>
+              <span class="step-label">Medical</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-dot-4">
+              <span class="dot">4</span>
+              <span class="step-label">Account</span>
+            </div>
+          </div>
+
+          <!-- ===================== STEP 1: Role Selection ===================== -->
+          <div class="form-step" id="step-1">
+            <h2 class="main-step-title">Create your account</h2>
+            <p class="main-step-subtitle">Step 1 of 4 - Choose how you want to start. You can add the other role later using the same account.</p>
+
+            <div class="form-group">
+              <label>Choose your starting role <span class="req">*</span></label>
+              <div class="role-picker" role="radiogroup" aria-label="Choose your role">
+                <label class="role-card">
+                  <input type="radio" name="account_role" value="patient" required />
+                  <div class="role-icon"><i class="fa-solid fa-hand-holding-medical"></i></div>
+                  <div class="role-copy">
+                    <strong>Recipient</strong>
+                    <span>I need blood or medical support.</span>
+                  </div>
+                </label>
+                <label class="role-card">
+                  <input type="radio" name="account_role" value="donor" required />
+                  <div class="role-icon"><i class="fa-solid fa-droplet"></i></div>
+                  <div class="role-copy">
+                    <strong>Donor</strong>
+                    <span>I want to donate blood and help others.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-next" onclick="goToStep(2)">
+                Continue <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ===================== STEP 2: Personal Info ===================== -->
+          <div class="form-step hidden" id="step-2">
+            <h2 class="main-step-title">Create your account</h2>
+            <p class="main-step-subtitle">Step 2 of 4 - Personal information</p>
+
+            <h3 class="step-heading">Basic Details</h3>
+
+            <div class="form-row name-row">
+              <div class="form-group">
+                <label for="first_name">First Name <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-user input-icon"></i>
+                  <input type="text" id="first_name" name="first_name" placeholder="Jose" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="middle_name">Middle Name</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-user input-icon"></i>
+                  <input type="text" id="middle_name" name="middle_name" placeholder="Protasio" autocomplete="additional-name" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="last_name">Last Name <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-user input-icon"></i>
+                  <input type="text" id="last_name" name="last_name" placeholder="Rizal" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="email">Email <span class="req">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-envelope input-icon"></i>
+                <input type="email" id="email" name="email" placeholder="you@example.com" required
+                  autocomplete="email" aria-describedby="emailFeedback" />
+              </div>
+              <small id="emailFeedback" class="field-feedback" aria-live="polite"></small>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="phone">Phone Number <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-phone input-icon"></i>
+                  <input type="tel" id="phone" name="phone" placeholder="09XXXXXXXXX" inputmode="numeric"
+                    autocomplete="tel" pattern="09[0-9]{9}" maxlength="11" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="dob">Date of Birth <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-calendar input-icon"></i>
+                  <input type="date" id="dob" name="dob" min="1900-01-01" required />
+                </div>
+              </div>
+            </div>
+
+            <h3 class="step-heading">Address</h3>
+
+            <div class="form-group">
+              <label for="address">Barangay <span class="req">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-location-dot input-icon"></i>
+                <input type="text" id="address" name="address" placeholder="Barangay" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="city">City / Municipality <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-city input-icon"></i>
+                  <input type="text" id="city" name="city" placeholder="Quezon City" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="province">Province <span class="req">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-map-location-dot input-icon"></i>
+                  <input type="text" id="province" name="province" placeholder="Metro Manila" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-next" onclick="goToStep(3)">
+                Continue <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ===================== STEP 3: Medical Info ===================== -->
+          <div class="form-step hidden" id="step-3">
+            <h3 class="step-heading">Medical Information</h3>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gender">Gender <span class="req">*</span></label>
+                <div class="input-wrapper select-wrapper">
+                  <i class="fa-solid fa-venus-mars input-icon"></i>
+                  <select id="gender" name="gender" required>
+                    <option value="" disabled selected>Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other / Prefer not to say</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="blood_type">Blood Type <span class="req">*</span></label>
+                <div class="input-wrapper select-wrapper">
+                  <i class="fa-solid fa-droplet input-icon"></i>
+                  <select id="blood_type" name="blood_type" required>
+                    <option value="" disabled selected>Select blood type</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="medical_notes">Medical Notes <span class="optional">(optional)</span></label>
+              <div class="input-wrapper textarea-wrapper">
+                <i class="fa-solid fa-notes-medical input-icon textarea-icon"></i>
+                <textarea id="medical_notes" name="medical_notes" rows="3"
+                  placeholder="Any relevant medical conditions or allergies..."></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions two-btn">
+              <button type="button" class="btn-back" onclick="goToStep(2)">
+                <i class="fa-solid fa-arrow-left"></i> Back
+              </button>
+              <button type="button" class="btn-next" onclick="goToStep(4)">
+                Next <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ===================== STEP 4: Account Setup ===================== -->
+          <div class="form-step hidden" id="step-4">
+            <h3 class="step-heading">Account Setup</h3>
+
+            <div class="form-group">
+              <label for="username">Username <span class="req">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-at input-icon"></i>
+                <input type="text" id="username" name="username" placeholder="juandelacruz" required
+                  autocomplete="username" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password <span class="req">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input type="password" id="password" name="password" placeholder="••••••••••" required
+                  autocomplete="new-password" />
+                <button type="button" class="toggle-password" data-target="password">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+              <div class="password-strength" id="pw-strength">
+                <div class="strength-bar">
+                  <div class="strength-fill" id="strength-fill"></div>
+                </div>
+                <span id="strength-label"></span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="confirm_password">Confirm Password <span class="req">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-lock-open input-icon"></i>
+                <input type="password" id="confirm_password" name="confirm_password"
+                  placeholder="••••••••••" required autocomplete="new-password" />
+                <button type="button" class="toggle-password" data-target="confirm_password">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+              <span class="match-msg" id="match-msg"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label terms-label">
+                <input type="checkbox" name="terms" id="terms" required />
+                <span class="checkbox-custom"></span>
+                <span class="terms-text">
+                  I agree to the <a href="#" class="link-accent">Terms of Service</a> and
+                  <a href="#" class="link-accent">Privacy Policy</a>
+                </span>
+              </label>
+            </div>
+
+            <div class="form-actions two-btn">
+              <button type="button" class="btn-back" onclick="goToStep(3)">
+                <i class="fa-solid fa-arrow-left"></i> Back
+              </button>
+              <button type="submit" class="btn-primary">
+                <i class="fa-solid fa-user-plus"></i> Create Account
+              </button>
+            </div>
+          </div>
+
+        </form>
+
+        <div class="divider"><span>Already have an account?</span></div>
+        <div class="form-footer">
+          <a href="login.html" class="btn-outline">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In Instead
+          </a>
+        </div>
+
+      </div>
+
+      <p class="right-footer">&copy; 2025 BloodConnect &mdash; All rights reserved.</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js?v=20260824c"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    // Browsers may restore this page from their back-forward cache.
+    // Always make the form visible again when that happens.
+    window.addEventListener('pageshow', () => {
+      document.body.classList.remove('page-leave');
+    });
+
+    const homeLink = document.querySelector('.home-fab');
+    if (homeLink) {
+      homeLink.addEventListener('click', (event) => {
+        event.preventDefault();
+
+        const activeStep = document.querySelector('.form-step:not(.hidden)');
+        const currentStep = activeStep ? Number(activeStep.id.split('-')[1]) : 1;
+
+        if (currentStep > 1) {
+          goToStep(currentStep - 1);
+          return;
+        }
+
+        let previousPage = '';
+        try {
+          const referrerUrl = document.referrer ? new URL(document.referrer) : null;
+          const currentUrl = new URL(window.location.href);
+          const isDifferentLocalPage = referrerUrl
+            && referrerUrl.origin === currentUrl.origin
+            && referrerUrl.pathname !== currentUrl.pathname;
+          if (isDifferentLocalPage) previousPage = referrerUrl.href;
+        } catch (_) {
+          previousPage = '';
+        }
+
+        window.location.href = previousPage || homeLink.href;
+      });
+    }
+
+    function normalizePhoneNumber(phone) {
+      return /^09\d{9}$/.test(phone) ? phone : '';
+    }
+
+    function validatePhoneNumber(showMessage = true) {
+      const phoneInput = document.getElementById('phone');
+      const normalizedPhone = normalizePhoneNumber(phoneInput.value.trim());
+      const isValid = Boolean(normalizedPhone);
+
+      phoneInput.setCustomValidity(isValid ? '' : 'Enter exactly 11 digits and start with 09, like 09171234567.');
+
+      if (!isValid && showMessage) {
+        showAlert('Phone number must be exactly 11 digits and start with 09.', 'error');
+        phoneInput.reportValidity();
+        phoneInput.focus();
+      }
+
+      return isValid;
+    }
+
+    function validateEmailInput(showMessage = true) {
+      const emailInput = document.getElementById('email');
+      const emailFeedback = document.getElementById('emailFeedback');
+      const emailCheck = validateRegistrationEmail(emailInput.value);
+      emailInput.setCustomValidity(emailCheck.ok ? '' : emailCheck.message);
+
+      const hasEmailValue = emailInput.value.trim().length > 0;
+      emailInput.classList.toggle('is-invalid', hasEmailValue && !emailCheck.ok);
+      emailInput.setAttribute('aria-invalid', String(hasEmailValue && !emailCheck.ok));
+      emailFeedback.textContent = hasEmailValue && !emailCheck.ok
+        ? 'Enter a complete and valid email address.'
+        : '';
+      emailFeedback.classList.toggle('error', hasEmailValue && !emailCheck.ok);
+
+      if (!emailCheck.ok && showMessage) {
+        showAlert(emailCheck.message, 'error');
+        emailInput.reportValidity();
+        emailInput.focus();
+      }
+
+      return emailCheck.ok;
+    }
+
+    const dobInput = document.getElementById('dob');
+
+    function localDateInputValue(date = new Date()) {
+      const year = String(date.getFullYear()).padStart(4, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function trimExtraBirthYearDigits() {
+      const match = String(dobInput.value || '').match(/^(\d{5,})(-\d{2}-\d{2})$/);
+      if (match) dobInput.value = `${match[1].slice(0, 4)}${match[2]}`;
+    }
+
+    function validateDateOfBirth(showMessage = true) {
+      if (dobInput.validity.badInput) dobInput.value = '';
+      trimExtraBirthYearDigits();
+      const selectedRole = document.querySelector('input[name="account_role"]:checked')?.value;
+      const result = validateBirthDateValue(dobInput.value, {
+        minimumYear: 1900,
+        minimumAge: selectedRole === 'donor' ? 18 : 0
+      });
+      dobInput.setCustomValidity(result.ok ? '' : result.message);
+
+      if (!result.ok && showMessage) {
+        showAlert(result.message, 'error');
+        dobInput.reportValidity();
+        dobInput.focus();
+      }
+      return result.ok;
+    }
+
+    dobInput.max = localDateInputValue();
+    dobInput.addEventListener('input', () => validateDateOfBirth(false));
+    dobInput.addEventListener('change', () => validateDateOfBirth(false));
+
+    /* ---- Multi-step navigation ---- */
+    function validateStep(step) {
+      const stepFields = {
+        1: [
+          document.querySelector('input[name="account_role"]:checked')
+        ],
+        2: [
+          document.getElementById('first_name'),
+          document.getElementById('last_name'),
+          document.getElementById('email'),
+          document.getElementById('phone'),
+          document.getElementById('dob'),
+          document.getElementById('address'),
+          document.getElementById('city'),
+          document.getElementById('province')
+        ],
+        3: [
+          document.getElementById('gender'),
+          document.getElementById('blood_type')
+        ],
+        4: [
+          document.getElementById('username'),
+          document.getElementById('password'),
+          document.getElementById('confirm_password'),
+          document.getElementById('terms')
+        ]
+      };
+
+      const fields = stepFields[step] || [];
+      const invalidField = fields.find((field) => field && !field.checkValidity());
+
+      if (invalidField) {
+        const customSelect = invalidField.closest('.custom-select-wrapper');
+        if (customSelect) {
+          showAlert(`Please choose ${invalidField.name === 'blood_type' ? 'your blood type' : 'your gender'}.`, 'error');
+          customSelect.classList.add('invalid');
+          customSelect.querySelector('.custom-select-trigger')?.focus();
+          return false;
+        }
+
+        invalidField.reportValidity();
+        invalidField.focus();
+        return false;
+      }
+
+      if (step === 1) {
+        const roleChoice = document.querySelector('input[name="account_role"]:checked');
+        if (!roleChoice) {
+          showAlert('Please choose whether you are a donor or recipient.', 'error');
+          return false;
+        }
+      }
+
+      if (step === 2) {
+        if (!validateEmailInput()) return false;
+        if (!validatePhoneNumber()) return false;
+        if (!validateDateOfBirth()) return false;
+      }
+
+      if (step === 4) {
+        if (pwInput.value !== confirmInput.value) {
+          showAlert('Passwords do not match.', 'error');
+          confirmInput.focus();
+          return false;
+        }
+
+        const passwordCheck = validatePasswordPolicy(pwInput.value, {
+          email: document.getElementById('email').value.trim(),
+          username: document.getElementById('username').value.trim()
+        });
+
+        if (!passwordCheck.ok) {
+          showAlert(passwordCheck.message, 'error');
+          pwInput.focus();
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function goToStep(n) {
+      const activeStep = document.querySelector('.form-step:not(.hidden)');
+      const currentStep = activeStep ? Number(activeStep.id.split('-')[1]) : 1;
+
+      if (n > currentStep && !validateStep(currentStep)) {
+        return;
+      }
+
+      document.querySelectorAll('.form-step').forEach((el, i) => {
+        el.classList.toggle('hidden', i + 1 !== n);
+      });
+      document.querySelectorAll('.step').forEach((el, i) => {
+        el.classList.toggle('active', i + 1 <= n);
+        el.classList.toggle('completed', i + 1 < n);
+      });
+
+      document.querySelector('.form-card')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ---- Toggle password visibility ---- */
+    document.querySelectorAll('.toggle-password').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const icon = btn.querySelector('i');
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        icon.classList.toggle('fa-eye', !isPassword);
+        icon.classList.toggle('fa-eye-slash', isPassword);
+      });
+    });
+
+    /* ---- Password strength ---- */
+    const pwInput = document.getElementById('password');
+    const strengthFill = document.getElementById('strength-fill');
+    const strengthLabel = document.getElementById('strength-label');
+    const strengthColors = ['#E74C3C', '#E67E22', '#F1C40F', '#2ECC71'];
+    const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
+
+    pwInput.addEventListener('input', () => {
+      const v = pwInput.value;
+      let score = 0;
+      if (v.length >= 8) score++;
+      if (/[A-Z]/.test(v)) score++;
+      if (/[0-9]/.test(v)) score++;
+      if (/[^A-Za-z0-9]/.test(v)) score++;
+
+      const pct = score * 25;
+      strengthFill.style.width = pct + '%';
+      strengthFill.style.background = strengthColors[score - 1] || '#E5E7EB';
+      strengthLabel.textContent = v.length ? (strengthLabels[score - 1] || '') : '';
+      strengthLabel.style.color = strengthColors[score - 1] || 'inherit';
+    });
+
+    const phoneInput = document.getElementById('phone');
+    phoneInput.addEventListener('input', () => {
+      phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+      phoneInput.setCustomValidity('');
+    });
+
+    const emailInput = document.getElementById('email');
+    emailInput.addEventListener('input', () => {
+      validateEmailInput(false);
+    });
+    emailInput.addEventListener('blur', () => {
+      if (emailInput.value.trim()) validateEmailInput(false);
+    });
+
+    function closeCustomSelects(exceptWrapper = null) {
+      document.querySelectorAll('.custom-select-wrapper.open').forEach((wrapper) => {
+        if (wrapper !== exceptWrapper) {
+          wrapper.classList.remove('open', 'open-up');
+          wrapper.querySelector('.custom-select-options')?.style.removeProperty('--custom-select-max-height');
+          wrapper.querySelector('.custom-select-trigger')?.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    function positionCustomSelect(wrapper, trigger, optionsList) {
+      wrapper.classList.remove('open-up');
+      optionsList.style.removeProperty('--custom-select-max-height');
+
+      window.requestAnimationFrame(() => {
+        if (!wrapper.classList.contains('open')) return;
+
+        const triggerRect = trigger.getBoundingClientRect();
+        const viewportGap = 16;
+        const spaceBelow = window.innerHeight - triggerRect.bottom - viewportGap;
+        const spaceAbove = triggerRect.top - viewportGap;
+        const desiredHeight = Math.min(optionsList.scrollHeight, 288);
+        const openUp = spaceBelow < Math.min(desiredHeight, 220) && spaceAbove > spaceBelow;
+        const availableSpace = openUp ? spaceAbove : spaceBelow;
+        const maxHeight = Math.max(96, Math.min(288, availableSpace - 10));
+
+        wrapper.classList.toggle('open-up', openUp);
+        optionsList.style.setProperty('--custom-select-max-height', `${maxHeight}px`);
+
+        const selectedOption = optionsList.querySelector('.custom-select-option.selected');
+        if (selectedOption) selectedOption.scrollIntoView({ block: 'nearest' });
+        else optionsList.scrollTop = 0;
+      });
+    }
+
+    function initCustomSelects() {
+      document.querySelectorAll('.select-wrapper select').forEach((select) => {
+        const wrapper = select.closest('.select-wrapper');
+        const placeholder = select.querySelector('option[value=""]')?.textContent || 'Select option';
+        const trigger = document.createElement('button');
+        const valueText = document.createElement('span');
+        const optionsList = document.createElement('div');
+
+        wrapper.classList.add('custom-select-wrapper');
+        trigger.type = 'button';
+        trigger.className = 'custom-select-trigger';
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        valueText.className = 'custom-select-value is-placeholder';
+        valueText.textContent = placeholder;
+        trigger.appendChild(valueText);
+
+        optionsList.className = 'custom-select-options';
+        optionsList.setAttribute('role', 'listbox');
+
+        Array.from(select.options).forEach((option) => {
+          if (option.disabled || option.value === '') return;
+
+          const optionButton = document.createElement('button');
+          optionButton.type = 'button';
+          optionButton.className = 'custom-select-option';
+          optionButton.setAttribute('role', 'option');
+          optionButton.dataset.value = option.value;
+          optionButton.textContent = option.textContent;
+
+          optionButton.addEventListener('click', () => {
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            wrapper.classList.remove('open', 'invalid');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.focus();
+          });
+
+          optionsList.appendChild(optionButton);
+        });
+
+        function updateCustomSelect() {
+          const selectedOption = select.options[select.selectedIndex];
+          const hasValue = Boolean(select.value);
+
+          valueText.textContent = hasValue ? selectedOption.textContent : placeholder;
+          valueText.classList.toggle('is-placeholder', !hasValue);
+          wrapper.classList.remove('invalid');
+          wrapper.querySelectorAll('.custom-select-option').forEach((optionButton) => {
+            optionButton.classList.toggle('selected', optionButton.dataset.value === select.value);
+            optionButton.setAttribute('aria-selected', optionButton.dataset.value === select.value ? 'true' : 'false');
+          });
+        }
+
+        trigger.addEventListener('click', () => {
+          const willOpen = !wrapper.classList.contains('open');
+          closeCustomSelects(wrapper);
+          wrapper.classList.toggle('open', willOpen);
+          wrapper.classList.remove('open-up');
+          trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          if (willOpen) positionCustomSelect(wrapper, trigger, optionsList);
+        });
+
+        trigger.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+          event.preventDefault();
+          if (!wrapper.classList.contains('open')) {
+            closeCustomSelects(wrapper);
+            wrapper.classList.add('open');
+            trigger.setAttribute('aria-expanded', 'true');
+            positionCustomSelect(wrapper, trigger, optionsList);
+          }
+          const optionButtons = [...optionsList.querySelectorAll('.custom-select-option')];
+          const selectedIndex = optionButtons.findIndex((button) => button.classList.contains('selected'));
+          const targetIndex = event.key === 'ArrowUp'
+            ? (selectedIndex > 0 ? selectedIndex - 1 : optionButtons.length - 1)
+            : (selectedIndex >= 0 && selectedIndex < optionButtons.length - 1 ? selectedIndex + 1 : 0);
+          window.requestAnimationFrame(() => optionButtons[targetIndex]?.focus());
+        });
+
+        optionsList.addEventListener('keydown', (event) => {
+          const optionButtons = [...optionsList.querySelectorAll('.custom-select-option')];
+          const currentIndex = optionButtons.indexOf(document.activeElement);
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            wrapper.classList.remove('open', 'open-up');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.focus();
+          } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            const direction = event.key === 'ArrowDown' ? 1 : -1;
+            const nextIndex = (currentIndex + direction + optionButtons.length) % optionButtons.length;
+            optionButtons[nextIndex]?.focus();
+          }
+        });
+
+        select.addEventListener('change', updateCustomSelect);
+        wrapper.insertBefore(trigger, select.nextSibling);
+        wrapper.insertBefore(optionsList, trigger.nextSibling);
+        updateCustomSelect();
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.custom-select-wrapper')) {
+          closeCustomSelects();
+        }
+      });
+
+      window.addEventListener('resize', () => closeCustomSelects());
+    }
+
+    initCustomSelects();
+
+    /* ---- Confirm password match ---- */
+    const confirmInput = document.getElementById('confirm_password');
+    const matchMsg = document.getElementById('match-msg');
+
+    confirmInput.addEventListener('input', () => {
+      if (!confirmInput.value) { matchMsg.textContent = ''; return; }
+      const match = confirmInput.value === pwInput.value;
+      matchMsg.textContent = match ? 'OK Passwords match' : 'X Passwords do not match';
+      matchMsg.style.color = match ? '#2ECC71' : '#E74C3C';
+    });
+
+    /* ---- Role card selection highlight ---- */
+    document.querySelectorAll('.role-card input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+        radio.closest('.role-card').classList.add('selected');
+      });
+      if (radio.checked) radio.closest('.role-card').classList.add('selected');
+    });
+
+    /* ---- Alert helper ---- */
+    const alertBox = document.getElementById('alertBox');
+    let alertTimer = null;
+
+    function showAlert(message, type) {
+      alertBox.textContent = message;
+      alertBox.className = `toast-alert show ${type === 'error' ? 'error' : 'success'}`;
+
+      clearTimeout(alertTimer);
+      alertTimer = setTimeout(() => {
+        alertBox.classList.remove('show');
+      }, 5000);
+    }
+
+    /* ---- Handle Registration ---- */
+    document.querySelector('.register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const firstName = document.getElementById('first_name').value.trim();
+      const middleName = document.getElementById('middle_name').value.trim();
+      const lastName = document.getElementById('last_name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      let dob = document.getElementById('dob').value;
+      const address = document.getElementById('address').value.trim();
+      const city = document.getElementById('city').value.trim();
+      const province = document.getElementById('province').value.trim();
+      const gender = document.getElementById('gender').value;
+      const bloodType = document.getElementById('blood_type').value;
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPw = document.getElementById('confirm_password').value;
+      const medicalNotes = document.getElementById('medical_notes').value.trim();
+      const terms = document.getElementById('terms').checked;
+      const selectedRole = document.querySelector('input[name="account_role"]:checked')?.value || '';
+      const role = selectedRole === 'donor' ? 'donor' : 'patient';
+
+      // Validation
+      if (!selectedRole) {
+        showAlert('Please choose whether you are a donor or recipient.', 'error');
+        goToStep(1);
+        return;
+      }
+
+      if (!firstName || !lastName || !email || !phone || !dob || !address || !city || !province) {
+        showAlert('Please complete all personal information fields.', 'error');
+        goToStep(2);
+        return;
+      }
+      if (!validateEmailInput(false)) {
+        goToStep(2);
+        validateEmailInput();
+        return;
+      }
+      if (!validateDateOfBirth(false)) {
+        goToStep(2);
+        validateDateOfBirth();
+        return;
+      }
+      dob = dobInput.value;
+      const normalizedPhone = normalizePhoneNumber(phone);
+      if (!normalizedPhone) {
+        goToStep(2);
+        validatePhoneNumber();
+        return;
+      }
+      if (!gender || !bloodType) {
+        showAlert('Please complete all medical information fields.', 'error');
+        goToStep(3);
+        return;
+      }
+      if (!username || !password || !confirmPw) {
+        showAlert('Please complete all account setup fields.', 'error');
+        goToStep(4);
+        return;
+      }
+      const passwordCheck = validatePasswordPolicy(password, { email, username });
+      if (!passwordCheck.ok) {
+        showAlert(passwordCheck.message, 'error');
+        goToStep(4);
+        return;
+      }
+      if (password !== confirmPw) {
+        showAlert('Passwords do not match.', 'error');
+        goToStep(4);
+        return;
+      }
+      if (!terms) {
+        showAlert('You must agree to the Terms of Service.', 'error');
+        goToStep(4);
+        return;
+      }
+
+      const btn = e.target.querySelector('.btn-primary');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating account...';
+
+      try {
+        const { error } = await signUp({
+          firstName, middleName, lastName, email, phone: normalizedPhone, dob,
+          address: `${address}, ${city}, ${province}`,
+          gender, bloodType, username, password, medicalNotes,
+          role
+        });
+
+        if (error) {
+          showAlert(error.message || 'An unknown error occurred.', 'error');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Account';
+          return;
+        }
+
+        await clearAuthSession();
+
+        showAlert('Account created successfully! You can now sign in.', 'success');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Account';
+
+        setTimeout(() => {
+          window.location.href = 'login.html?registered=1';
+        }, 2500);
+
+      } catch (error) {
+        console.error('Registration error:', error);
+        showAlert('Could not connect to the server.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Account';
+      }
+    });
+  </script>
+  <script src="pull-to-refresh.js?v=20260824a" defer></script>
+</body>
+
+</html>
