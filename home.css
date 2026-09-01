@@ -124,6 +124,26 @@ body::after {
 }
 
 @media (max-width: 900px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: auto !important;
+    touch-action: pan-y;
+  }
+
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  main {
+    min-height: 100svh;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 900px) {
   .glass-rect-left-wide {
     left: -72px;
     width: 96px;

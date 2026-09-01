@@ -1,0 +1,6 @@
+/*
+ * Keep the React CSS-module request separate from the classic <link> request
+ * used by homie.html and learn_more.html. This prevents Vite's development
+ * module response for home.css from being reused as a stylesheet after Back.
+ */
+@import '../home.css';
