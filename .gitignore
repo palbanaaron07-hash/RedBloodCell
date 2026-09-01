@@ -1,2 +1,16 @@
 # Ignore temp working-directory marker files
 /tmpclaude-*-cwd
+
+# Local dependencies and build output
+node_modules/
+dist/
+
+# Environment files and local logs
+.env
+.env.*
+!.env.example
+*.log
+
+# Supabase CLI working files
+supabase/.temp/
+tools/*.tar.gz
