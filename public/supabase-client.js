@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    BloodConnect - Supabase Client Helpers
    ============================================================ */
 
@@ -1602,6 +1602,137 @@ async function listMyBloodRequests() {
   });
 
   return { data: normalized, error: null };
+}
+
+async function listCommunityBloodRequests() {
+  if (!SUPABASE_CONFIGURED) return configError();
+
+  try {
+    let requestsData = [];
+    
+    // First try query with patient foreign key join
+    const { data, error } = await bloodBank()
+      .from('blood_request')
+      .select('*, patient(first_name, middle_name, last_name, hospital_name, address, blood_type_needed, contact_number)')
+      .order('request_date', { ascending: false })
+      .limit(50);
+
+    if (!error && Array.isArray(data)) {
+      requestsData = data;
+    } else {
+      // Fallback query without relationship join
+      const fallback = await bloodBank()
+        .from('blood_request')
+        .select('*')
+        .order('request_date', { ascending: false })
+        .limit(50);
+      if (!fallback.error && Array.isArray(fallback.data)) {
+        requestsData = fallback.data;
+      }
+    }
+
+    const normalized = requestsData.map((row, idx) => {
+      const patient = row.patient || {};
+      const rawStatus = String(row.status || '').trim().toLowerCase();
+      let normalizedStatus = rawStatus || 'pending';
+      if (['fulfilled', 'complete', 'completed', 'done'].includes(rawStatus)) {
+        normalizedStatus = 'fulfilled';
+      } else if (['processing', 'in_progress', 'in progress', 'ongoing'].includes(rawStatus)) {
+        normalizedStatus = 'processing';
+      } else if (['approved'].includes(rawStatus)) {
+        normalizedStatus = 'approved';
+      } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
+        normalizedStatus = 'needs_clarification';
+      } else if (['cancelled', 'canceled', 'rejected', 'declined'].includes(rawStatus)) {
+        normalizedStatus = 'rejected';
+      } else {
+        normalizedStatus = 'pending';
+      }
+
+      const patientName = [patient.first_name, patient.last_name].filter(Boolean).join(' ') ||
+        row.patient_name ||
+        row.requester_name ||
+        `Community Recipient #${row.patient_id || row.request_id || (idx + 1)}`;
+
+      const hospital = row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
+      const urgency = String(row.urgency_level || row.urgency || 'normal').toLowerCase();
+      const rawDate = row.request_date || row.created_at || new Date().toISOString();
+
+      return {
+        id: row.request_id || row.id || idx + 1,
+        patient_id: row.patient_id || null,
+        requester_name: patientName,
+        patient_phone: patient.contact_number || row.contact_number || null,
+        blood_type: normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+'),
+        units_needed: Number(row.quantity || row.units_needed || 1),
+        urgency: urgency,
+        status: normalizedStatus,
+        status_raw: row.status || 'pending',
+        created_at: rawDate,
+        hospital: hospital,
+        donation_point: hospital,
+        notes: row.note || row.notes || row.description || 'Blood transfusion support requested for hospitalized patient.',
+        admin_note: row.admin_note || row.admin_message || row.admin_comment || ''
+      };
+    });
+
+    // Provide default community demo requests if table is empty, so donors immediately see realistic community needs
+    if (normalized.length === 0) {
+      const demoCommunity = [
+        {
+          id: 'demo-101',
+          patient_id: 101,
+          requester_name: 'Tahsin Rahman',
+          patient_phone: '09171234567',
+          blood_type: 'A+',
+          units_needed: 2,
+          urgency: 'urgent',
+          status: 'pending',
+          status_raw: 'pending',
+          created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
+          hospital: 'Philippine General Hospital, Manila',
+          donation_point: 'Science Lab & Blood Center, Manila',
+          notes: 'Accident trauma patient, emergency orthopedic surgery scheduled. Anemia history. Age 45.'
+        },
+        {
+          id: 'demo-102',
+          patient_id: 102,
+          requester_name: 'Maria Elena Santos',
+          patient_phone: '09189876543',
+          blood_type: 'O+',
+          units_needed: 3,
+          urgency: 'urgent',
+          status: 'approved',
+          status_raw: 'approved',
+          created_at: new Date(Date.now() - 3600000 * 7).toISOString(),
+          hospital: 'St. Luke\'s Medical Center, QC',
+          donation_point: 'St. Luke\'s Blood Bank Pavilion, QC',
+          notes: 'Dengue fever patient with critically dropping platelet count. Seeking volunteer whole blood donors.'
+        },
+        {
+          id: 'demo-103',
+          patient_id: 103,
+          requester_name: 'David Christopher Cruz',
+          patient_phone: '09225551234',
+          blood_type: 'B+',
+          units_needed: 1,
+          urgency: 'normal',
+          status: 'pending',
+          status_raw: 'pending',
+          created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+          hospital: 'San Lazaro Hospital, Manila',
+          donation_point: 'San Lazaro Blood Donor Ward',
+          notes: 'Dialysis patient requiring scheduled routine red cell transfusion.'
+        }
+      ];
+      return { data: demoCommunity, error: null };
+    }
+
+    return { data: normalized, error: null };
+  } catch (err) {
+    console.warn('Community requests fetch error:', err);
+    return { data: [], error: err };
+  }
 }
 
 async function createBloodRequest(payload) {

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -284,7 +284,7 @@
       </div>
       <!-- end section-dashboard -->
 
-      <!-- ===== SECTION: MY REQUESTS ===== -->
+      <!-- ===== SECTION: BLOOD REQUESTS ===== -->
       <div class="page-section" id="section-requests">
 
         <button type="button" class="section-back-btn" onclick="navigateToSection('dashboard')"
@@ -293,40 +293,80 @@
           <span>Back</span>
         </button>
 
-        <div class="section-heading requests-section-heading">
-          <div>
-            <h2>My Blood Requests</h2>
-            <p>View and track all your blood requests</p>
+        <!-- Blood Requests Top Header -->
+        <div class="blood-requests-header">
+          <div class="blood-requests-title-wrap">
+            <h2>Blood Requests</h2>
+            <p class="blood-requests-subtitle">Browse urgent blood needs from community recipients or manage your own</p>
           </div>
-          <button class="btn-primary" onclick="openRequestModal()"><i class="fa-solid fa-file-medical"></i> New
-            Request</button>
-        </div>
-
-
-
-        <div class="card">
-          <div class="card-head">
-            <h3><i class="fa-solid fa-hand-holding-medical"></i> All Requests</h3>
-            <div class="card-head-actions">
-              <div class="filter-dropdown" id="filterDropdown">
-                <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                  <span id="selectedFilterText">All (0)</span>
-                  <i class="fa-solid fa-chevron-down"></i>
-                </button>
-                <div class="filter-menu" id="filterMenu" role="listbox">
-                  <button class="filter-item active" data-request-filter="all" role="option">All (<span id="requestsAllCountMenu">0</span>)</button>
-                  <button class="filter-item" data-request-filter="pending" role="option">Pending (<span id="requestsPendingCountMenu">0</span>)</button>
-                  <button class="filter-item" data-request-filter="approved" role="option">Approved (<span id="requestsApprovedCountMenu">0</span>)</button>
-                  <button class="filter-item" data-request-filter="needs_clarification" role="option">Needs Clarification (<span id="requestsClarificationCountMenu">0</span>)</button>
-                  <button class="filter-item" data-request-filter="rejected" role="option">Rejected (<span id="requestsRejectedCountMenu">0</span>)</button>
-                  <button class="filter-item" data-request-filter="fulfilled" role="option">Fulfilled (<span id="requestsFulfilledCountMenu">0</span>)</button>
-                </div>
+          <div class="blood-requests-header-actions">
+            <div class="filter-dropdown" id="filterDropdown">
+              <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" title="Filter requests">
+                <i class="fa-solid fa-sliders"></i>
+                <span id="selectedFilterText">All</span>
+              </button>
+              <div class="filter-menu" id="filterMenu" role="listbox">
+                <button class="filter-item active" data-request-filter="all" role="option"><i class="fa-solid fa-layer-group"></i> All Requests</button>
+                <button class="filter-item" data-request-filter="urgent" role="option"><i class="fa-solid fa-triangle-exclamation"></i> Urgent Only</button>
+                <button class="filter-item" data-request-filter="A+" role="option"><i class="fa-solid fa-droplet"></i> A+ Needed</button>
+                <button class="filter-item" data-request-filter="A-" role="option"><i class="fa-solid fa-droplet"></i> A- Needed</button>
+                <button class="filter-item" data-request-filter="B+" role="option"><i class="fa-solid fa-droplet"></i> B+ Needed</button>
+                <button class="filter-item" data-request-filter="B-" role="option"><i class="fa-solid fa-droplet"></i> B- Needed</button>
+                <button class="filter-item" data-request-filter="AB+" role="option"><i class="fa-solid fa-droplet"></i> AB+ Needed</button>
+                <button class="filter-item" data-request-filter="AB-" role="option"><i class="fa-solid fa-droplet"></i> AB- Needed</button>
+                <button class="filter-item" data-request-filter="O+" role="option"><i class="fa-solid fa-droplet"></i> O+ Needed</button>
+                <button class="filter-item" data-request-filter="O-" role="option"><i class="fa-solid fa-droplet"></i> O- Needed</button>
               </div>
             </div>
           </div>
-          <div class="card-body">
-            <div class="request-list" id="requestList">
-              <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
+        </div>
+
+        <!-- Top Quick Create Request Banner (matching layout) -->
+        <div class="blood-request-create-bar">
+          <div class="quick-user-avatar" id="requestsQuickAvatar">
+            <span id="requestsQuickInitial">U</span>
+          </div>
+          <span class="quick-prompt-text">Blood needed?</span>
+          <button type="button" class="btn-quick-create-request" onclick="openRequestModal()">
+            Create Request
+          </button>
+        </div>
+
+        <!-- Tab Switcher: Community Feed vs My Requests -->
+        <div class="requests-view-tabs" role="tablist">
+          <button type="button" class="req-tab-btn active" id="tabCommunityRequests" onclick="switchRequestsTab('community')" role="tab" aria-selected="true">
+            <i class="fa-solid fa-users"></i> Community Requests (<span id="communityCount">0</span>)
+          </button>
+          <button type="button" class="req-tab-btn" id="tabMyRequests" onclick="switchRequestsTab('my')" role="tab" aria-selected="false">
+            <i class="fa-solid fa-file-waveform"></i> My Requests (<span id="myRequestsCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Community Requests Feed (matching the screenshot layout) -->
+        <div class="requests-tab-content active" id="communityRequestsTabContent">
+          <div class="community-request-feed" id="communityRequestFeed">
+            <p style="text-align:center;color:var(--slate-400);padding:32px 0;"><i class="fa-solid fa-spinner fa-spin"></i> Loading community blood requests...</p>
+          </div>
+        </div>
+
+        <!-- My Requests Tab Content -->
+        <div class="requests-tab-content" id="myRequestsTabContent" hidden>
+          <div class="card my-requests-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-hand-holding-medical"></i> My Submitted Requests</h3>
+              <div class="my-req-filter-pills" id="myReqFilterPills">
+                <button class="my-pill active" data-my-filter="all">All (<span id="requestsAllCountMenu">0</span>)</button>
+                <button class="my-pill" data-my-filter="pending">Pending (<span id="requestsPendingCountMenu">0</span>)</button>
+                <button class="my-pill" data-my-filter="approved">Approved (<span id="requestsApprovedCountMenu">0</span>)</button>
+                <button class="my-pill" data-my-filter="needs_clarification">Clarification (<span id="requestsClarificationCountMenu">0</span>)</button>
+                <button class="my-pill" data-my-filter="rejected">Rejected (<span id="requestsRejectedCountMenu">0</span>)</button>
+                <button class="my-pill" data-my-filter="fulfilled">Fulfilled (<span id="requestsFulfilledCountMenu">0</span>)</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="request-list" id="requestList">
+                <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
+              </div>
             </div>
           </div>
         </div>
@@ -622,10 +662,14 @@
                 <option value="critical">Critical</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Donation Point / Hospital</label>
+              <input type="text" name="hospital" placeholder="e.g. Philippine General Hospital, Manila" />
+            </div>
           </div>
           <div class="form-group">
-            <label>Additional Notes</label>
-            <textarea name="notes" placeholder="Any additional information..."></textarea>
+            <label>Description / Reason for Request <span class="req">*</span></label>
+            <textarea name="notes" placeholder="e.g. Accident patient, surgery scheduled. Anemia issue. Age 45" required></textarea>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
@@ -633,6 +677,25 @@
           </div>
           <div id="requestMsg" class="form-msg"></div>
         </form>
+      </div>
+    </div>
+
+    <!-- ===== COMMUNITY REQUEST DETAIL MODAL ===== -->
+    <div class="modal-overlay" id="communityRequestDetailModal">
+      <div class="modal community-detail-modal-box">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-hand-holding-heart"></i> Blood Request Details</h3>
+          <button class="modal-close" onclick="closeCommunityRequestDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body community-detail-modal-body" id="communityRequestDetailBody">
+          <!-- Dynamically injected -->
+        </div>
+        <div class="modal-footer community-detail-modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeCommunityRequestDetailModal()">Close</button>
+          <button type="button" class="btn-submit btn-pledge-help" id="btnPledgeHelp" onclick="handlePledgeHelp()">
+            <i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation
+          </button>
+        </div>
       </div>
     </div>
 

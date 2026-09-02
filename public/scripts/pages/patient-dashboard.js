@@ -1252,6 +1252,8 @@
       if (headerInitials) headerInitials.textContent = initials.toUpperCase();
       const sidebarInitials = document.getElementById('sidebarInitials');
       if (sidebarInitials) sidebarInitials.textContent = initials.toUpperCase();
+      const requestsQuickInitial = document.getElementById('requestsQuickInitial');
+      if (requestsQuickInitial) requestsQuickInitial.textContent = (initials || 'U').toUpperCase();
 
       const avatarUrl = String(profile.avatar_url || getSavedProfilePhoto(profile)).trim();
       currentProfile.avatar_url = avatarUrl;
@@ -1259,6 +1261,20 @@
         headerInitials.classList.toggle('has-photo', Boolean(avatarUrl));
         headerInitials.style.backgroundImage = avatarUrl ? `url("${avatarUrl}")` : '';
         if (!avatarUrl) headerInitials.textContent = initials.toUpperCase();
+      }
+      if (requestsQuickInitial) {
+        const quickAvatarBox = document.getElementById('requestsQuickAvatar');
+        if (quickAvatarBox) {
+          if (avatarUrl) {
+            quickAvatarBox.style.backgroundImage = `url("${avatarUrl}")`;
+            quickAvatarBox.style.backgroundSize = 'cover';
+            quickAvatarBox.style.backgroundPosition = 'center';
+            requestsQuickInitial.textContent = '';
+          } else {
+            quickAvatarBox.style.backgroundImage = '';
+            requestsQuickInitial.textContent = (initials || 'U').toUpperCase();
+          }
+        }
       }
       const profileAvatar = document.getElementById('profileInitials');
       if (profileAvatar) {
@@ -1529,7 +1545,17 @@
       await signOut();
     });
 
-    // ---- Blood Requests ----
+    // ---- Blood Requests & Community Feed State ----
+    let allCommunityRequests = [];
+    let activeRequestsTab = 'community';
+    let activeCommunityFilter = 'all';
+    let activeMyFilter = 'all';
+    let selectedCommunityRequest = null;
+    let ignoredCommunityIds = new Set();
+    try {
+      ignoredCommunityIds = new Set(JSON.parse(sessionStorage.getItem('veindrop_ignored_requests') || '[]'));
+    } catch (_) {}
+
     function openRequestModal() {
       document.getElementById('requestModal').classList.add('active');
     }
@@ -1543,6 +1569,239 @@
       if (currentBloodType) {
         document.getElementById('requestBloodType').value = currentBloodType;
       }
+    }
+
+    function switchRequestsTab(tab) {
+      activeRequestsTab = tab;
+      const tabCommunityBtn = document.getElementById('tabCommunityRequests');
+      const tabMyBtn = document.getElementById('tabMyRequests');
+      const communityContent = document.getElementById('communityRequestsTabContent');
+      const myContent = document.getElementById('myRequestsTabContent');
+
+      if (tab === 'community') {
+        tabCommunityBtn?.classList.add('active');
+        tabCommunityBtn?.setAttribute('aria-selected', 'true');
+        tabMyBtn?.classList.remove('active');
+        tabMyBtn?.setAttribute('aria-selected', 'false');
+        if (communityContent) { communityContent.hidden = false; communityContent.classList.add('active'); }
+        if (myContent) { myContent.hidden = true; myContent.classList.remove('active'); }
+        applyCommunityFilter();
+      } else {
+        tabMyBtn?.classList.add('active');
+        tabMyBtn?.setAttribute('aria-selected', 'true');
+        tabCommunityBtn?.classList.remove('active');
+        tabCommunityBtn?.setAttribute('aria-selected', 'false');
+        if (myContent) { myContent.hidden = false; myContent.classList.add('active'); }
+        if (communityContent) { communityContent.hidden = true; communityContent.classList.remove('active'); }
+        applyRequestFilter();
+      }
+    }
+
+    function formatTimeAgo(isoString) {
+      if (!isoString) return 'Recently';
+      const date = new Date(isoString);
+      if (Number.isNaN(date.getTime())) return 'Recently';
+      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `${timeStr}, ${dateStr}`;
+    }
+
+    function renderCommunityCard(r) {
+      const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
+      const requesterName = escapeHtml(r.requester_name || 'Recipient Requester');
+      const initials = (requesterName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('') || 'R').toUpperCase();
+      const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
+      const units = Number(r.units_needed || 1);
+      const donationPoint = escapeHtml(r.donation_point || r.hospital || 'General Hospital Blood Bank');
+      const postedTime = formatTimeAgo(r.created_at);
+      const description = escapeHtml(r.notes || 'Patient requires urgent blood transfusion support.');
+      const reqId = r.id;
+
+      return `
+        <article class="feed-request-card" id="feedCard-${reqId}" data-request-id="${reqId}">
+          <div class="feed-card-header">
+            <div class="feed-requester-info">
+              <div class="feed-requester-avatar">
+                <span>${initials}</span>
+              </div>
+              <div>
+                <h4 class="feed-requester-name">${requesterName}</h4>
+                <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Posted on ${postedTime}</span>
+              </div>
+            </div>
+            <button type="button" class="feed-options-btn" onclick="openCommunityRequestDetails('${reqId}')" aria-label="Request details" title="View options">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+          </div>
+
+          <div class="feed-inner-box">
+            <div class="feed-requirement-row">
+              <div class="feed-blood-badge-wrap">
+                <div class="feed-blood-droplet" aria-hidden="true">
+                  <i class="fa-solid fa-droplet"></i>
+                </div>
+                <div>
+                  <span class="feed-looking-label">Looking for</span>
+                  <h3 class="feed-blood-title">${units} bag${units > 1 ? 's' : ''} ${bloodTypeStr} blood</h3>
+                </div>
+              </div>
+              ${isUrgent ? `<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>` : ''}
+            </div>
+
+            <div class="feed-info-grid">
+              <div class="feed-info-col">
+                <span class="feed-info-label"><i class="fa-solid fa-location-dot"></i> Donation point</span>
+                <p class="feed-info-val">${donationPoint}</p>
+              </div>
+              <div class="feed-info-col">
+                <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time & Date</span>
+                <p class="feed-info-val">${isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'}</p>
+              </div>
+            </div>
+
+            <div class="feed-desc-section">
+              <span class="feed-desc-label">Short Description of the Problem</span>
+              <p class="feed-desc-text">${description}</p>
+            </div>
+          </div>
+
+          <div class="feed-actions-row">
+            <button type="button" class="btn-feed-ignore" onclick="ignoreFeedCard('${reqId}')">Ignore</button>
+            <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">See Details</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function ignoreFeedCard(reqId) {
+      const card = document.getElementById(`feedCard-${reqId}`);
+      if (card) {
+        card.style.transition = 'all 0.3s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95) translateY(10px)';
+        setTimeout(() => {
+          ignoredCommunityIds.add(String(reqId));
+          try {
+            sessionStorage.setItem('veindrop_ignored_requests', JSON.stringify(Array.from(ignoredCommunityIds)));
+          } catch (_) {}
+          applyCommunityFilter();
+        }, 300);
+      }
+    }
+
+    function openCommunityRequestDetails(reqId) {
+      const req = allCommunityRequests.find(r => String(r.id) === String(reqId));
+      if (!req) return;
+      selectedCommunityRequest = req;
+
+      const modal = document.getElementById('communityRequestDetailModal');
+      const body = document.getElementById('communityRequestDetailBody');
+      const isUrgent = String(req.urgency || '').toLowerCase() === 'urgent' || String(req.urgency || '').toLowerCase() === 'critical';
+      const requesterName = escapeHtml(req.requester_name || 'Community Recipient');
+      const bloodType = escapeHtml(req.blood_type || 'O+');
+      const units = Number(req.units_needed || 1);
+      const hospital = escapeHtml(req.donation_point || req.hospital || 'Blood Bank Center');
+      const description = escapeHtml(req.notes || 'Emergency blood transfusion required.');
+      const contact = escapeHtml(req.patient_phone || 'Available via Hospital Blood Coordinator');
+
+      body.innerHTML = `
+        <div class="community-detail-info-card">
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-solid fa-user"></i> Requester</span>
+            <span class="val">${requesterName}</span>
+          </div>
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-solid fa-droplet"></i> Blood Needed</span>
+            <span class="val" style="color:var(--accent); font-size:1.1rem;">${units} Bag${units > 1 ? 's' : ''} (${bloodType})</span>
+          </div>
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-solid fa-shield-heart"></i> Urgency</span>
+            <span class="val">${isUrgent ? '<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>' : 'Standard Routine'}</span>
+          </div>
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-solid fa-hospital"></i> Donation Point</span>
+            <span class="val">${hospital}</span>
+          </div>
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-solid fa-phone"></i> Contact</span>
+            <span class="val">${contact}</span>
+          </div>
+        </div>
+        <div style="margin-top: 12px;">
+          <h4 style="font-size:0.88rem; color:#7a6064; margin-bottom:4px; font-weight:700;">Reason / Problem Description:</h4>
+          <p style="font-size:0.92rem; line-height:1.5; color:#2d1b1e; background:#fbf5f5; padding:12px; border-radius:10px; border:1px solid #f0dedf;">
+            ${description}
+          </p>
+        </div>
+        <div style="margin-top: 14px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; color: #166534; font-size: 0.86rem; display: flex; gap: 8px; align-items: flex-start;">
+          <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
+          <span>As a registered blood donor, your donation can directly save this recipient's life. Click respond below to pledge your support.</span>
+        </div>
+      `;
+
+      modal?.classList.add('active');
+    }
+
+    function closeCommunityRequestDetailModal() {
+      document.getElementById('communityRequestDetailModal')?.classList.remove('active');
+      selectedCommunityRequest = null;
+    }
+
+    function handlePledgeHelp() {
+      if (!selectedCommunityRequest) return;
+      closeCommunityRequestDetailModal();
+
+      if (!currentProfile?.has_donor_profile) {
+        alert(`Thank you for wanting to help ${selectedCommunityRequest.requester_name}! Please complete your donor registration to coordinate this blood donation.`);
+        navigateToSection('donor');
+        return;
+      }
+
+      alert(`Thank you for pledging to donate blood for ${selectedCommunityRequest.requester_name}! The blood bank coordinator at ${selectedCommunityRequest.donation_point || 'the hospital'} will be alerted with your donor availability.`);
+    }
+
+    function applyCommunityFilter() {
+      const feed = document.getElementById('communityRequestFeed');
+      if (!feed) return;
+
+      const visible = allCommunityRequests.filter(r => !ignoredCommunityIds.has(String(r.id)));
+      const filtered = visible.filter(r => {
+        if (activeCommunityFilter === 'urgent') {
+          return String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
+        }
+        if (activeCommunityFilter !== 'all') {
+          return normalizeBloodType(r.blood_type) === normalizeBloodType(activeCommunityFilter);
+        }
+        return true;
+      });
+
+      const countEl = document.getElementById('communityCount');
+      if (countEl) countEl.textContent = visible.length;
+
+      if (!filtered.length) {
+        feed.innerHTML = `
+          <div style="text-align:center; padding:48px 16px; background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,0.06);">
+            <i class="fa-solid fa-heart-circle-check" style="font-size:2.8rem; color:#800000; opacity:0.3; margin-bottom:12px;"></i>
+            <h3 style="font-size:1.1rem; color:var(--slate-800); margin-bottom:6px;">No requests found</h3>
+            <p style="color:var(--slate-500); font-size:0.88rem; max-width:320px; margin:0 auto;">There are no active community requests matching this filter right now.</p>
+          </div>
+        `;
+        return;
+      }
+
+      feed.innerHTML = filtered.map(renderCommunityCard).join('');
+    }
+
+    async function loadCommunityRequests() {
+      try {
+        if (typeof listCommunityBloodRequests === 'function') {
+          const { data } = await listCommunityBloodRequests();
+          allCommunityRequests = Array.isArray(data) ? data : [];
+        }
+      } catch (err) {
+        console.warn('Failed to load community requests:', err);
+      }
+      applyCommunityFilter();
     }
 
     function renderRequestCard(r) {
@@ -1579,29 +1838,33 @@
       const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No requests for this filter yet.</p>';
 
       const filtered = (allRequests || []).filter((r) => {
-        if (activeRequestFilter === 'pending') {
+        if (activeMyFilter === 'pending') {
           return r.status === 'pending' || r.status === 'processing';
         }
-        if (activeRequestFilter === 'approved') {
+        if (activeMyFilter === 'approved') {
           return r.status === 'approved';
         }
-        if (activeRequestFilter === 'needs_clarification') {
+        if (activeMyFilter === 'needs_clarification') {
           return r.status === 'needs_clarification';
         }
-        if (activeRequestFilter === 'rejected') {
+        if (activeMyFilter === 'rejected') {
           return r.status === 'rejected';
         }
-        if (activeRequestFilter === 'fulfilled') {
+        if (activeMyFilter === 'fulfilled') {
           return r.status === 'fulfilled';
         }
         return true;
       });
 
-      fullList.innerHTML = filtered.length ? filtered.map(renderRequestCard).join('') : emptyMsg;
+      if (fullList) fullList.innerHTML = filtered.length ? filtered.map(renderRequestCard).join('') : emptyMsg;
     }
 
     async function loadRequests() {
-      const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No blood requests yet. Go to My Requests to create one.</p>';
+      const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No blood requests yet. Click Create Request above to submit one.</p>';
+      
+      // Load community feed as well
+      loadCommunityRequests();
+
       try {
         const { data: requests, error } = await listMyBloodRequests();
         const fullList = document.getElementById('requestList');
@@ -1616,19 +1879,13 @@
           if (fullList) fullList.innerHTML = emptyMsg;
           if (dashList) dashList.innerHTML = emptyMsg;
           const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-          ['statTotalRequests', 'statTotalRequests2', 'statFulfilled', 'statFulfilled2', 'statPending', 'statPending2', 'requestBadge'].forEach(id => setCount(id, '0'));
+          ['statTotalRequests', 'statTotalRequests2', 'statFulfilled', 'statFulfilled2', 'statPending', 'statPending2', 'requestBadge', 'myRequestsCount'].forEach(id => setCount(id, '0'));
           setCount('requestsAllCountMenu', '0');
           setCount('requestsPendingCountMenu', '0');
           setCount('requestsApprovedCountMenu', '0');
           setCount('requestsClarificationCountMenu', '0');
           setCount('requestsRejectedCountMenu', '0');
           setCount('requestsFulfilledCountMenu', '0');
-
-          const activeItem = document.querySelector('.filter-item.active');
-          const triggerText = document.getElementById('selectedFilterText');
-          if (activeItem && triggerText) {
-            triggerText.textContent = activeItem.textContent;
-          }
           return;
         }
 
@@ -1640,7 +1897,7 @@
         const clarification = requests.filter(r => r.status === 'needs_clarification').length;
         const rejected = requests.filter(r => r.status === 'rejected').length;
 
-        // Update stats on both dashboard and requests section
+        // Update stats on dashboard and requests section
         ['statTotalRequests', 'statTotalRequests2'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.textContent = requests.length;
@@ -1653,21 +1910,16 @@
           const el = document.getElementById(id);
           if (el) el.textContent = pending;
         });
+        
         // Update filter menu counts (null-safe)
         const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         setCount('requestsAllCountMenu', requests.length);
+        setCount('myRequestsCount', requests.length);
         setCount('requestsPendingCountMenu', pending);
         setCount('requestsApprovedCountMenu', approved);
         setCount('requestsClarificationCountMenu', clarification);
         setCount('requestsRejectedCountMenu', rejected);
         setCount('requestsFulfilledCountMenu', fulfilled);
-
-        // Sync trigger button text with the currently active filter item
-        const activeItem = document.querySelector('.filter-item.active');
-        const triggerText = document.getElementById('selectedFilterText');
-        if (activeItem && triggerText) {
-          triggerText.textContent = activeItem.textContent;
-        }
 
         const badge = document.getElementById('requestBadge');
         if (badge) badge.textContent = requests.length;
@@ -1676,32 +1928,34 @@
         applyRequestFilter();
 
         // Recent 3 on dashboard
-        dashList.innerHTML = requests.slice(0, 3).map(renderRequestCard).join('');
+        if (dashList) dashList.innerHTML = requests.slice(0, 3).map(renderRequestCard).join('');
       } catch (err) {
         console.error('Failed to load requests:', err);
         const readable = err?.message ? `Failed to load requests: ${err.message}` : 'Failed to load requests. Please try again.';
-        document.getElementById('requestList').innerHTML =
-          `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
-        document.getElementById('dashboardRequestList').innerHTML =
-          `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
+        const fullList = document.getElementById('requestList');
+        const dashList = document.getElementById('dashboardRequestList');
+        if (fullList) fullList.innerHTML = `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
+        if (dashList) dashList.innerHTML = `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
       }
     }
 
-    // Filter dropdown toggle and option selection
+    // Filter dropdown toggle and option selection for Community Blood Requests
     const filterDropdown = document.getElementById('filterDropdown');
     const filterTrigger = document.getElementById('filterTrigger');
 
-    filterTrigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = filterDropdown.classList.contains('open');
-      filterDropdown.classList.toggle('open', !isOpen);
-      filterTrigger.setAttribute('aria-expanded', !isOpen);
-    });
+    if (filterTrigger) {
+      filterTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = filterDropdown.classList.contains('open');
+        filterDropdown.classList.toggle('open', !isOpen);
+        filterTrigger.setAttribute('aria-expanded', !isOpen);
+      });
+    }
 
     document.addEventListener('click', (e) => {
       if (filterDropdown && !filterDropdown.contains(e.target)) {
         filterDropdown.classList.remove('open');
-        filterTrigger.setAttribute('aria-expanded', 'false');
+        filterTrigger?.setAttribute('aria-expanded', 'false');
       }
     });
 
@@ -1710,16 +1964,36 @@
         document.querySelectorAll('.filter-item').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         
-        activeRequestFilter = btn.getAttribute('data-request-filter') || 'all';
-        applyRequestFilter();
+        activeCommunityFilter = btn.getAttribute('data-request-filter') || 'all';
+        applyCommunityFilter();
 
         // Sync trigger text
-        document.getElementById('selectedFilterText').innerHTML = btn.innerHTML;
+        const triggerText = document.getElementById('selectedFilterText');
+        if (triggerText) triggerText.textContent = btn.textContent.trim();
 
-        filterDropdown.classList.remove('open');
-        filterTrigger.setAttribute('aria-expanded', 'false');
+        filterDropdown?.classList.remove('open');
+        filterTrigger?.setAttribute('aria-expanded', 'false');
       });
     });
+
+    // My Requests Filter Pills
+    document.querySelectorAll('.my-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.my-pill').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeMyFilter = btn.getAttribute('data-my-filter') || 'all';
+        applyRequestFilter();
+      });
+    });
+
+    // Expose functions globally for inline HTML handlers
+    window.switchRequestsTab = switchRequestsTab;
+    window.ignoreFeedCard = ignoreFeedCard;
+    window.openCommunityRequestDetails = openCommunityRequestDetails;
+    window.closeCommunityRequestDetailModal = closeCommunityRequestDetailModal;
+    window.handlePledgeHelp = handlePledgeHelp;
+    window.openRequestModal = openRequestModal;
+    window.closeRequestModal = closeRequestModal;
 
     document.getElementById('requestForm').addEventListener('submit', async (e) => {
       e.preventDefault();

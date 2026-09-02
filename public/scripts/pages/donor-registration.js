@@ -264,10 +264,65 @@
         const profile = account.profile;
         const sharedProfile = profile.patient_profile || profile.donor_profile || profile;
 
+        function showModal({ title, iconClass = 'fa-check', content, buttonText = 'Okay', onOk }) {
+          const modal = document.getElementById('successModal');
+          const modalTitle = modal?.querySelector('.modal-title');
+          const modalIcon = modal?.querySelector('.modal-icon');
+          const modalText = document.getElementById('modalText');
+          const modalOkBtn = document.getElementById('modalOkBtn');
+
+          if (!modal) return;
+
+          if (modalTitle) modalTitle.textContent = title;
+          if (modalIcon) modalIcon.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+
+          if (typeof content === 'string') {
+            modalText.textContent = content;
+          } else if (Array.isArray(content)) {
+            modalText.replaceChildren(...content);
+          }
+
+          if (modalOkBtn) {
+            modalOkBtn.textContent = buttonText;
+            modalOkBtn.onclick = () => {
+              document.body.classList.add('page-leave');
+              setTimeout(() => {
+                if (typeof onOk === 'function') {
+                  onOk();
+                } else {
+                  window.location.href = safeReturnUrl;
+                }
+              }, 320);
+            };
+          }
+
+          modal.classList.add('active');
+        }
+
         if (profile.has_donor_profile) {
           accountLinkNotice.className = 'account-link-notice success';
-          accountLinkNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Your donor profile is already linked to this account. Opening Donor Center...</span>';
-          window.setTimeout(() => { window.location.href = safeReturnUrl; }, 900);
+          accountLinkNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Your donor profile is already linked to this account.</span>';
+
+          const greeting = sharedProfile?.first_name ? `Welcome back, ${sharedProfile.first_name}!` : 'Donor Profile Already Linked';
+          const title = 'Donor Profile Already Linked';
+          const strongText = document.createElement('strong');
+          strongText.textContent = greeting;
+          const descText = document.createTextNode('Your donor profile is already linked to this account. You can view and manage your donor eligibility, screening history, and donation records in the Donor Center.');
+
+          showModal({
+            title,
+            iconClass: 'fa-shield-heart',
+            content: [
+              strongText,
+              document.createElement('br'),
+              document.createElement('br'),
+              descText
+            ],
+            buttonText: 'Okay',
+            onOk: () => {
+              window.location.href = safeReturnUrl;
+            }
+          });
           return;
         }
 
