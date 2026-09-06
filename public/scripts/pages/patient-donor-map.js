@@ -1,363 +1,719 @@
-    const BOHOL_CENTER = [9.8506, 124.1435];
-    const BOHOL_BOUNDS = [
-      [9.35, 123.60],
-      [10.35, 124.70]
-    ];
-    const BLOOD_TYPES = ['Compatible', 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
-    const RECEIVE_FROM = {
-      'A+': ['A+', 'A-', 'O+', 'O-'], 'A-': ['A-', 'O-'],
-      'B+': ['B+', 'B-', 'O+', 'O-'], 'B-': ['B-', 'O-'],
-      'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-      'AB-': ['A-', 'B-', 'AB-', 'O-'], 'O+': ['O+', 'O-'], 'O-': ['O-']
-    };
-    const ZONES = [
-      { area: 'Tagbilaran City', lat: 9.6500, lng: 123.8550 },
-      { area: 'Panglao', lat: 9.5780, lng: 123.7460 },
-      { area: 'Dauis', lat: 9.6225, lng: 123.8652 },
-      { area: 'Tubigon', lat: 9.9528, lng: 123.9624 },
-      { area: 'Talibon', lat: 10.1497, lng: 124.3250 },
-      { area: 'Ubay', lat: 10.0560, lng: 124.4720 }
-    ];
-    const HOSPITALS = [
-      { name: 'Governor Celestino Gallares Memorial Medical Center', area: 'Tagbilaran City', lat: 9.6467, lng: 123.8556 },
-      { name: 'Ramiro Community Hospital', area: 'Tagbilaran City', lat: 9.6492, lng: 123.8585 },
-      { name: 'ACE Medical Center Bohol', area: 'Tagbilaran City', lat: 9.6640, lng: 123.8704 },
-      { name: 'Borja Family Hospital', area: 'Tagbilaran City', lat: 9.6489, lng: 123.8522 },
-      { name: 'Medical Mission Group Hospital and Health Services Cooperative of Bohol', area: 'Tagbilaran City', lat: 9.6526, lng: 123.8571 },
-      { name: 'Talibon Community Hospital', area: 'Talibon', lat: 10.1497, lng: 124.3250 },
-      { name: 'Don Emilio del Valle Memorial Hospital', area: 'Ubay', lat: 10.0551, lng: 124.4727 }
-    ];
-    const FALLBACK = {
-      'O+': [4, 2, 3, 1, 2, 2], 'O-': [1, 0, 1, 0, 1, 0],
-      'A+': [3, 2, 1, 2, 1, 1], 'A-': [1, 1, 0, 1, 0, 1],
-      'B+': [2, 1, 2, 1, 2, 1], 'B-': [0, 1, 1, 0, 1, 0],
-      'AB+': [1, 0, 1, 0, 0, 1], 'AB-': [0, 1, 0, 0, 1, 0]
-    };
-    let map;
-    let profile = null;
-    let activeType = 'Compatible';
-    let donorMarkers = [];
-    let hospitalMarkers = [];
-    let mapToastTimer = null;
+const BOHOL_CENTER = [9.9300, 124.1600];
+const BOHOL_BOUNDS = [
+  [9.15, 123.45],
+  [10.65, 124.85]
+];
+const BLOOD_TYPES = ['Compatible', 'All', 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+const RECEIVE_FROM = {
+  'A+': ['A+', 'A-', 'O+', 'O-'], 'A-': ['A-', 'O-'],
+  'B+': ['B+', 'B-', 'O+', 'O-'], 'B-': ['B-', 'O-'],
+  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  'AB-': ['A-', 'B-', 'AB-', 'O-'], 'O+': ['O+', 'O-'], 'O-': ['O-']
+};
 
-    function searchTypes() {
-      if (activeType !== 'Compatible') return [activeType];
-      const patientType = profile?.blood_type || profile?.blood_type_needed || '';
-      return RECEIVE_FROM[patientType] || BLOOD_TYPES.slice(1);
-    }
+// Complete 48 Bohol Municipalities & City coordinate mapping
+const ZONES = [
+  { area: 'Tagbilaran City', lat: 9.6500, lng: 123.8550 },
+  { area: 'Alburquerque', lat: 9.6139, lng: 123.9583 },
+  { area: 'Alicia', lat: 9.8978, lng: 124.4411 },
+  { area: 'Anda', lat: 9.7444, lng: 124.5778 },
+  { area: 'Antequera', lat: 9.7778, lng: 123.9000 },
+  { area: 'Baclayon', lat: 9.6222, lng: 123.9139 },
+  { area: 'Balilihan', lat: 9.7556, lng: 123.9722 },
+  { area: 'Batuan', lat: 9.7889, lng: 124.1472 },
+  { area: 'Bien Unido', lat: 10.1472, lng: 124.4250 },
+  { area: 'Bilar', lat: 9.7167, lng: 124.1167 },
+  { area: 'Buenavista', lat: 10.0764, lng: 124.1167 },
+  { area: 'Calape', lat: 9.8917, lng: 123.8750 },
+  { area: 'Candijay', lat: 9.8278, lng: 124.5500 },
+  { area: 'Carmen', lat: 9.8242, lng: 124.1972 },
+  { area: 'Catigbian', lat: 9.8333, lng: 123.9889 },
+  { area: 'Clarin', lat: 9.9639, lng: 124.0250 },
+  { area: 'Corella', lat: 9.6889, lng: 123.9194 },
+  { area: 'Cortes', lat: 9.7194, lng: 123.8806 },
+  { area: 'Dagohoy', lat: 9.9333, lng: 124.2833 },
+  { area: 'Danao', lat: 9.9500, lng: 124.2000 },
+  { area: 'Dauis', lat: 9.6225, lng: 123.8652 },
+  { area: 'Dimiao', lat: 9.6056, lng: 124.1500 },
+  { area: 'Duero', lat: 9.7083, lng: 124.4111 },
+  { area: 'Garcia Hernandez', lat: 9.6139, lng: 124.2917 },
+  { area: 'Getafe', lat: 10.1500, lng: 124.1500 },
+  { area: 'Guindulman', lat: 9.7547, lng: 124.4925 },
+  { area: 'Inabanga', lat: 10.0306, lng: 124.0750 },
+  { area: 'Jagna', lat: 9.6528, lng: 124.3686 },
+  { area: 'Lila', lat: 9.5972, lng: 124.1000 },
+  { area: 'Loay', lat: 9.6000, lng: 124.0139 },
+  { area: 'Loboc', lat: 9.6389, lng: 124.0333 },
+  { area: 'Loon', lat: 9.7997, lng: 123.7917 },
+  { area: 'Mabini', lat: 9.8667, lng: 124.5250 },
+  { area: 'Maribojoc', lat: 9.7431, lng: 123.8403 },
+  { area: 'Panglao', lat: 9.5780, lng: 123.7460 },
+  { area: 'Pilar', lat: 9.8167, lng: 124.3167 },
+  { area: 'Pres. Carlos P. Garcia', lat: 10.1167, lng: 124.5667 },
+  { area: 'Sagbayan', lat: 9.9139, lng: 124.0917 },
+  { area: 'San Isidro', lat: 9.8889, lng: 123.9389 },
+  { area: 'San Miguel', lat: 10.0083, lng: 124.3417 },
+  { area: 'Sevilla', lat: 9.7167, lng: 124.0250 },
+  { area: 'Sierra Bullones', lat: 9.7917, lng: 124.2917 },
+  { area: 'Sikatuna', lat: 9.6917, lng: 123.9722 },
+  { area: 'Talibon', lat: 10.1497, lng: 124.3250 },
+  { area: 'Trinidad', lat: 10.0861, lng: 124.3472 },
+  { area: 'Tubigon', lat: 9.9528, lng: 123.9624 },
+  { area: 'Ubay', lat: 10.0560, lng: 124.4720 },
+  { area: 'Valencia', lat: 9.6083, lng: 124.2083 }
+];
 
-    function typeLabel() {
-      const patientType = profile?.blood_type || profile?.blood_type_needed || '';
-      return activeType === 'Compatible' && patientType ? `Compatible for ${patientType}` : activeType;
-    }
+// Accredited Hospitals & Blood Facilities in Bohol
+const HOSPITALS = [
+  { name: 'Governor Celestino Gallares Memorial Medical Center', area: 'Tagbilaran City', lat: 9.6467, lng: 123.8556 },
+  { name: 'Ramiro Community Hospital', area: 'Tagbilaran City', lat: 9.6492, lng: 123.8585 },
+  { name: 'ACE Medical Center Bohol', area: 'Tagbilaran City', lat: 9.6640, lng: 123.8704 },
+  { name: 'Borja Family Hospital', area: 'Tagbilaran City', lat: 9.6489, lng: 123.8522 },
+  { name: 'Medical Mission Group Hospital and Health Services Cooperative', area: 'Tagbilaran City', lat: 9.6526, lng: 123.8571 },
+  { name: 'Congressman Natalio P. Castillo Sr. Memorial Hospital', area: 'Canhangdon, Loon', lat: 9.8385, lng: 123.8203 },
+  { name: 'Talibon Community Hospital', area: 'Talibon', lat: 10.1497, lng: 124.3250 },
+  { name: 'Don Emilio del Valle Memorial Hospital', area: 'Ubay', lat: 10.0551, lng: 124.4727 },
+  { name: 'Teodoro B. Galagar District Hospital', area: 'Jagna', lat: 9.6528, lng: 124.3686 },
+  { name: 'Candijay Community Hospital', area: 'Candijay', lat: 9.8278, lng: 124.5500 },
+  { name: 'Clarin Community Hospital', area: 'Clarin', lat: 9.9639, lng: 124.0250 },
+  { name: 'Calape Mother & Child Hospital', area: 'Calape', lat: 9.8945, lng: 123.8813 },
+  { name: 'Inabanga Municipal Hospital', area: 'Inabanga', lat: 10.0306, lng: 124.0750 },
+  { name: 'Carmen District Hospital', area: 'Carmen', lat: 9.8242, lng: 124.1972 }
+];
 
-    function renderFilters() {
-      const menu = document.getElementById('bloodTypeFilters');
-      const selected = document.getElementById('selectedBloodFilter');
-      if (!menu || !selected) return;
-      selected.textContent = activeType;
-      menu.innerHTML = BLOOD_TYPES.map((type) =>
-        `<button type="button" class="blood-filter-item ${type === activeType ? 'active' : ''}" data-type="${type}" role="option" aria-selected="${type === activeType}">${type}</button>`
-      ).join('');
-      menu.querySelectorAll('[data-type]').forEach((button) => {
-        button.addEventListener('click', () => {
-          activeType = button.dataset.type;
-          closeBloodFilter();
-          renderFilters();
-          searchDonors();
-        });
-      });
-    }
+let map;
+let profile = null;
+let donorMarkers = [];
+let hospitalMarkers = [];
+let townLabelMarkers = [];
+let mapToastTimer = null;
+let rawDonorsCache = [];
+let recipientArea = null; // Detected from profile, used for proximity auto-filter
 
-    function closeBloodFilter() {
-      const dropdown = document.getElementById('bloodFilterDropdown');
-      const trigger = document.getElementById('bloodFilterTrigger');
-      if (!dropdown || !trigger) return;
-      dropdown.classList.remove('open');
-      trigger.setAttribute('aria-expanded', 'false');
-    }
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
+}
 
-    function donorZone(donor) {
-      const area = String(donor?.map_area || donor?.area || donor?.city || '').trim().toLowerCase();
-      const areaIndex = ZONES.findIndex((zone) => zone.area.toLowerCase() === area);
-      if (areaIndex >= 0) return areaIndex;
-      const value = String(donor?.id || donor?.donor_id || donor?.email || donor?.first_name || 'donor');
-      return value.split('').reduce((total, char) => total + char.charCodeAt(0), 0) % ZONES.length;
-    }
+// ──────────────────────────────────────────────────────────────────────
+//  Detect the recipient's Bohol municipality from their profile address
+// ──────────────────────────────────────────────────────────────────────
+function detectRecipientArea(prof) {
+  const raw = String(
+    prof?.map_area || prof?.address || prof?.city || ''
+  ).trim();
+  if (!raw) return null;
 
-    function isEligibleDonor(donor, allowed) {
-      const bloodType = String(donor?.blood_type || '').trim().toUpperCase();
-      const availability = String(donor?.availability_status || '').toLowerCase();
-      const status = String(donor?.donor_status || '').toLowerCase();
-      const showOnMap = donor?.show_on_map === true;
-      const locationStatus = String(donor?.location_status || 'needs_review').toLowerCase();
-      return allowed.includes(bloodType) && (
-        ['available', 'approved', 'registered'].includes(availability) ||
-        ['approved', 'registered'].includes(status)
-      ) && showOnMap && locationStatus === 'verified';
-    }
+  const normalized = normalizeBoholArea(raw);
 
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      })[char]);
-    }
+  // Try to match against known ZONES
+  const match = ZONES.find((z) => {
+    const zName = z.area.toLowerCase();
+    return normalized.includes(zName) || zName.includes(normalized);
+  });
 
-    function donorProfilesForZone(zone) {
-      const allowed = searchTypes();
-      return (zone.donors || [])
-        .filter((donor) => isEligibleDonor(donor, allowed));
-    }
+  return match ? match.area : null;
+}
 
-    function donorDistanceLabel(donor) {
-      const explicit = Number(donor?.distance_km || donor?.distanceKm);
-      if (Number.isFinite(explicit) && explicit > 0) {
-        return `${explicit.toFixed(1)} km away`;
-      }
+function getSelectedBloodTypes() {
+  const select = document.getElementById('filterBloodType');
+  const val = (select?.value || 'compatible').trim();
 
-      const seed = String(donor?.id || donor?.donor_id || donor?.email || donor?.map_area || donor?.area || 'donor')
-        .split('')
-        .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-      const distance = 1.2 + (seed % 54) / 10;
-      return `${distance.toFixed(1)} km away`;
-    }
+  if (val === 'all') {
+    return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  }
+  if (val === 'compatible') {
+    const patientType = profile?.blood_type || profile?.blood_type_needed || '';
+    return RECEIVE_FROM[patientType] || ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  }
+  return [val.toUpperCase()];
+}
 
-    function donorAvailabilityLabel(donor) {
-      const raw = String(donor?.availability_status || donor?.donor_status || 'Available').replace(/_/g, ' ');
-      return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-    }
+function getSelectedLocation() {
+  const searchInput = document.getElementById('searchAreaInput');
+  const typed = (searchInput?.value || '').trim();
+  if (typed) return typed;
+  const select = document.getElementById('filterLocation');
+  return (select?.value || 'all').trim();
+}
 
-    function donorProfileCardHtml(donor) {
-      const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '-';
-      const location = donor?.map_area || donor?.area || donor?.city || 'Bohol';
-      const status = donorAvailabilityLabel(donor);
-      return `
-        <article class="donor-profile">
-          <div class="donor-profile-main">
-            <strong>${escapeHtml(location)}</strong>
-            <span>${escapeHtml(donorDistanceLabel(donor))}</span>
-            <span>Blood Type: ${escapeHtml(bloodType)}</span>
-            <b>${escapeHtml(status)}</b>
-            <em>Contact through blood bank</em>
+function getSelectedAvailability() {
+  const select = document.getElementById('filterAvailability');
+  return (select?.value || 'available').trim().toLowerCase();
+}
+
+function normalizeBoholArea(raw) {
+  return String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\bjetafe\b/g, 'getafe')
+    .replace(/\bpitogo\b/g, 'pres. carlos p. garcia');
+}
+
+function donorZoneIndex(donor) {
+  const area = normalizeBoholArea(donor?.map_area || donor?.area || donor?.city || '');
+  const areaIndex = ZONES.findIndex((zone) => {
+    const zName = zone.area.toLowerCase();
+    return area.includes(zName) || zName.includes(area);
+  });
+  if (areaIndex >= 0) return areaIndex;
+
+  // Hash fallback zone for unknown location in Bohol
+  const value = String(donor?.id || donor?.donor_id || donor?.blood_type || 'donor');
+  return value.split('').reduce((total, char) => total + char.charCodeAt(0), 0) % ZONES.length;
+}
+
+function isDonorScreenedAndEligible(donor) {
+  const status = String(donor?.donor_status || '').toLowerCase();
+  const showOnMap = donor?.show_on_map === true;
+  const locationStatus = String(donor?.location_status || 'needs_review').toLowerCase();
+
+  // 1. Must have explicit map visibility and verified location status
+  if (!showOnMap || locationStatus !== 'verified') return false;
+
+  // 2. Must not be un-screened (registered, checked_in) or deferred
+  if (['registered', 'checked_in', 'deferred', 'incomplete'].includes(status)) {
+    return false;
+  }
+
+  // 3. If approved, medical screening is completed and ready to donate!
+  if (status === 'approved') return true;
+
+  // 4. If status is donated (or has last donation date), verify 56-day rule
+  if (donor?.last_donation_date) {
+    const next = new Date(donor.last_donation_date);
+    next.setDate(next.getDate() + 56);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (next > today) return false; // Still in 56-day waiting period
+  }
+
+  return status === 'donated' || status === 'available';
+}
+
+function isDonorMatchingFilters(donor, allowedTypes, filterLocation, filterAvailability) {
+  const bloodType = String(donor?.blood_type || '').trim().toUpperCase();
+  const status = String(donor?.donor_status || '').toLowerCase();
+
+  // 1. Blood type match
+  if (!allowedTypes.includes(bloodType)) return false;
+
+  // 2. Must be medically screened and currently eligible to donate
+  if (!isDonorScreenedAndEligible(donor)) return false;
+
+  // 3. Availability filter
+  if (filterAvailability === 'approved' && status !== 'approved') {
+    return false;
+  }
+
+  // 4. Location filter
+  if (filterLocation !== 'all') {
+    const targetLoc = normalizeBoholArea(filterLocation);
+    const donorArea = normalizeBoholArea(donor?.map_area || donor?.area || donor?.city || '');
+    const zoneObj = ZONES[donorZoneIndex(donor)];
+    const zoneName = zoneObj?.area?.toLowerCase() || '';
+
+    const matchesArea = donorArea.includes(targetLoc) || zoneName.includes(targetLoc);
+    if (!matchesArea) return false;
+  }
+
+  return true;
+}
+
+function donorAvailabilityBadge(donor) {
+  const status = String(donor?.donor_status || '').toLowerCase();
+  if (status === 'approved') {
+    return '<span class="blood-status-badge available"><i class="fa-solid fa-circle-check"></i> Screened &amp; Ready</span>';
+  }
+  return '<span class="blood-status-badge available"><i class="fa-solid fa-circle-check"></i> Eligible to Donate</span>';
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  Blood-type teardrop PIN icon for individual donors on the map
+// ──────────────────────────────────────────────────────────────────────
+function makeDonorPinIcon(bloodType) {
+  const label = escapeHtml(String(bloodType || '?').toUpperCase());
+  return L.divIcon({
+    className: 'donor-pin-wrap',
+    html: `<div class="donor-pin">
+      <div class="donor-pin-body"></div>
+      <span class="donor-pin-type">${label}</span>
+      <div class="donor-pin-tail"></div>
+    </div>`,
+    iconSize: [44, 52],
+    iconAnchor: [22, 52],
+    popupAnchor: [0, -54]
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  Popup content for a single donor pin
+// ──────────────────────────────────────────────────────────────────────
+function renderDonorPinPopup(donor, zone) {
+  const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '--';
+  const location = zone?.area || donor?.map_area || donor?.area || 'Bohol';
+  const badgeHtml = donorAvailabilityBadge(donor);
+
+  return `
+    <div style="padding:12px 14px;min-width:200px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <span class="blood-type-pill"><i class="fa-solid fa-droplet"></i> ${escapeHtml(bloodType)}</span>
+        ${badgeHtml}
+      </div>
+      <div style="font-size:0.82rem;color:#475569;display:flex;flex-direction:column;gap:3px;">
+        <span style="font-weight:700;color:#0f172a;font-size:0.88rem;">
+          <i class="fa-solid fa-location-dot" style="color:var(--accent,#800000);"></i>
+          ${escapeHtml(location)}, Bohol
+        </span>
+        <span style="color:#059669;font-weight:600;font-size:0.78rem;">
+          <i class="fa-solid fa-shield-check"></i> Coordinated via Blood Bank
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+function showMapToast(message) {
+  const toast = document.getElementById('mapToast');
+  if (!toast) return;
+  window.clearTimeout(mapToastTimer);
+  toast.textContent = message;
+  toast.classList.add('visible');
+  mapToastTimer = window.setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 3000);
+}
+
+function renderHospitals() {
+  hospitalMarkers.forEach((marker) => marker.remove());
+  hospitalMarkers = HOSPITALS.map((hospital) => {
+    const marker = L.marker([hospital.lat, hospital.lng], {
+      icon: L.divIcon({
+        className: 'hospital-marker-wrap',
+        html: '<span class="hospital-marker" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:#0284c7;color:#fff;border-radius:50%;box-shadow:0 3px 8px rgba(2,132,199,0.4);"><i class="fa-solid fa-hospital"></i></span>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      })
+    }).addTo(map);
+
+    marker.bindPopup(`
+          <div style="padding:10px 12px;">
+            <strong style="color:#0f172a;font-size:0.92rem;">${escapeHtml(hospital.name)}</strong>
+            <p style="margin:4px 0 0;font-size:0.78rem;color:#64748b;"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(hospital.area)}, Bohol</p>
+            <span style="display:inline-block;margin-top:6px;font-size:0.72rem;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-weight:700;">Accredited Facility</span>
           </div>
-        </article>
-      `;
-    }
+        `);
+    return marker;
+  });
+}
 
-    function renderDonorProfiles(donors) {
-      const list = document.getElementById('donorProfileList');
-      if (!donors.length) {
-        list.innerHTML = '<p class="donor-profile-empty">No donor profiles to show for this area yet.</p>';
-        return;
-      }
-      list.innerHTML = donors.map(donorProfileCardHtml).join('');
-    }
+// ──────────────────────────────────────────────────────────────────────
+//  Render subtle town name labels for all 48 LGUs
+// ──────────────────────────────────────────────────────────────────────
+function renderTownLabels() {
+  townLabelMarkers.forEach((m) => m.remove());
+  townLabelMarkers = ZONES.map((zone) => {
+    const marker = L.marker([zone.lat, zone.lng], {
+      icon: L.divIcon({
+        className: 'town-label-wrap',
+        html: `<span class="town-label">${escapeHtml(zone.area)}</span>`,
+        iconSize: [120, 20],
+        iconAnchor: [60, 10]
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: -100
+    }).addTo(map);
+    return marker;
+  });
+}
 
-    function temporaryDonorsForZone(zone, index, allowed) {
-      const donors = [];
-      allowed.forEach((type) => {
-        const count = Number(FALLBACK[type]?.[index] || 0);
-        for (let i = 0; i < count; i += 1) {
-          donors.push({
-            id: `sample-${zone.area}-${type}-${i}`,
-            blood_type: type,
-            map_area: zone.area,
-            area: zone.area,
-            availability_status: 'available',
-            show_on_map: true,
-            location_status: 'verified',
-            contact_note: 'Sample donor profile'
-          });
-        }
-      });
-      return donors;
-    }
+// ──────────────────────────────────────────────────────────────────────
+//  Render individual blood-type pin markers (one per donor)
+//  Uses slight jitter to avoid pin overlap for same-zone donors
+// ──────────────────────────────────────────────────────────────────────
+function renderDonorPins(filteredDonors) {
+  // Clear old donor markers
+  donorMarkers.forEach((m) => m.remove());
+  donorMarkers = [];
 
-    function zonesFromDonors(donors) {
-      const allowed = searchTypes();
-      const zones = ZONES.map((zone) => ({ ...zone, count: 0, donors: [] }));
-      donors.forEach((donor) => {
-        if (!isEligibleDonor(donor, allowed)) return;
-        const zone = zones[donorZone(donor)];
-        zone.count += 1;
-        zone.donors.push(donor);
-      });
-      return zones.filter((zone) => zone.count > 0);
-    }
+  // Track how many pins per zone to apply offset jitter
+  const zoneOffsetCounters = new Map();
 
-    function fallbackZones() {
-      const allowed = searchTypes();
-      return ZONES.map((zone, index) => {
-        const donors = temporaryDonorsForZone(zone, index, allowed);
-        return {
-          ...zone,
-          count: donors.length,
-          donors
-        };
-      }).filter((zone) => zone.count > 0);
-    }
+  filteredDonors.forEach((donor) => {
+    const idx = donorZoneIndex(donor);
+    const zone = ZONES[idx];
+    if (!zone) return;
 
-    function showZone(zone) {
-      document.getElementById('zoneCount').textContent = `${zone.count} donor${zone.count === 1 ? '' : 's'} in this area`;
-      document.getElementById('zoneDetails').textContent = `${zone.area} - ${typeLabel()}`;
-      renderDonorProfiles(donorProfilesForZone(zone));
-      document.getElementById('zoneCard').classList.add('visible');
-      map.flyTo([zone.lat, zone.lng], 13, { duration: 0.7 });
-    }
+    const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '?';
 
-    function donorProfilesHtml(donors) {
-      if (!donors.length) {
-        return '<p class="donor-profile-empty">No donor profiles to show for this area yet.</p>';
-      }
-      return donors.map(donorProfileCardHtml).join('');
-    }
+    // Jitter offset so multiple pins in same zone don't overlap
+    const key = zone.area;
+    const count = zoneOffsetCounters.get(key) || 0;
+    zoneOffsetCounters.set(key, count + 1);
 
-    function zonePopupHtml(zone) {
-      const donors = donorProfilesForZone(zone);
-      return `
-        <section class="donor-popup-card">
-          <span class="zone-label">Donors in this area</span>
-          <p>${escapeHtml(zone.area)} - ${escapeHtml(typeLabel())}</p>
-          <div class="donor-profile-list">${donorProfilesHtml(donors)}</div>
-        </section>
-      `;
-    }
+    // Spiral offset: first pin is at center, subsequent ones fan out
+    const angle = count * 72 * (Math.PI / 180); // 72° increments
+    const radius = count === 0 ? 0 : 0.003 + Math.floor((count - 1) / 5) * 0.003;
+    const jitterLat = zone.lat + Math.cos(angle) * radius;
+    const jitterLng = zone.lng + Math.sin(angle) * radius;
 
-    function showMapToast(message) {
-      const toast = document.getElementById('mapToast');
-      if (!toast) return;
-      window.clearTimeout(mapToastTimer);
-      toast.textContent = message;
-      toast.classList.add('visible');
-      mapToastTimer = window.setTimeout(() => {
-        toast.classList.remove('visible');
-      }, 2800);
-    }
+    const marker = L.marker([jitterLat, jitterLng], {
+      icon: makeDonorPinIcon(bloodType),
+      zIndexOffset: 500
+    }).addTo(map);
 
-    function renderZones(zones, sampleData) {
-      donorMarkers.forEach((marker) => marker.remove());
-      donorMarkers = [];
-      const summary = document.getElementById('searchSummary');
-      const total = zones.reduce((sum, zone) => sum + zone.count, 0);
-      summary.textContent = total ? `${total} ${typeLabel().toLowerCase()} donors found` : '';
-      if (!total && !sampleData) {
-        showMapToast(`No ${typeLabel().toLowerCase()} donors found.`);
-      }
+    marker.bindPopup(renderDonorPinPopup(donor, zone), {
+      className: 'donor-map-popup',
+      maxWidth: 280,
+      minWidth: 200,
+      offset: [0, 0]
+    });
 
-      zones.forEach((zone) => {
-        const marker = L.marker([zone.lat, zone.lng], {
-          icon: L.divIcon({
-            className: 'donor-marker-wrap',
-            html: `<span class="donor-marker">${zone.count}</span>`,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19]
-          })
-        }).addTo(map);
-        marker.bindPopup(zonePopupHtml(zone), {
-          className: 'donor-map-popup',
-          closeButton: true,
-          maxWidth: 390,
-          minWidth: 300,
-          offset: [0, -20]
-        });
-        marker.on('click', () => {
-          document.getElementById('zoneCard').classList.remove('visible');
-          map.flyTo([zone.lat, zone.lng], 13, { duration: 0.7 });
-        });
-        donorMarkers.push(marker);
-      });
+    donorMarkers.push(marker);
+  });
+}
 
-      document.getElementById('zoneCard').classList.remove('visible');
-      document.getElementById('donorProfileList').innerHTML = '';
-      map.setView(BOHOL_CENTER, 10);
-      if (sampleData) summary.textContent += ' - sample zones';
-    }
+async function searchDonors(forceRefresh = false) {
+  const summaryEl = document.getElementById('searchSummary');
+  const searchBtn = document.getElementById('btnSearchBlood');
 
-    function renderHospitals() {
-      hospitalMarkers.forEach((marker) => marker.remove());
-      hospitalMarkers = HOSPITALS.map((hospital) => {
-        const marker = L.marker([hospital.lat, hospital.lng], {
-          icon: L.divIcon({
-            className: 'hospital-marker-wrap',
-            html: '<span class="hospital-marker"><i class="fa-solid fa-hospital"></i></span>',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-          })
-        }).addTo(map);
-        marker.bindPopup(`<strong>${hospital.name}</strong><br>${hospital.area}`);
-        return marker;
-      });
-    }
+  if (searchBtn) searchBtn.disabled = true;
+  if (summaryEl) summaryEl.textContent = 'Searching blood availability & verified donors...';
 
-    async function searchDonors() {
-      document.getElementById('searchSummary').textContent = 'Searching donor zones...';
-      document.getElementById('zoneCard').classList.remove('visible');
-      document.getElementById('compatibleSearchBtn').disabled = true;
+  // Clear existing donor markers
+  donorMarkers.forEach((m) => m.remove());
+  donorMarkers = [];
+
+  const allowedTypes = getSelectedBloodTypes();
+  const filterLocation = getSelectedLocation();
+  const filterAvailability = getSelectedAvailability();
+
+  try {
+    let donors = rawDonorsCache;
+    if (forceRefresh || !donors || donors.length === 0) {
       if (typeof listVisibleDonors === 'function') {
-        try {
-          const { data, error } = await listVisibleDonors();
-          if (!error && Array.isArray(data)) {
-            renderZones(zonesFromDonors(data), false);
-            document.getElementById('compatibleSearchBtn').disabled = false;
-            return;
-          }
-        } catch (_) {}
+        const { data, error } = await listVisibleDonors();
+        if (error) throw error;
+        donors = Array.isArray(data) ? data : [];
+        rawDonorsCache = donors;
       }
-      renderZones(fallbackZones(), true);
-      document.getElementById('compatibleSearchBtn').disabled = false;
     }
 
-    function initMap() {
-      map = L.map('donorMap', {
-        center: BOHOL_CENTER,
-        zoom: 10,
-        minZoom: 10,
-        maxZoom: 16,
-        maxBounds: BOHOL_BOUNDS,
-        maxBoundsViscosity: 1,
-        zoomControl: false,
-        attributionControl: false
+    const filtered = donors.filter((donor) =>
+      isDonorMatchingFilters(donor, allowedTypes, filterLocation, filterAvailability)
+    );
+
+    const totalMatches = filtered.length;
+
+    const typeStr = allowedTypes.length === 8 ? 'All types' : allowedTypes.join(', ');
+    const locStr = filterLocation === 'all' ? 'Bohol' : filterLocation;
+    if (summaryEl) {
+      summaryEl.textContent = totalMatches > 0
+        ? `Found ${totalMatches} available donor(s) / units in ${locStr} (${typeStr}).`
+        : `No blood found matching ${typeStr} in ${locStr}.`;
+    }
+
+    const donorCountSummaryEl = document.getElementById('donorCountSummary');
+    if (donorCountSummaryEl) {
+      donorCountSummaryEl.textContent = totalMatches > 0 ? `${totalMatches} Donors` : '0 Donors';
+    }
+
+    // Render individual blood-type pin markers
+    renderDonorPins(filtered);
+
+    // Auto-pan: if a location filter is active, center on that area
+    if (filterLocation !== 'all') {
+      const targetNorm = normalizeBoholArea(filterLocation);
+      const matched = ZONES.find((z) => {
+        const zn = z.area.toLowerCase();
+        return targetNorm.includes(zn) || zn.includes(targetNorm);
       });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        noWrap: true
-      }).addTo(map);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-      map.on('drag', () => map.panInsideBounds(BOHOL_BOUNDS, { animate: false }));
-      renderHospitals();
+      if (matched) {
+        map.flyTo([matched.lat, matched.lng], 13, { duration: 0.7 });
+      }
     }
+  } catch (err) {
+    console.error('Find blood search error:', err);
+    if (summaryEl) summaryEl.textContent = 'Search encountered an error.';
+  } finally {
+    if (searchBtn) searchBtn.disabled = false;
+  }
+}
+window.searchDonors = searchDonors;
 
-    document.getElementById('locateButton').addEventListener('click', () => map.flyTo(BOHOL_CENTER, 10));
-    document.getElementById('closeZoneCard').addEventListener('click', () => document.getElementById('zoneCard').classList.remove('visible'));
-    document.getElementById('compatibleSearchBtn').addEventListener('click', searchDonors);
-    const bloodFilterTrigger = document.getElementById('bloodFilterTrigger');
-    if (bloodFilterTrigger) {
-      bloodFilterTrigger.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const dropdown = document.getElementById('bloodFilterDropdown');
-        const isOpen = dropdown.classList.contains('open');
-        dropdown.classList.toggle('open', !isOpen);
-        bloodFilterTrigger.setAttribute('aria-expanded', String(!isOpen));
-      });
+// ──────────────────────────────────────────────────────────────────────
+//  Show a small "your area" chip BELOW the search card (outside it)
+// ──────────────────────────────────────────────────────────────────────
+function showAreaChip(areaName) {
+  const existingChip = document.getElementById('recipientAreaChip');
+  if (existingChip) existingChip.remove();
+  if (!areaName) return;
+
+  const searchCard = document.getElementById('donorSearchCard');
+  if (!searchCard) return;
+
+  const chip = document.createElement('div');
+  chip.id = 'recipientAreaChip';
+  chip.className = 'recipient-area-chip';
+  chip.innerHTML = `<i class="fa-solid fa-location-dot"></i> Near <strong>${escapeHtml(areaName)}</strong>`;
+  chip.title = 'Showing donors nearest to your registered area. Search above to change.';
+
+  // Insert after the search card (outside it, below)
+  searchCard.insertAdjacentElement('afterend', chip);
+}
+
+function openFilterModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.add('open');
+  const triggerBtn = document.getElementById('bloodTypePickerBtn');
+  if (triggerBtn) {
+    triggerBtn.classList.add('active');
+    triggerBtn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function closeFilterModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('open');
+  const triggerBtn = document.getElementById('bloodTypePickerBtn');
+  if (triggerBtn) {
+    triggerBtn.classList.remove('active');
+    triggerBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function closeAllFilterModals() {
+  closeFilterModal('bloodTypeModal');
+}
+
+function updateFilterPickerDisplays() {
+  const typeVal = (document.getElementById('filterBloodType')?.value || 'compatible').trim();
+
+  const typeLabels = {
+    compatible: 'Compatible (Auto)',
+    all: 'All Blood Types',
+    'A+': 'A+', 'A-': 'A-', 'B+': 'B+', 'B-': 'B-',
+    'AB+': 'AB+', 'AB-': 'AB-', 'O+': 'O+', 'O-': 'O-'
+  };
+
+  const displayText = typeLabels[typeVal] || typeVal;
+
+  const bloodTypeDisplay = document.getElementById('bloodTypeDisplay');
+  if (bloodTypeDisplay) bloodTypeDisplay.textContent = displayText;
+
+  document.querySelectorAll('[data-type="blood"]').forEach((btn) => {
+    btn.classList.toggle('selected', btn.dataset.value === typeVal);
+  });
+}
+
+function setBloodTypeFilter(val, label) {
+  const input = document.getElementById('filterBloodType');
+  if (input) {
+    input.value = val;
+  }
+  updateFilterPickerDisplays();
+  closeFilterModal('bloodTypeModal');
+  searchDonors();
+}
+
+function clearAllFilters() {
+  const searchInput = document.getElementById('searchAreaInput');
+  const clearBtn = document.getElementById('btnClearSearchText');
+  const typeSelect = document.getElementById('filterBloodType');
+  const locSelect = document.getElementById('filterLocation');
+
+  if (searchInput) searchInput.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (typeSelect) typeSelect.value = 'compatible';
+  if (locSelect) locSelect.value = 'all';
+
+  // Restore recipient area auto-filter if available
+  if (recipientArea) {
+    const locEl = document.getElementById('filterLocation');
+    if (locEl) locEl.value = recipientArea;
+    showAreaChip(recipientArea);
+  }
+
+  updateFilterPickerDisplays();
+  searchDonors(true);
+}
+window.clearAllFilters = clearAllFilters;
+
+function initMap() {
+  map = L.map('donorMap', {
+    center: BOHOL_CENTER,
+    zoom: 10,
+    minZoom: 9,
+    maxZoom: 16,
+    maxBounds: BOHOL_BOUNDS,
+    maxBoundsViscosity: 0.6,
+    zoomControl: false,
+    attributionControl: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    noWrap: true
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  renderHospitals();
+  // Note: OSM tile layer already renders place names — no extra town labels needed
+  setTimeout(() => map && map.invalidateSize(), 150);
+  window.addEventListener('resize', () => map && map.invalidateSize());
+}
+
+// Bind event listeners
+document.getElementById('locateButton')?.addEventListener('click', () => {
+  if (recipientArea) {
+    // Re-center on recipient's area
+    const zone = ZONES.find((z) => z.area === recipientArea);
+    if (zone) {
+      map?.flyTo([zone.lat, zone.lng], 13, { duration: 0.6 });
+      return;
     }
-    document.addEventListener('click', (event) => {
-      const dropdown = document.getElementById('bloodFilterDropdown');
-      if (dropdown && !dropdown.contains(event.target)) closeBloodFilter();
-    });
-    document.querySelector('.mobile-nav-search').addEventListener('click', () => {
-      if (!map) return;
-      map.setView(BOHOL_CENTER, 10);
-      searchDonors();
-    });
+  }
+  map?.flyTo(BOHOL_CENTER, 10, { duration: 0.6 });
+});
 
-    (async () => {
-      const auth = await requireAuth();
-      if (!auth) return;
-      profile = auth.profile;
-      initMap();
-      renderFilters();
-    })();
+// Bottom filter buttons
+document.getElementById('btnSearchBlood')?.addEventListener('click', () => searchDonors(true));
+document.getElementById('btnClearFilters')?.addEventListener('click', clearAllFilters);
+
+// Real-time Search input handling
+const searchAreaInput = document.getElementById('searchAreaInput');
+const btnClearSearchText = document.getElementById('btnClearSearchText');
+let searchDebounceTimer = null;
+
+searchAreaInput?.addEventListener('input', () => {
+  if (btnClearSearchText) {
+    btnClearSearchText.style.display = searchAreaInput.value.trim() ? 'flex' : 'none';
+  }
+  // Hide area chip when user types
+  const chip = document.getElementById('recipientAreaChip');
+  if (chip && searchAreaInput.value.trim()) {
+    chip.style.opacity = '0.4';
+  } else if (chip) {
+    chip.style.opacity = '1';
+  }
+  window.clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = window.setTimeout(() => {
+    searchDonors();
+  }, 250);
+});
+
+searchAreaInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    window.clearTimeout(searchDebounceTimer);
+    searchDonors();
+  }
+});
+
+btnClearSearchText?.addEventListener('click', () => {
+  if (searchAreaInput) {
+    searchAreaInput.value = '';
+    searchAreaInput.focus();
+  }
+  if (btnClearSearchText) {
+    btnClearSearchText.style.display = 'none';
+  }
+  // Restore area chip
+  if (recipientArea) {
+    showAreaChip(recipientArea);
+    const locEl = document.getElementById('filterLocation');
+    if (locEl) locEl.value = recipientArea;
+  }
+  window.clearTimeout(searchDebounceTimer);
+  searchDonors();
+});
+
+// Filter popup modal triggers
+document.getElementById('bloodTypePickerBtn')?.addEventListener('click', () => {
+  openFilterModal('bloodTypeModal');
+});
+
+document.getElementById('closeBloodTypeModal')?.addEventListener('click', () => {
+  closeFilterModal('bloodTypeModal');
+});
+
+// Close when clicking modal backdrop overlay
+document.querySelectorAll('.filter-modal-overlay').forEach((overlay) => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeAllFilterModals();
+    }
+  });
+});
+
+// Close with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAllFilterModals();
+  }
+});
+
+// Option item selection delegation
+document.querySelectorAll('[data-type="blood"]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const val = btn.dataset.value;
+    const label = btn.querySelector('.option-card-title')?.textContent || btn.querySelector('.blood-grid-type')?.textContent || val;
+    setBloodTypeFilter(val, label);
+  });
+});
+
+// Auto-search on change if input values update programmatically
+document.getElementById('filterBloodType')?.addEventListener('change', searchDonors);
+document.getElementById('filterLocation')?.addEventListener('change', searchDonors);
+
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (typeof signOut === 'function') await signOut();
+    window.location.href = 'login.html';
+  });
+}
+
+(async () => {
+  const auth = await requireAuth();
+  if (!auth) return;
+  profile = auth.profile;
+  initMap();
+
+  // ── Auto-detect recipient's municipality from profile ──
+  recipientArea = detectRecipientArea(profile);
+
+  // Pre-select compatible blood type filter
+  const typeSelect = document.getElementById('filterBloodType');
+  if (typeSelect && profile?.blood_type) {
+    typeSelect.value = 'compatible';
+  }
+
+  // Pre-set location filter to recipient's area if detected
+  if (recipientArea) {
+    const locEl = document.getElementById('filterLocation');
+    if (locEl) locEl.value = recipientArea;
+    showAreaChip(recipientArea);
+
+    // Pan map to recipient's area immediately
+    const zone = ZONES.find((z) => z.area === recipientArea);
+    if (zone) {
+      setTimeout(() => {
+        map && map.flyTo([zone.lat, zone.lng], 13, { duration: 0.8 });
+      }, 400);
+    }
+  }
+
+  updateFilterPickerDisplays();
+  await searchDonors();
+})();

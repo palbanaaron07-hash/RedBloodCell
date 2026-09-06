@@ -4,8 +4,7 @@
 
 ```text
 Browser
-  |-- root HTML routes
-  |-- React/Vite PWA shell (`index.html`)
+  |-- root HTML routes (index.html, homie.html, dashboards, auth)
   |-- classic page controllers (`public/scripts/pages`)
   |-- shared Supabase browser API (`/supabase-client.js`)
   |
@@ -30,7 +29,7 @@ Internal page logic may be split further as long as script order, global functio
 
 ## Frontend ownership
 
-- `index.html` and `src/App.jsx`: React PWA demonstration shell.
+- `index.html` and `homie.html`: marketing and system entry home page.
 - Other root HTML files: operational multi-page application routes.
 - `public/scripts/pages/<page>.js`: controller for one operational page.
 - `public/supabase-client.js`: shared compatibility facade for authentication and domain operations.

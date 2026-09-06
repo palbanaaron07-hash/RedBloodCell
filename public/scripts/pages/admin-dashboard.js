@@ -17,14 +17,14 @@
 
     // ---- Section-based Navigation ----
     const sectionTitles = {
-      dashboard: { title: 'Admin Dashboard', sub: "Welcome back, Admin - here's today's overview" },
-      donors: { title: 'Donor Management', sub: 'View and manage all registered blood donors' },
-      requests: { title: 'Blood Requests', sub: 'Track and manage all blood requests' },
-      inventory: { title: 'Blood Inventory', sub: 'Monitor blood stock levels across all types' },
-      drives: { title: 'Blood Drives', sub: 'Plan outreach drives and monitor campaign readiness' },
-      reports: { title: 'Reports', sub: 'Generate operational summaries and blood bank performance insights' },
-      appointments: { title: 'Appointments', sub: 'Manage donation appointments and schedules' },
-      notifications: { title: 'Notifications', sub: 'Real-time alerts and system activity feed' }
+      dashboard: { title: 'Admin Dashboard' },
+      donors: { title: 'Donor Management' },
+      requests: { title: 'Blood Requests' },
+      inventory: { title: 'Blood Inventory' },
+      drives: { title: 'Blood Drives' },
+      reports: { title: 'Reports' },
+      appointments: { title: 'Appointments' },
+      notifications: { title: 'Notifications' }
     };
 
     const globalSearchInput = document.getElementById('globalSearchInput');
@@ -48,48 +48,7 @@
     let reportsRealtimeTimer = null;
     let overviewExpirationsCollapsed = false;
     const INVENTORY_TARGET_UNITS = 50;
-    const BLOOD_DRIVE_PLAN = [
-      {
-        drive_id: 'DR-2026-05-08',
-        drive_name: 'City Hall Community Drive',
-        date: '2026-05-08',
-        venue: 'City Hall Atrium',
-        target_units: 80,
-        registered_donors: 52,
-        focus_type: 'O-',
-        status: 'recruiting'
-      },
-      {
-        drive_id: 'DR-2026-05-15',
-        drive_name: 'University Medical Outreach',
-        date: '2026-05-15',
-        venue: 'State University Gym',
-        target_units: 70,
-        registered_donors: 49,
-        focus_type: 'A-',
-        status: 'recruiting'
-      },
-      {
-        drive_id: 'DR-2026-05-22',
-        drive_name: 'Industrial Park Donation Day',
-        date: '2026-05-22',
-        venue: 'North Industrial Clinic',
-        target_units: 60,
-        registered_donors: 60,
-        focus_type: 'B+',
-        status: 'full'
-      },
-      {
-        drive_id: 'DR-2026-04-18',
-        drive_name: 'Barangay Weekend Blood Drive',
-        date: '2026-04-18',
-        venue: 'Barangay Multipurpose Hall',
-        target_units: 55,
-        registered_donors: 57,
-        focus_type: 'AB-',
-        status: 'completed'
-      }
-    ];
+    const BLOOD_DRIVE_PLAN = [];
 
     function getSearchQuery() {
       return String(globalSearchInput?.value || '').trim().toLowerCase();
@@ -98,14 +57,6 @@
     function includesQuery(values, query) {
       if (!query) return true;
       return values.some((value) => String(value || '').toLowerCase().includes(query));
-    }
-
-    function normalizeBloodType(value) {
-      return String(value || '')
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, '')
-        .replace(/[---]/g, '-');
     }
 
     function normalizeBloodType(value) {
@@ -193,18 +144,19 @@
       // Update header title
       const info = sectionTitles[sectionName];
       if (info) {
-        document.querySelector('.header-title h1').textContent = info.title;
+        const titleEl = document.querySelector('.header-title h1');
+        if (titleEl) titleEl.textContent = info.title;
         const headerSub = document.querySelector('.header-title p');
-        headerSub.textContent = info.sub;
-        headerSub.style.display = info.sub ? '' : 'none';
+        if (headerSub) headerSub.remove();
       }
 
       updateSearchPlaceholder(sectionName);
       applySearchToVisibleSection();
 
-      // Close mobile sidebar
+      // Close mobile sidebar and clear all menu-open state
       sidebar.classList.remove('open');
       overlay.classList.remove('active');
+      pageBody.classList.remove('menu-open');
 
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -978,9 +930,26 @@
       return transitions[normalized] || [];
     }
 
+    const RED_CELL_COMPATIBILITY = {
+      'O-': ['O-'],
+      'O+': ['O+', 'O-'],
+      'A-': ['A-', 'O-'],
+      'A+': ['A+', 'A-', 'O+', 'O-'],
+      'B-': ['B-', 'O-'],
+      'B+': ['B+', 'B-', 'O+', 'O-'],
+      'AB-': ['AB-', 'A-', 'B-', 'O-'],
+      'AB+': ['AB+', 'AB-', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-']
+    };
+
     function getTransitionReasonOptions(targetStatus) {
       const map = {
-        approved: ['Stock verified', 'Cross-match ready', 'Request clinically approved'],
+        approved: [
+          'Stock verified',
+          'Cross-match ready',
+          'Request clinically approved',
+          'Approved for Community Sourcing / Donor Mobilization',
+          'Emergency Call to LGU Donors'
+        ],
         needs_clarification: ['Missing patient details', 'Quantity clarification needed', 'Supporting document required', 'Contact information incomplete'],
         rejected: ['No stock available', 'Invalid request details', 'Duplicate request', 'Policy non-compliance'],
         fulfilled: ['Units dispatched', 'Units handed over to facility', 'Request completed by staff'],
@@ -1758,13 +1727,19 @@
       }
 
       if (targetStatus === 'approved') {
-        const availableUnits = await getAvailableUnitsForRequest(row);
-        if (availableUnits <= 0) {
-          return `Cannot approve request: stock for ${row.blood_type_needed || 'selected blood type'} is 0.`;
-        }
-        const neededUnits = Number(row.quantity || 0);
-        if (neededUnits > 0 && availableUnits < neededUnits) {
-          return `Cannot approve request: ${neededUnits} unit(s) needed, only ${availableUnits} available.`;
+        const isCrowdsourceReason = String(reason || '').includes('Community') ||
+          String(reason || '').includes('Mobilization') ||
+          String(reason || '').includes('Emergency Call');
+
+        if (!isCrowdsourceReason) {
+          const availableUnits = await getAvailableUnitsForRequest(row);
+          if (availableUnits <= 0) {
+            return `Cannot approve for direct stock dispatch: inventory for ${row.blood_type_needed || 'selected blood type'} is 0. Please choose "Approved for Community Sourcing / Donor Mobilization" to mobilize local donors.`;
+          }
+          const neededUnits = Number(row.quantity || 0);
+          if (neededUnits > 0 && availableUnits < neededUnits) {
+            return `Cannot approve for direct stock dispatch: ${neededUnits} unit(s) needed, only ${availableUnits} in stock. Choose "Approved for Community Sourcing / Donor Mobilization" to mobilize donors for remaining units.`;
+          }
         }
       }
 
@@ -1942,6 +1917,15 @@
         const urgencyBadge = isUrgentRequest(row) && status !== 'fulfilled' && status !== 'rejected'
           ? '<span class="badge urgent"><i class="fa-solid fa-circle-exclamation"></i> Urgent</span>'
           : '';
+        const isCrowdsourced = String(row.note || '').includes('[Community Crowdsourced]') ||
+          String(row.note || '').includes('Community') ||
+          String(row.note || '').includes('Mobilization');
+        const crowdsourceBadge = isCrowdsourced
+          ? '<span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:0.70rem;"><i class="fa-solid fa-users"></i> Crowdsourced</span>'
+          : '';
+        const mobilizeBtn = (status === 'pending' || status === 'approved')
+          ? `<button type="button" class="btn-row-action" style="margin-right:6px;background:rgba(128,0,0,0.06);color:var(--accent,#800000);border:1px solid rgba(128,0,0,0.18);padding:4px 8px;border-radius:6px;font-weight:700;font-size:0.75rem;" onclick="openMobilizeDonorsModal(${Number(row.request_id)})" title="Mobilize matching local donors in Bohol"><i class="fa-solid fa-bullhorn"></i> Mobilize Donors</button>`
+          : '';
         const actions = getValidRequestTransitions(status);
         const getActionLabel = (action) => {
           const labels = {
@@ -1972,16 +1956,157 @@
             <span>${escapeHtml(hospital)} &bull; ${formatNumber(row.quantity)} units</span>
             <div class="request-meta-badges">
               ${urgencyBadge}
+              ${crowdsourceBadge}
               <span class="badge ${statusBadge.className}">${statusBadge.label}</span>
             </div>
           </div>
           <div class="request-meta">
-            ${actionDropdown ? `<div class="request-actions">${actionDropdown}</div>` : ''}
+            <div class="request-actions" style="display:flex;align-items:center;">
+              ${mobilizeBtn}
+              ${actionDropdown}
+            </div>
             <small>${escapeHtml(formatRelativeTime(row.request_date))}</small>
           </div>
         </div>`;
       }).join('');
     }
+
+    let activeMobilizeRequestId = null;
+
+    function openMobilizeDonorsModal(requestId) {
+      const request = requestsSectionCache.find((item) => Number(item.request_id) === Number(requestId));
+      if (!request) return;
+
+      activeMobilizeRequestId = Number(requestId);
+      const patient = Array.isArray(request.patient) ? request.patient[0] : request.patient;
+      const firstName = patient?.first_name || 'Community';
+      const lastName = patient?.last_name || 'Patient';
+      const patientName = `${firstName} ${lastName}`.trim();
+      const hospital = patient?.hospital_name || 'RHU / Blood Facility';
+      const patientArea = patient?.address || patient?.map_area || 'Bohol';
+      const neededType = normalizeBloodType(request.blood_type_needed || 'O+');
+      const quantity = Number(request.quantity || 1);
+
+      document.getElementById('mobilizeRecipientName').textContent = patientName;
+      document.getElementById('mobilizeLocationText').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(patientArea)} &bull; ${escapeHtml(hospital)}`;
+      document.getElementById('mobilizeBloodTypeBadge').textContent = neededType;
+      document.getElementById('mobilizeQuantityText').textContent = `${quantity} Unit(s) Needed`;
+
+      const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
+      document.getElementById('mobilizeCompatibilityText').textContent = `Compatible donor types: ${compatibleTypes.join(', ')}`;
+
+      // Filter matching donors from donorCache
+      const donors = Array.isArray(donorCache) ? donorCache : [];
+      const matchingDonors = donors.filter((d) => {
+        const dType = normalizeBloodType(d.blood_type);
+        return compatibleTypes.includes(dType);
+      });
+
+      document.getElementById('mobilizeMatchCount').textContent = matchingDonors.length;
+      const tbody = document.getElementById('mobilizeDonorsTableBody');
+
+      if (!matchingDonors.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate-400);padding:24px;">No registered donors with compatible blood type (${compatibleTypes.join(', ')}) found.</td></tr>`;
+      } else {
+        tbody.innerHTML = matchingDonors.map((d) => {
+          const name = formatCompleteName(d, 'Registered Donor');
+          const dType = normalizeBloodType(d.blood_type);
+          const area = d.map_area || d.address || 'Bohol';
+          const phone = d.phone || '-';
+          const { eligible, daysRemaining } = isEligibleToCheckIn(d);
+          const eligHtml = eligible
+            ? '<span class="badge donated" style="font-size:0.68rem;"><i class="fa-solid fa-check"></i> Eligible Now</span>'
+            : `<span class="waiting-pill" style="font-size:0.68rem;">${daysRemaining}d wait</span>`;
+
+          return `<tr>
+            <td><strong>${escapeHtml(name)}</strong></td>
+            <td><span class="type-pill">${escapeHtml(dType)}</span></td>
+            <td>${escapeHtml(area)}</td>
+            <td>${escapeHtml(phone)}</td>
+            <td>${eligHtml}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      const msg = document.getElementById('mobilizeMsg');
+      if (msg) {
+        msg.textContent = '';
+        msg.className = 'form-msg';
+      }
+      document.getElementById('mobilizeDonorsModal').classList.add('active');
+    }
+    window.openMobilizeDonorsModal = openMobilizeDonorsModal;
+
+    function closeMobilizeDonorsModal() {
+      document.getElementById('mobilizeDonorsModal').classList.remove('active');
+      activeMobilizeRequestId = null;
+      const msg = document.getElementById('mobilizeMsg');
+      if (msg) {
+        msg.textContent = '';
+        msg.className = 'form-msg';
+      }
+    }
+    window.closeMobilizeDonorsModal = closeMobilizeDonorsModal;
+
+    async function handleBroadcastAppeal() {
+      if (!activeMobilizeRequestId) return;
+      const request = requestsSectionCache.find((item) => Number(item.request_id) === Number(activeMobilizeRequestId));
+      if (!request) return;
+
+      const btn = document.getElementById('btnBroadcastAppeal');
+      const msg = document.getElementById('mobilizeMsg');
+      if (btn) btn.disabled = true;
+      if (msg) {
+        msg.textContent = 'Broadcasting community blood appeal...';
+        msg.className = 'form-msg info';
+      }
+
+      const neededType = normalizeBloodType(request.blood_type_needed || 'O+');
+      const compatibleTypes = RED_CELL_COMPATIBILITY[neededType] || [neededType];
+      const matchingDonors = donorCache.filter((d) => compatibleTypes.includes(normalizeBloodType(d.blood_type)));
+
+      const patient = Array.isArray(request.patient) ? request.patient[0] : request.patient;
+      const patientLocation = patient?.address || patient?.map_area || 'Bohol';
+
+      const queueEntries = matchingDonors
+        .filter((d) => d.phone || d.email)
+        .map((d) => ({
+          request_id: activeMobilizeRequestId,
+          channel: d.phone ? 'sms' : 'email',
+          recipient: d.phone || d.email,
+          message: `URGENT BLOOD NEED (VeinDrop): Patient in ${patientLocation} needs ${neededType} blood. Your compatible blood can save a life. Reply or open VeinDrop to pledge!`,
+          reason: 'Community Crowdsource Appeal',
+          status: 'queued'
+        }));
+
+      try {
+        if (queueEntries.length > 0) {
+          await bloodBank().from('blood_request_notification_queue').insert(queueEntries);
+        }
+
+        await logRequestStatusAudit({
+          requestId: activeMobilizeRequestId,
+          oldStatus: request.status,
+          newStatus: request.status,
+          reason: 'Community Crowdsource Broadcast',
+          note: `Queued appeals to ${queueEntries.length} compatible local donors in Bohol network.`
+        });
+
+        if (msg) {
+          msg.textContent = `Community Blood Appeal successfully queued to ${queueEntries.length} compatible donor(s)!`;
+          msg.className = 'form-msg success';
+        }
+        setTimeout(closeMobilizeDonorsModal, 1500);
+      } catch (err) {
+        if (msg) {
+          msg.textContent = err?.message || 'Failed to broadcast appeal.';
+          msg.className = 'form-msg error';
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+    window.handleBroadcastAppeal = handleBroadcastAppeal;
 
     function toggleRequestActionMenu(event) {
       if (event) event.stopPropagation();
@@ -2113,6 +2238,27 @@
       document.getElementById('addDonorMsg').className = 'form-msg';
     }
 
+    function isDonorEligibleForMap(donor) {
+      const status = String(donor?.donor_status || 'registered').toLowerCase();
+      if (status === 'deferred') {
+        return { eligible: false, reason: 'Donor is deferred (medically ineligible).' };
+      }
+      if (status === 'registered' || status === 'checked_in') {
+        return { eligible: false, reason: 'Donor has not completed medical screening yet. Medical approval is required first.' };
+      }
+      if (status === 'approved') {
+        return { eligible: true, reason: 'Medically screened and approved to donate.' };
+      }
+      if (status === 'donated') {
+        const { eligible, daysRemaining } = isEligibleToCheckIn(donor);
+        if (!eligible) {
+          return { eligible: false, reason: `Donor is in the 56-day post-donation waiting period (${daysRemaining} day(s) remaining).` };
+        }
+        return { eligible: true, reason: 'Medically screened and currently eligible to donate.' };
+      }
+      return { eligible: false, reason: 'Donor is not eligible for map display.' };
+    }
+
     function openDonorProfileModal(donorId) {
       const donor = donorCache.find((item) => Number(item.id) === Number(donorId));
       if (!donor) return;
@@ -2145,7 +2291,27 @@
       document.getElementById('profileLastDonated').value = donor.last_donation_date
         ? formatDateShort(donor.last_donation_date)
         : 'Never donated';
-      document.getElementById('profileShowOnMap').checked = donor.show_on_map === true;
+
+      const mapElig = isDonorEligibleForMap(donor);
+      const showOnMapCheckbox = document.getElementById('profileShowOnMap');
+      const mapEligibilityHint = document.getElementById('profileMapEligibilityHint');
+
+      if (!mapElig.eligible) {
+        showOnMapCheckbox.checked = false;
+        showOnMapCheckbox.disabled = true;
+        showOnMapCheckbox.title = mapElig.reason;
+        if (mapEligibilityHint) {
+          mapEligibilityHint.innerHTML = `<span style="color:#e11d48;font-size:0.75rem;display:flex;align-items:center;gap:4px;margin-top:4px;"><i class="fa-solid fa-lock"></i> Map disabled: ${escapeHtml(mapElig.reason)}</span>`;
+        }
+      } else {
+        showOnMapCheckbox.disabled = false;
+        showOnMapCheckbox.checked = donor.show_on_map === true;
+        showOnMapCheckbox.title = 'Show donor on patient map';
+        if (mapEligibilityHint) {
+          mapEligibilityHint.innerHTML = `<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;margin-top:4px;"><i class="fa-solid fa-circle-check"></i> Screened &amp; eligible for map display</span>`;
+        }
+      }
+
       document.getElementById('profileLocationStatus').value = donor.location_status || 'needs_review';
       document.getElementById('profileMapArea').value = donor.map_area || donor.address || '';
       document.getElementById('mapSettingsMsg').textContent = '';
@@ -2191,6 +2357,11 @@
     function getMapVisibilityBadge(donor) {
       const showOnMap = donor?.show_on_map === true;
       const status = String(donor?.location_status || 'needs_review');
+      const mapElig = isDonorEligibleForMap(donor);
+
+      if (!mapElig.eligible) {
+        return `<span class="map-status-pill hidden" title="${escapeHtml(mapElig.reason)}"><i class="fa-solid fa-lock"></i> Ineligible</span>`;
+      }
       if (showOnMap && status === 'verified') {
         return '<span class="map-status-pill visible"><i class="fa-solid fa-location-dot"></i> Visible</span>';
       }
@@ -2206,8 +2377,17 @@
 
       const msg = document.getElementById('mapSettingsMsg');
       const button = document.getElementById('btnSaveMapSettings');
+      const showOnMapRequested = document.getElementById('profileShowOnMap').checked;
+      const mapElig = isDonorEligibleForMap(donor);
+
+      if (showOnMapRequested && !mapElig.eligible) {
+        msg.textContent = `Cannot enable on map: ${mapElig.reason}`;
+        msg.className = 'form-msg error';
+        return;
+      }
+
       const payload = {
-        show_on_map: document.getElementById('profileShowOnMap').checked,
+        show_on_map: showOnMapRequested && mapElig.eligible,
         location_status: document.getElementById('profileLocationStatus').value,
         map_area: document.getElementById('profileMapArea').value
       };
@@ -2229,8 +2409,8 @@
 
         renderDonorRows();
         msg.textContent = donor.show_on_map && donor.location_status === 'verified'
-          ? 'Saved. This donor can now appear on the patient map.'
-          : 'Saved. This donor will stay hidden until Show on map is enabled and location is verified.';
+          ? 'Saved. This donor is eligible and can now appear on the patient map.'
+          : 'Saved. This donor will stay hidden until location is verified and donor is eligible.';
         msg.className = 'form-msg success';
       } catch (err) {
         msg.textContent = err?.message || 'Failed to save map settings.';
@@ -2239,6 +2419,75 @@
         button.disabled = false;
       }
     }
+    window.handleSaveMapSettings = handleSaveMapSettings;
+
+    async function handleSaveDonorProfile() {
+      if (!activeDonorId) {
+        closeDonorProfileModal();
+        return;
+      }
+      const donor = donorCache.find((item) => Number(item.id ?? item.donor_id) === Number(activeDonorId));
+      if (!donor) {
+        closeDonorProfileModal();
+        return;
+      }
+
+      const msg = document.getElementById('donorProfileMsg');
+      const btn = document.getElementById('btnSaveDonorProfile');
+      if (btn) btn.disabled = true;
+
+      const showOnMapRequested = document.getElementById('profileShowOnMap')?.checked === true;
+      const mapElig = isDonorEligibleForMap(donor);
+
+      if (showOnMapRequested && !mapElig.eligible) {
+        if (msg) {
+          msg.textContent = `Cannot enable on map: ${mapElig.reason}`;
+          msg.className = 'form-msg error';
+        }
+        if (btn) btn.disabled = false;
+        return;
+      }
+
+      if (msg) {
+        msg.textContent = 'Saving donor settings...';
+        msg.className = 'form-msg info';
+      }
+
+      try {
+        const payload = {
+          show_on_map: showOnMapRequested && mapElig.eligible,
+          location_status: document.getElementById('profileLocationStatus')?.value || 'needs_review',
+          map_area: document.getElementById('profileMapArea')?.value?.trim() || ''
+        };
+
+        const { data, error } = await updateDonorMapSettings(activeDonorId, payload);
+        if (error) throw error;
+
+        Object.assign(donor, {
+          show_on_map: data?.show_on_map === true,
+          location_status: data?.location_status || payload.location_status,
+          map_area: data?.map_area || payload.map_area || null,
+          area: data?.map_area || payload.map_area || null
+        });
+
+        renderDonorRows();
+        if (msg) {
+          msg.textContent = 'Donor profile updated successfully!';
+          msg.className = 'form-msg success';
+        }
+        setTimeout(() => {
+          closeDonorProfileModal();
+        }, 600);
+      } catch (err) {
+        if (msg) {
+          msg.textContent = err?.message || 'Failed to save donor profile.';
+          msg.className = 'form-msg error';
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+    window.handleSaveDonorProfile = handleSaveDonorProfile;
 
     function applyDonorFilter(donors) {
       const query = getSearchQuery();
@@ -2466,29 +2715,60 @@
       showLifecycleMsg('Medical screening approved! OK Donor is now eligible for blood draw.', 'success');
     }
 
+    // ---- Toggle Outcome Reason Fields ----
+    function toggleDonateOutcomeFields() {
+      const status = document.getElementById('donateStatus')?.value || 'completed';
+      const reasonGroup = document.getElementById('donateOutcomeReasonGroup');
+      if (reasonGroup) {
+        if (status === 'failed' || status === 'cancelled') {
+          reasonGroup.style.display = 'block';
+        } else {
+          reasonGroup.style.display = 'none';
+        }
+      }
+    }
+    window.toggleDonateOutcomeFields = toggleDonateOutcomeFields;
+
     // ---- Handle Mark as Donated (show panel) ----
     function handleMarkDonated() {
       if (!activeDonorId) return;
       hideDeferPanel();
       // Pre-fill blood type from current donor
-      const donor = donorCache.find(d => Number(d.id) === activeDonorId);
+      const donor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
       const btSelect = document.getElementById('donateBloodType');
       if (donor?.blood_type && btSelect) btSelect.value = donor.blood_type;
+      const statusSelect = document.getElementById('donateStatus');
+      if (statusSelect) statusSelect.value = 'completed';
+      const notesEl = document.getElementById('donateNotes');
+      if (notesEl) notesEl.value = '';
+      toggleDonateOutcomeFields();
       document.getElementById('donateUnits').value = 1;
       document.getElementById('donateConfirmPanel').classList.add('visible');
       showLifecycleMsg('', '');
     }
+    window.handleMarkDonated = handleMarkDonated;
 
     // ---- Submit Mark as Donated ----
     async function submitMarkDonated() {
       if (!activeDonorId) return;
       const units = Number(document.getElementById('donateUnits').value) || 1;
       const blood_type = document.getElementById('donateBloodType').value;
+      const status = document.getElementById('donateStatus')?.value || 'completed';
+      const reason = document.getElementById('donateReasonSelect')?.value || '';
+      const notes = document.getElementById('donateNotes')?.value?.trim() || '';
+
       const btn = document.getElementById('btnConfirmDonate');
       btn.disabled = true;
-      showLifecycleMsg('Recording donation...', 'info');
+      showLifecycleMsg('Recording donation outcome...', 'info');
 
-      const { data, error } = await markDonorDonated({ donor_id: activeDonorId, units, blood_type });
+      const { data, error } = await markDonorDonated({
+        donor_id: activeDonorId,
+        units,
+        blood_type,
+        status,
+        reason: (status === 'failed' || status === 'cancelled') ? reason : '',
+        notes
+      });
       if (error) {
         showLifecycleMsg(error.message || 'Failed to record donation.', 'error');
         btn.disabled = false;
@@ -2504,13 +2784,26 @@
       const idx = donorCache.findIndex(d => (d.id ?? d.donor_id) === activeDonorId);
       if (idx !== -1) { donorCache[idx] = { ...donorCache[idx], ...data.donor }; }
       updateProfileLifecycleUI(data.donor);
-      document.getElementById('profileLastDonated').value = formatDateShort(data.donation_date);
+      if (status === 'completed' && data.donation_date) {
+        document.getElementById('profileLastDonated').value = formatDateShort(data.donation_date);
+      }
       renderDonorRows();
       refreshOverviewStats();
       refreshOverviewPanels();
-      showLifecycleMsg(`Donation recorded! OK  Blood inventory updated. Next eligible: ${nextDate}`, 'success');
+
+      let successMsg = `Donation recorded as Completed! Blood inventory updated. Next eligible: ${nextDate}`;
+      if (status === 'failed') {
+        successMsg = `Donation recorded as Failed/Deferred (${reason || notes || 'Collection issue'}).`;
+      } else if (status === 'cancelled') {
+        successMsg = `Donation marked as Cancelled (${reason || notes || 'Donor withdrew'}).`;
+      } else if (status === 'pending') {
+        successMsg = `Donation record saved as Pending processing.`;
+      }
+
+      showLifecycleMsg(successMsg, status === 'failed' ? 'error' : 'success');
       btn.disabled = false;
     }
+    window.submitMarkDonated = submitMarkDonated;
 
     // ---- Handle Defer (show panel) ----
     function handleDefer() {

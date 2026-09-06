@@ -1,54 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
   <title>Find Donors - VeinDrop</title>
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="patient_donor_map.css?v=20260827b" />
+  <link rel="stylesheet" href="patient_dashboard.css?v=20260827e" />
+  <link rel="stylesheet" href="patient_donor_map.css?v=20260906w" />
   <link rel="stylesheet" href="patient_mobile_nav.css?v=20260811a" />
 </head>
+
 <body>
-  <main class="map-page">
-    <div id="donorMap" class="donor-map" role="application" aria-label="Map of compatible donor zones in Bohol"></div>
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="sidebar" id="sidebar">
 
-    <header class="map-header">
-      <a class="icon-button map-back-button" href="patient_dashboard.html" aria-label="Back to dashboard">
-        <i class="fa-solid fa-arrow-left"></i>
-      </a>
-      <div>
-        <h1>Find Donors</h1>
-        <p id="searchSummary">Tap search to find compatible donors nearby.</p>
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon" aria-hidden="true">
+        <img src="assets/veindrop-mark.svg" alt="" />
       </div>
-      <button class="icon-button" id="locateButton" type="button" aria-label="Center Bohol map">
-        <i class="fa-solid fa-location-crosshairs"></i>
-      </button>
-    </header>
+      <div class="sidebar-brand-text">
+        <h2>VeinDrop</h2>
+        <small id="portalRoleLabel">Patient Portal</small>
+      </div>
+    </div>
 
-    <section class="filter-panel" aria-label="Compatible donor search">
-      <button class="compatible-search-btn" id="compatibleSearchBtn" type="button">
-        <i class="fa-solid fa-magnifying-glass-location"></i>
-        Look for Compatible Donor
-      </button>
+    <nav class="sidebar-nav">
+      <p class="nav-section-title">Menu</p>
+
+      <a href="patient_dashboard.html#section-dashboard" class="nav-item">
+        <i class="fa-solid fa-house"></i>
+        <span class="nav-item-label">Home</span>
+      </a>
+      <a href="patient_dashboard.html#section-requests" class="nav-item" id="navMyRequests">
+        <i class="fa-solid fa-hand-holding-medical"></i>
+        <span class="nav-item-label">Requests</span>
+        <span class="nav-badge" id="requestBadge">0</span>
+      </a>
+      <a href="patient_donor_map.html" class="nav-item active" title="Open donor map">
+        <i class="fa-solid fa-map-location-dot"></i>
+        <span class="nav-item-label">Donor Map</span>
+      </a>
+      <a href="patient_dashboard.html#section-drives" class="nav-item">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span class="nav-item-label">Blood Drives</span>
+      </a>
+
+      <p class="nav-section-title">Account</p>
+
+      <a href="patient_dashboard.html#section-profile" class="nav-item">
+        <i class="fa-solid fa-user"></i>
+        <span class="nav-item-label">My Profile</span>
+      </a>
+    </nav>
+    <a href="login.html" class="sidebar-logout" title="Log out" id="logoutBtn">
+    </a>
+
+  </aside>
+
+  <main class="map-page">
+    <div id="donorMap" class="donor-map" role="application"
+      aria-label="Map of compatible blood and donor zones in Bohol"></div>
+
+    <!-- Locate / Center Map Button (above Leaflet zoom controls) -->
+    <button class="map-locate-btn" id="locateButton" type="button" aria-label="Center Bohol map" title="Center map">
+      <i class="fa-solid fa-location-crosshairs"></i>
+    </button>
+
+    <!-- Top Floating Search & Filter Bar (Picture 1 style) -->
+    <section class="donor-search-card" id="donorSearchCard" aria-label="Search area or city">
+      <div class="search-input-wrapper">
+        <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+        <input type="text" id="searchAreaInput" class="search-area-input" placeholder="Search for area or city"
+          autocomplete="off" aria-label="Search for area or city" />
+        <button type="button" class="clear-search-btn" id="btnClearSearchText" aria-label="Clear search text"
+          style="display:none;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="search-filter-divider"></div>
+
+      <div class="search-filter-subrow">
+        <button type="button" class="search-filter-pill" id="bloodTypePickerBtn" aria-haspopup="dialog"
+          aria-expanded="false" title="Filter by blood type">
+          <i class="fa-solid fa-droplet pill-icon-blood"></i>
+          <span class="pill-label" id="bloodTypeDisplay">Compatible (Auto)</span>
+          <i class="fa-solid fa-chevron-down pill-chevron"></i>
+        </button>
+        <input type="hidden" id="filterBloodType" value="compatible" />
+
+        <div class="search-count-pill" id="searchCountPill">
+          <span id="donorCountSummary">All</span>
+        </div>
+      </div>
     </section>
 
-    <section class="zone-card" id="zoneCard" aria-live="polite">
-      <button class="zone-close" id="closeZoneCard" type="button" aria-label="Close donor area details">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-      <span class="zone-label">Donors in this area</span>
-      <strong id="zoneCount" class="sr-only">Select a donor marker</strong>
-      <p id="zoneDetails">Tap a marker to view compatible donors nearby.</p>
-      <div class="donor-profile-list" id="donorProfileList"></div>
-    </section>
+
+
+    <!-- Blood Type Selection Modal Popup -->
+    <div class="filter-modal-overlay" id="bloodTypeModal" role="dialog" aria-modal="true"
+      aria-labelledby="bloodTypeModalTitle">
+      <div class="filter-modal-card">
+        <div class="filter-modal-header">
+          <div class="filter-modal-title">
+            <i class="fa-solid fa-droplet modal-icon-blood"></i>
+            <h3 id="bloodTypeModalTitle">Select Blood Type</h3>
+          </div>
+          <button type="button" class="filter-modal-close" id="closeBloodTypeModal" aria-label="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="filter-modal-body">
+          <div class="filter-option-presets">
+            <button type="button" class="filter-option-card selected" data-type="blood" data-value="compatible">
+              <div class="option-card-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+              <div class="option-card-text">
+                <span class="option-card-title">Compatible (Auto)</span>
+                <span class="option-card-desc">Matches your compatible donor blood types</span>
+              </div>
+              <i class="fa-solid fa-circle-check option-check"></i>
+            </button>
+
+            <button type="button" class="filter-option-card" data-type="blood" data-value="all">
+              <div class="option-card-icon"><i class="fa-solid fa-globe"></i></div>
+              <div class="option-card-text">
+                <span class="option-card-title">All Blood Types</span>
+                <span class="option-card-desc">Show all available blood donor types</span>
+              </div>
+              <i class="fa-solid fa-circle-check option-check"></i>
+            </button>
+          </div>
+
+          <div class="filter-modal-divider"><span>Specific Blood Types</span></div>
+
+          <div class="blood-type-grid">
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="A+">
+              <span class="blood-grid-type">A+</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="A-">
+              <span class="blood-grid-type">A-</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="B+">
+              <span class="blood-grid-type">B+</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="B-">
+              <span class="blood-grid-type">B-</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="AB+">
+              <span class="blood-grid-type">AB+</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="AB-">
+              <span class="blood-grid-type">AB-</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="O+">
+              <span class="blood-grid-type">O+</span>
+            </button>
+            <button type="button" class="blood-grid-btn" data-type="blood" data-value="O-">
+              <span class="blood-grid-type">O-</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
 
     <div class="map-legend">
-      <span><i class="legend-dot donor"></i> Donors</span>
-      <span><i class="legend-dot hospital"></i> Hospitals</span>
-      <span><i class="legend-dot needed"></i> Needed</span>
+      <span><i class="legend-dot donor"></i> Blood Type Donors</span>
+      <span><i class="legend-dot hospital"></i> Hospitals / Facilities</span>
     </div>
 
     <div class="map-toast" id="mapToast" role="status" aria-live="polite"></div>
@@ -59,10 +185,18 @@
       <i class="fa-solid fa-house"></i>
       <span>Home</span>
     </a>
+    <a class="mobile-nav-item" href="patient_dashboard.html#section-requests" aria-label="Blood requests">
+      <i class="fa-solid fa-hand-holding-medical"></i>
+      <span>Requests</span>
+    </a>
     <button class="mobile-nav-search active" type="button" aria-label="Search donors" aria-current="page">
       <i class="fa-solid fa-magnifying-glass"></i>
       <span>Search</span>
     </button>
+    <a class="mobile-nav-item" href="patient_dashboard.html#section-drives" aria-label="Blood drives">
+      <i class="fa-solid fa-calendar-days"></i>
+      <span>Drives</span>
+    </a>
     <a class="mobile-nav-item" href="patient_dashboard.html#section-profile" aria-label="Profile">
       <i class="fa-solid fa-user"></i>
       <span>Profile</span>
@@ -70,9 +204,10 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260824b"></script>
+  <script src="/supabase-client.js?v=20260906e"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/patient-donor-map.js?v=20260901a"></script>
+  <script src="/scripts/pages/patient-donor-map.js?v=20260906e"></script>
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>
+
 </html>

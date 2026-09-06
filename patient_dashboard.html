@@ -3,21 +3,23 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
   <title>Patient Overview - VeinDrop</title>
   <script>
     (() => {
       const initialSection = window.location.hash.replace('#section-', '');
-      const validSections = ['dashboard', 'requests', 'drives', 'donor', 'profile', 'help'];
+      const validSections = ['dashboard', 'requests', 'drives', 'donor', 'profile'];
       if (validSections.includes(initialSection)) {
         document.documentElement.dataset.initialSection = initialSection;
       }
     })();
   </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="patient_dashboard.css?v=20260827d" />
+  <link rel="stylesheet" href="patient_dashboard.css?v=20260907f" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="patient_mobile_nav.css?v=20260825a" />
 </head>
@@ -45,25 +47,21 @@
       <p class="nav-section-title">Menu</p>
 
       <a href="#" class="nav-item active" data-section="dashboard">
-        <i class="fa-solid fa-gauge-high"></i>
-        <span class="nav-item-label">Overview</span>
+        <i class="fa-solid fa-house"></i>
+        <span class="nav-item-label">Home</span>
+      </a>
+      <a href="#" class="nav-item" data-section="requests" id="navMyRequests">
+        <i class="fa-solid fa-hand-holding-medical"></i>
+        <span class="nav-item-label">Requests</span>
+        <span class="nav-badge" id="requestBadge">0</span>
       </a>
       <a href="patient_donor_map.html" class="nav-item" title="Open donor map">
         <i class="fa-solid fa-map-location-dot"></i>
         <span class="nav-item-label">Donor Map</span>
       </a>
-      <a href="#" class="nav-item" data-section="requests" id="navMyRequests">
-        <i class="fa-solid fa-hand-holding-medical"></i>
-        <span class="nav-item-label">My Requests</span>
-        <span class="nav-badge" id="requestBadge">0</span>
-      </a>
       <a href="#" class="nav-item" data-section="drives">
-        <i class="fa-solid fa-vial"></i>
+        <i class="fa-solid fa-calendar-days"></i>
         <span class="nav-item-label">Blood Drives</span>
-      </a>
-      <a href="#" class="nav-item" data-section="donor" id="navDonorCenter">
-        <i class="fa-solid fa-heart-pulse"></i>
-        <span class="nav-item-label">Donor Center</span>
       </a>
 
       <p class="nav-section-title">Account</p>
@@ -72,16 +70,12 @@
         <i class="fa-solid fa-user"></i>
         <span class="nav-item-label">My Profile</span>
       </a>
-      <a href="#" class="nav-item" data-section="help">
-        <i class="fa-solid fa-circle-question"></i>
-        <span class="nav-item-label">Help</span>
-      </a>
     </nav>
     <a href="login.html" class="sidebar-logout" title="Log out" id="logoutBtn">
     </a>
 
   </aside>
-  
+
   <!-- ==================== MAIN ==================== -->
   <!-- ==================== MAIN ==================== -->
   <div class="main">
@@ -94,14 +88,14 @@
 
       <div class="header-title">
         <h1>Patient Overview</h1>
-        <p id="headerGreeting">Manage your blood requests here</p>
       </div>
 
       <div class="header-actions">
         <div class="notification-wrap">
-          <button type="button" class="header-btn" id="notificationBtn" title="Notifications" aria-expanded="false" aria-haspopup="true">
-          <i class="fa-solid fa-bell"></i>
-          <span class="notif-dot"></span>
+          <button type="button" class="header-btn" id="notificationBtn" title="Notifications" aria-expanded="false"
+            aria-haspopup="true">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-dot"></span>
           </button>
           <div class="notification-panel" id="notificationPanel" role="menu" aria-label="Notifications">
             <div class="notification-head">
@@ -109,14 +103,16 @@
               <span id="notificationPreviewCount">2 new</span>
             </div>
             <div class="notification-list">
-              <a class="notification-item unread" data-notification-id="request-updated" href="patient_dashboard.html#section-requests">
+              <a class="notification-item unread" data-notification-id="request-updated"
+                href="patient_dashboard.html#section-requests">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <div>
                   <strong>Request updated</strong>
                   <p>Your blood request is now under review.</p>
                 </div>
               </a>
-              <a class="notification-item unread" data-notification-id="new-message" href="patient_dashboard.html#section-requests">
+              <a class="notification-item unread" data-notification-id="new-message"
+                href="patient_dashboard.html#section-requests">
                 <i class="fa-solid fa-comment-dots"></i>
                 <div>
                   <strong>New message</strong>
@@ -130,28 +126,32 @@
                   <p>Compatible donors are available in Bohol.</p>
                 </div>
               </a>
-              <a class="notification-item" data-notification-id="request-approved" href="patient_dashboard.html#section-requests">
+              <a class="notification-item" data-notification-id="request-approved"
+                href="patient_dashboard.html#section-requests">
                 <i class="fa-solid fa-circle-check"></i>
                 <div>
                   <strong>Request approved</strong>
                   <p>Your request for 2 units of A+ blood has been approved.</p>
                 </div>
               </a>
-              <a class="notification-item" data-notification-id="blood-drive-reminder" href="patient_dashboard.html#section-drives">
+              <a class="notification-item" data-notification-id="blood-drive-reminder"
+                href="patient_dashboard.html#section-drives">
                 <i class="fa-solid fa-calendar-check"></i>
                 <div>
                   <strong>Blood drive reminder</strong>
                   <p>A blood drive near Tagbilaran City starts this weekend.</p>
                 </div>
               </a>
-              <a class="notification-item" data-notification-id="request-submitted" href="patient_dashboard.html#section-requests">
+              <a class="notification-item" data-notification-id="request-submitted"
+                href="patient_dashboard.html#section-requests">
                 <i class="fa-solid fa-file-circle-check"></i>
                 <div>
                   <strong>Request submitted</strong>
                   <p>Your blood request was submitted successfully.</p>
                 </div>
               </a>
-              <a class="notification-item" data-notification-id="request-fulfilled" href="patient_dashboard.html#section-requests">
+              <a class="notification-item" data-notification-id="request-fulfilled"
+                href="patient_dashboard.html#section-requests">
                 <i class="fa-solid fa-hand-holding-heart"></i>
                 <div>
                   <strong>Request fulfilled</strong>
@@ -198,206 +198,21 @@
     <!-- CONTENT -->
     <div class="content">
 
-      <!-- ===== SECTION: DASHBOARD ===== -->
+
+
+      <!-- ===== SECTION: HOME / DONOR CENTER ===== -->
       <div class="page-section active" id="section-dashboard">
-
-        <!-- HERO -->
-        <h2 id="heroTitle">Patient Dashboard</h2>
-
-        <div class="account-context-bar" aria-label="Account roles and dashboard view">
-          <div class="account-role-summary">
-            <span>Active role</span>
-            <strong id="accountRoleSummary"><i class="fa-solid fa-user"></i> Patient</strong>
-          </div>
-          <div class="account-view-actions" aria-label="View dashboard as">
-            <button type="button" class="account-view-btn" id="donorViewBtn" onclick="openDonorView()">
-              <i class="fa-solid fa-heart-pulse"></i>
-              <span id="donorViewBtnText">Become a Donor</span>
-            </button>
-          </div>
-          <p class="form-msg account-role-message" id="accountRoleMessage" role="status" aria-live="polite" hidden></p>
-        </div>
-
-        <!-- STAT CARDS -->
-        <section class="stats-row">
-          <button class="stat-card red" type="button" data-stat-target="requests" aria-label="Open all blood requests">
-            <div class="stat-ring"><i class="fa-solid fa-hand-holding-medical"></i></div>
-            <div class="stat-body">
-              <p class="stat-label">Total Requests</p>
-              <h2 class="stat-number" id="statTotalRequests">0</h2>
-              <p class="stat-sub">All time</p>
-            </div>
-            <i class="fa-solid fa-chevron-right stat-action" aria-hidden="true"></i>
-          </button>
-          <button class="stat-card green" type="button" data-stat-target="requests" aria-label="Open fulfilled blood requests">
-            <div class="stat-ring"><i class="fa-solid fa-check-circle"></i></div>
-            <div class="stat-body">
-              <p class="stat-label">Fulfilled</p>
-              <h2 class="stat-number" id="statFulfilled">0</h2>
-              <p class="stat-sub">Completed requests</p>
-            </div>
-            <i class="fa-solid fa-chevron-right stat-action" aria-hidden="true"></i>
-          </button>
-          <button class="stat-card blue" type="button" data-stat-target="requests" aria-label="Open pending blood requests">
-            <div class="stat-ring"><i class="fa-solid fa-clock"></i></div>
-            <div class="stat-body">
-              <p class="stat-label">Pending</p>
-              <h2 class="stat-number" id="statPending">0</h2>
-              <p class="stat-sub">Awaiting fulfillment</p>
-            </div>
-            <i class="fa-solid fa-chevron-right stat-action" aria-hidden="true"></i>
-          </button>
-          <div class="stat-card violet stat-card-passive" aria-label="Your blood type">
-            <div class="stat-ring"><i class="fa-solid fa-droplet"></i></div>
-            <div class="stat-body">
-              <p class="stat-label">Blood Type</p>
-              <h2 class="stat-number" id="statBloodType">-</h2>
-              <p class="stat-sub">Your blood type</p>
-            </div>
-          </div>
-
-        </section>
-
-        <!-- BENTO GRID (no profile card) -->
-        <div class="bento">
-
-          <!-- My Blood Requests (recent) -->
-          <div class="card span-2">
-            <div class="card-head recent-requests-head">
-              <h3><i class="fa-solid fa-hand-holding-medical"></i> Recent Blood Requests</h3>
-              <div class="card-head-actions">
-                <button class="pill-btn active" onclick="navigateToSection('requests')"><i class="fa-solid fa-list"></i>
-                  View All</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="request-list" id="dashboardRequestList">
-                <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
-              </div>
-            </div>
-          </div>
-
-
-        </div>
-        <!-- end .bento -->
-
-      </div>
-      <!-- end section-dashboard -->
-
-      <!-- ===== SECTION: BLOOD REQUESTS ===== -->
-      <div class="page-section" id="section-requests">
-
-        <button type="button" class="section-back-btn" onclick="navigateToSection('dashboard')"
-          aria-label="Back to Patient Overview">
-          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-          <span>Back</span>
-        </button>
-
-        <!-- Blood Requests Top Header -->
-        <div class="blood-requests-header">
-          <div class="blood-requests-title-wrap">
-            <h2>Blood Requests</h2>
-            <p class="blood-requests-subtitle">Browse urgent blood needs from community recipients or manage your own</p>
-          </div>
-          <div class="blood-requests-header-actions">
-            <div class="filter-dropdown" id="filterDropdown">
-              <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" title="Filter requests">
-                <i class="fa-solid fa-sliders"></i>
-                <span id="selectedFilterText">All</span>
-              </button>
-              <div class="filter-menu" id="filterMenu" role="listbox">
-                <button class="filter-item active" data-request-filter="all" role="option"><i class="fa-solid fa-layer-group"></i> All Requests</button>
-                <button class="filter-item" data-request-filter="urgent" role="option"><i class="fa-solid fa-triangle-exclamation"></i> Urgent Only</button>
-                <button class="filter-item" data-request-filter="A+" role="option"><i class="fa-solid fa-droplet"></i> A+ Needed</button>
-                <button class="filter-item" data-request-filter="A-" role="option"><i class="fa-solid fa-droplet"></i> A- Needed</button>
-                <button class="filter-item" data-request-filter="B+" role="option"><i class="fa-solid fa-droplet"></i> B+ Needed</button>
-                <button class="filter-item" data-request-filter="B-" role="option"><i class="fa-solid fa-droplet"></i> B- Needed</button>
-                <button class="filter-item" data-request-filter="AB+" role="option"><i class="fa-solid fa-droplet"></i> AB+ Needed</button>
-                <button class="filter-item" data-request-filter="AB-" role="option"><i class="fa-solid fa-droplet"></i> AB- Needed</button>
-                <button class="filter-item" data-request-filter="O+" role="option"><i class="fa-solid fa-droplet"></i> O+ Needed</button>
-                <button class="filter-item" data-request-filter="O-" role="option"><i class="fa-solid fa-droplet"></i> O- Needed</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Quick Create Request Banner (matching layout) -->
-        <div class="blood-request-create-bar">
-          <div class="quick-user-avatar" id="requestsQuickAvatar">
-            <span id="requestsQuickInitial">U</span>
-          </div>
-          <span class="quick-prompt-text">Blood needed?</span>
-          <button type="button" class="btn-quick-create-request" onclick="openRequestModal()">
-            Create Request
-          </button>
-        </div>
-
-        <!-- Tab Switcher: Community Feed vs My Requests -->
-        <div class="requests-view-tabs" role="tablist">
-          <button type="button" class="req-tab-btn active" id="tabCommunityRequests" onclick="switchRequestsTab('community')" role="tab" aria-selected="true">
-            <i class="fa-solid fa-users"></i> Community Requests (<span id="communityCount">0</span>)
-          </button>
-          <button type="button" class="req-tab-btn" id="tabMyRequests" onclick="switchRequestsTab('my')" role="tab" aria-selected="false">
-            <i class="fa-solid fa-file-waveform"></i> My Requests (<span id="myRequestsCount">0</span>)
-          </button>
-        </div>
-
-        <!-- Community Requests Feed (matching the screenshot layout) -->
-        <div class="requests-tab-content active" id="communityRequestsTabContent">
-          <div class="community-request-feed" id="communityRequestFeed">
-            <p style="text-align:center;color:var(--slate-400);padding:32px 0;"><i class="fa-solid fa-spinner fa-spin"></i> Loading community blood requests...</p>
-          </div>
-        </div>
-
-        <!-- My Requests Tab Content -->
-        <div class="requests-tab-content" id="myRequestsTabContent" hidden>
-          <div class="card my-requests-card">
-            <div class="card-head">
-              <h3><i class="fa-solid fa-hand-holding-medical"></i> My Submitted Requests</h3>
-              <div class="my-req-filter-pills" id="myReqFilterPills">
-                <button class="my-pill active" data-my-filter="all">All (<span id="requestsAllCountMenu">0</span>)</button>
-                <button class="my-pill" data-my-filter="pending">Pending (<span id="requestsPendingCountMenu">0</span>)</button>
-                <button class="my-pill" data-my-filter="approved">Approved (<span id="requestsApprovedCountMenu">0</span>)</button>
-                <button class="my-pill" data-my-filter="needs_clarification">Clarification (<span id="requestsClarificationCountMenu">0</span>)</button>
-                <button class="my-pill" data-my-filter="rejected">Rejected (<span id="requestsRejectedCountMenu">0</span>)</button>
-                <button class="my-pill" data-my-filter="fulfilled">Fulfilled (<span id="requestsFulfilledCountMenu">0</span>)</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="request-list" id="requestList">
-                <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      <!-- end section-requests -->
-
-      <!-- ===== SECTION: DONOR CENTER ===== -->
-      <div class="page-section" id="section-donor">
-        <button type="button" class="section-back-btn" onclick="navigateToSection('dashboard')"
-          aria-label="Back to overview">
-          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-          <span>Back</span>
-        </button>
-
-        <div class="section-heading donor-section-heading">
-          <div>
-            <h2>Donor Center</h2>
-            <p>Your donor profile, eligibility, availability, and donation activity</p>
-          </div>
-          <span class="account-role-chip" id="donorRoleChip"><i class="fa-solid fa-shield-heart"></i> Donor</span>
-        </div>
 
         <div class="card donor-enrollment-card" id="donorEnrollmentState">
           <div class="donor-enrollment-icon" aria-hidden="true"><i class="fa-solid fa-heart-pulse"></i></div>
           <div>
             <p class="panel-kicker">One account, two ways to help</p>
             <h3>Become a blood donor</h3>
-            <p>Your existing name, email, phone, address, and blood type will be reused. You only need to confirm donor-specific screening information.</p>
+            <p>Your existing name, email, phone, address, and blood type will be reused. You only need to confirm
+              donor-specific screening information.</p>
           </div>
-          <a class="btn-primary donor-enrollment-action" href="donor_registration.html?return=patient_dashboard.html%23section-donor">
+          <a class="btn-primary donor-enrollment-action"
+            href="donor_registration.html?return=patient_dashboard.html%23section-dashboard">
             <i class="fa-solid fa-user-plus"></i> Start Donor Registration
           </a>
           <p class="form-msg error donor-setup-message" id="donorSetupMessage" hidden></p>
@@ -408,7 +223,7 @@
             <div class="stat-card green stat-card-passive">
               <div class="stat-ring"><i class="fa-solid fa-stethoscope"></i></div>
               <div class="stat-body">
-                <p class="stat-label">Eligibility</p>
+                <p class="stat-label">Eligibility & Status</p>
                 <h2 class="stat-number donor-stat-text" id="donorEligibilityStat">--</h2>
                 <p class="stat-sub" id="donorEligibilitySub">Checking status</p>
               </div>
@@ -418,7 +233,7 @@
               <div class="stat-body">
                 <p class="stat-label">Availability</p>
                 <h2 class="stat-number donor-stat-text" id="donorAvailabilityStat">--</h2>
-                <p class="stat-sub">Your current setting</p>
+                <p class="stat-sub" id="donorAvailabilitySub">Your current setting</p>
               </div>
             </div>
             <div class="stat-card red stat-card-passive">
@@ -426,7 +241,7 @@
               <div class="stat-body">
                 <p class="stat-label">Last Donation</p>
                 <h2 class="stat-number donor-stat-text" id="donorLastDonationStat">--</h2>
-                <p class="stat-sub">Recorded donation date</p>
+                <p class="stat-sub" id="donorLastDonationSub">Recorded donation</p>
               </div>
             </div>
             <div class="stat-card violet stat-card-passive">
@@ -434,7 +249,7 @@
               <div class="stat-body">
                 <p class="stat-label">Next Eligible</p>
                 <h2 class="stat-number donor-stat-text" id="donorNextEligibleStat">--</h2>
-                <p class="stat-sub">Based on the 56-day rule</p>
+                <p class="stat-sub">Based on 56-day rule</p>
               </div>
             </div>
           </section>
@@ -447,7 +262,8 @@
               </div>
               <div class="card-body donor-profile-body">
                 <div class="donor-profile-primary">
-                  <span class="profile-blood-badge"><i class="fa-solid fa-droplet"></i> <strong id="donorBloodType">--</strong></span>
+                  <span class="profile-blood-badge"><i class="fa-solid fa-droplet"></i> <strong
+                      id="donorBloodType">--</strong></span>
                   <div>
                     <strong id="donorProfileName">Donor</strong>
                     <span id="donorProfileId">Donor ID --</span>
@@ -458,8 +274,22 @@
                     <strong>Available for matching</strong>
                     <span id="donorAvailabilityHelp">Pause this when you cannot donate.</span>
                   </div>
-                  <button type="button" class="availability-toggle" id="donorAvailabilityToggle"
-                    aria-pressed="false" onclick="toggleMyDonorAvailability()">
+                  <button type="button" class="availability-toggle" id="donorAvailabilityToggle" aria-pressed="false"
+                    onclick="toggleMyDonorAvailability()">
+                    <span></span><strong>Off</strong>
+                  </button>
+                </div>
+                <div class="donor-availability-control"
+                  style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+                  <div>
+                    <strong><i class="fa-solid fa-map-location-dot"
+                        style="color:var(--rose-400,#fb7185);margin-right:4px;"></i> Show in Find Blood Map</strong>
+                    <span id="donorMapPrivacyHelp"
+                      style="display:block;font-size:0.75rem;color:var(--slate-400,#94a3b8);">Allow community to see an
+                      anonymous pin in your municipality.</span>
+                  </div>
+                  <button type="button" class="availability-toggle" id="donorMapVisibilityToggle" aria-pressed="false"
+                    onclick="toggleMyDonorMapVisibility()">
                     <span></span><strong>Off</strong>
                   </button>
                 </div>
@@ -469,11 +299,13 @@
 
             <div class="card">
               <div class="card-head">
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> Donation History</h3>
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> My Donation History</h3>
+                <span class="badge registered" id="donorHistoryCountBadge">0 recorded</span>
               </div>
               <div class="card-body">
                 <div class="donor-activity-list" id="donorDonationHistory">
-                  <p class="donor-empty-state">Loading donation history...</p>
+                  <p class="donor-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading donation history...
+                  </p>
                 </div>
               </div>
             </div>
@@ -492,7 +324,155 @@
           </div>
         </div>
       </div>
-      <!-- end section-donor -->
+      <!-- end section-dashboard -->
+
+      <!-- ===== SECTION: BLOOD REQUESTS ===== -->
+      <div class="page-section" id="section-requests">
+
+        <!-- Top Quick Create Request Banner (matching layout) -->
+        <div class="blood-request-create-bar">
+          <div class="quick-user-avatar" id="requestsQuickAvatar">
+            <span id="requestsQuickInitial">U</span>
+          </div>
+          <span class="quick-prompt-text">Blood needed?</span>
+          <button type="button" class="btn-quick-create-request" onclick="openRequestModal()">
+            Create Request
+          </button>
+        </div>
+
+        <!-- Tab Switcher: Community Feed vs My Requests -->
+        <div class="requests-view-tabs" role="tablist">
+          <button type="button" class="req-tab-btn active" id="tabCommunityRequests"
+            onclick="switchRequestsTab('community')" role="tab" aria-selected="true">
+            <i class="fa-solid fa-users"></i> Community Requests (<span id="communityCount">0</span>)
+          </button>
+          <button type="button" class="req-tab-btn" id="tabMyRequests" onclick="switchRequestsTab('my')" role="tab"
+            aria-selected="false">
+            <i class="fa-solid fa-file-waveform"></i> My Requests (<span id="myRequestsCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Community Requests Feed -->
+        <div class="requests-tab-content active" id="communityRequestsTabContent">
+          <!-- Community Filter Bar -->
+          <div class="tab-filter-bar">
+            <div class="filter-dropdown" id="filterDropdown">
+              <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox"
+                aria-expanded="false" title="Filter requests">
+                <i class="fa-solid fa-sliders"></i>
+                <span id="selectedFilterText">All Requests</span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div class="filter-menu" id="filterMenu" role="listbox">
+                <button class="filter-item active" data-request-filter="all" role="option">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>All Requests</span>
+                </button>
+                <button class="filter-item" data-request-filter="urgent" role="option">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>Urgent Only</span>
+                </button>
+                <button class="filter-item" data-request-filter="A+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>A+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="A-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>A- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="B+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>B+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="B-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>B- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="AB+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>AB+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="AB-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>AB- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="O+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>O+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="O-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>O- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="hidden" role="option">
+                  <i class="fa-solid fa-eye-slash"></i>
+                  <span>Hidden Requests (<span id="hiddenCount">0</span>)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="community-request-feed" id="communityRequestFeed">
+            <p style="text-align:center;color:var(--slate-400);padding:32px 0;"><i
+                class="fa-solid fa-spinner fa-spin"></i> Loading community blood requests...</p>
+          </div>
+        </div>
+
+        <!-- My Requests Tab Content -->
+        <div class="requests-tab-content" id="myRequestsTabContent" hidden>
+
+          <!-- My Requests Header & Filter Bar -->
+          <div class="tab-filter-bar"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
+            <h3
+              style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-hand-holding-medical" style="color: var(--accent);"></i> My Submitted Requests
+            </h3>
+            <div class="filter-dropdown" id="myFilterDropdown">
+              <button class="filter-trigger" id="myFilterTrigger" type="button" aria-haspopup="listbox"
+                aria-expanded="false" title="Filter your requests">
+                <i class="fa-solid fa-sliders"></i>
+                <span id="selectedMyFilterText">All Requests</span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div class="filter-menu" id="myFilterMenu" role="listbox">
+                <button class="filter-item my-filter-item active" data-my-filter="all" role="option">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>All Requests</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="pending" role="option">
+                  <i class="fa-solid fa-clock"></i>
+                  <span>Pending</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="approved" role="option">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <span>Approved</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="needs_clarification" role="option">
+                  <i class="fa-solid fa-circle-question"></i>
+                  <span>Clarification</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="rejected" role="option">
+                  <i class="fa-solid fa-circle-xmark"></i>
+                  <span>Rejected</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="fulfilled" role="option">
+                  <i class="fa-solid fa-heart-circle-check"></i>
+                  <span>Fulfilled</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Requests Feed (Standalone cards, matching Community Requests) -->
+          <div class="community-request-feed" id="requestList">
+            <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
+          </div>
+        </div>
+
+      </div>
+      <!-- end section-requests -->
+
+
 
       <!-- ===== SECTION: MY PROFILE ===== -->
       <div class="page-section" id="section-profile">
@@ -502,7 +482,8 @@
           <div class="card">
             <div class="card-head profile-card-head">
               <h3><i class="fa-solid fa-user"></i> Personal Information</h3>
-              <button type="button" class="profile-edit-btn" onclick="openProfileModal()" aria-label="Edit profile information">
+              <button type="button" class="profile-edit-btn" onclick="openProfileModal()"
+                aria-label="Edit profile information">
                 <span class="profile-edit-icon" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
                 <span>Edit Profile</span>
               </button>
@@ -568,40 +549,10 @@
       </div>
       <!-- end section-profile -->
 
-      <!-- ===== SECTION: HELP ===== -->
-      <div class="page-section" id="section-help">
 
-        <div class="section-heading">
-          <div>
-            <h2>Help &amp; Support</h2>
-            <p>Frequently asked questions and support contact</p>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h3><i class="fa-solid fa-circle-question"></i> Frequently Asked Questions</h3>
-          </div>
-          <div class="card-body" style="text-align:center; padding: 48px 20px; color: var(--slate-400);">
-            <i class="fa-solid fa-circle-question"
-              style="font-size: 2.5rem; margin-bottom: 12px; display:block; color: var(--slate-300);"></i>
-            <p style="font-size: .9rem; font-weight: 600; color: var(--slate-500); margin-bottom: 4px;">Need help?</p>
-            <p style="font-size: .8rem;">Contact the blood bank administrator for assistance with your requests.</p>
-          </div>
-        </div>
-
-      </div>
-      <!-- end section-help -->
 
       <!-- ===== SECTION: BLOOD DRIVES ===== -->
       <div class="page-section" id="section-drives">
-
-        <div class="section-heading">
-          <div>
-            <h2>Blood Drives</h2>
-            <p>View upcoming blood drive campaigns in your area</p>
-          </div>
-        </div>
 
         <div class="panel full-width drives-panel">
           <div class="panel-header">
@@ -637,7 +588,7 @@
             <div class="form-group">
               <label>Blood Type Needed <span class="req">*</span></label>
               <select name="blood_type" id="requestBloodType" required>
-                <option value="">Select blood type</option>
+                <option value="" disabled selected>Select blood type</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>
@@ -659,7 +610,6 @@
               <select name="urgency" required>
                 <option value="normal">Normal</option>
                 <option value="urgent">Urgent</option>
-                <option value="critical">Critical</option>
               </select>
             </div>
             <div class="form-group">
@@ -669,7 +619,8 @@
           </div>
           <div class="form-group">
             <label>Description / Reason for Request <span class="req">*</span></label>
-            <textarea name="notes" placeholder="e.g. Accident patient, surgery scheduled. Anemia issue. Age 45" required></textarea>
+            <textarea name="notes" placeholder="e.g. Accident patient, surgery scheduled. Anemia issue. Age 45"
+              required></textarea>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
@@ -677,6 +628,91 @@
           </div>
           <div id="requestMsg" class="form-msg"></div>
         </form>
+      </div>
+    </div>
+
+    <!-- ===== EDIT REQUEST MODAL ===== -->
+    <div class="modal-overlay" id="editRequestModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-pen-to-square"></i> Edit Blood Request</h3>
+          <button class="modal-close" onclick="closeEditRequestModal()">&times;</button>
+        </div>
+        <form id="editRequestForm" class="modal-body">
+          <input type="hidden" id="editReqId" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>Blood Type Needed <span class="req">*</span></label>
+              <select id="editReqBloodType" name="blood_type" required>
+                <option value="" disabled>Select blood type</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Units Needed <span class="req">*</span></label>
+              <input type="number" id="editReqUnits" name="units_needed" min="1" max="20" value="1" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Urgency <span class="req">*</span></label>
+              <select id="editReqUrgency" name="urgency" required>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Donation Point / Hospital</label>
+              <input type="text" id="editReqHospital" name="hospital" placeholder="e.g. Philippine General Hospital" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description / Reason for Request <span class="req">*</span></label>
+            <textarea id="editReqNotes" name="notes" rows="3"
+              placeholder="Brief description of the patient's condition..." required></textarea>
+          </div>
+          <div id="editReqMsg" class="form-msg"></div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            <button type="button" class="btn-cancel" onclick="closeEditRequestModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== DELETE REQUEST CONFIRMATION MODAL ===== -->
+    <div class="modal-overlay" id="deleteRequestModal">
+      <div class="modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="deleteReqTitle"
+        style="max-width: 420px; width: 92%;">
+        <div class="modal-header">
+          <h3 id="deleteReqTitle"><i class="fa-solid fa-trash" style="color: var(--accent, #800000);"></i> Delete Blood
+            Request</h3>
+          <button type="button" class="modal-close" onclick="closeDeleteRequestModal()"
+            aria-label="Close delete modal">&times;</button>
+        </div>
+        <div class="modal-body delete-confirm-body" style="text-align: center; padding: 24px 20px;">
+          <div class="delete-warning-icon"
+            style="width: 56px; height: 56px; border-radius: 50%; background: #ffe3e3; color: var(--accent, #800000); display: grid; place-items: center; font-size: 1.5rem; margin: 0 auto 16px auto;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h4 style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Delete this request?</h4>
+          <p style="font-size: 0.9rem; color: #64748b; margin: 0; line-height: 1.5;">Are you sure you want to delete
+            this blood request? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer"
+          style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #f1f5f9;">
+          <button type="button" class="btn-cancel" onclick="closeDeleteRequestModal()">Cancel</button>
+          <button type="button" class="btn-submit" id="confirmDeleteReqBtn"
+            style="background: var(--accent, #800000); border-color: var(--accent, #800000); color: #ffffff;">Yes,
+            delete</button>
+        </div>
       </div>
     </div>
 
@@ -754,7 +790,8 @@
                   <i class="fa-solid fa-camera" aria-hidden="true"></i> Open camera
                 </button>
               </div>
-              <input class="visually-hidden" id="profilePhotoFileInput" type="file" accept="image/jpeg,image/png,image/webp" />
+              <input class="visually-hidden" id="profilePhotoFileInput" type="file"
+                accept="image/jpeg,image/png,image/webp" />
               <input class="visually-hidden" id="profilePhotoCameraInput" type="file" accept="image/*" capture="user" />
             </div>
           </div>
@@ -778,7 +815,7 @@
             <div class="form-group">
               <label>Blood Type <span class="req">*</span></label>
               <select name="blood_type" id="profileBloodTypeInput" required>
-                <option value="">Select blood type</option>
+                <option value="" disabled selected>Select blood type</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>
@@ -837,8 +874,10 @@
             <i class="fa-solid fa-camera" aria-hidden="true"></i>
             <span><strong>Take photo</strong><small>Open your camera</small></span>
           </button>
-          <input class="visually-hidden" id="quickProfilePhotoFileInput" type="file" accept="image/jpeg,image/png,image/webp" />
-          <input class="visually-hidden" id="quickProfilePhotoCameraInput" type="file" accept="image/*" capture="user" />
+          <input class="visually-hidden" id="quickProfilePhotoFileInput" type="file"
+            accept="image/jpeg,image/png,image/webp" />
+          <input class="visually-hidden" id="quickProfilePhotoCameraInput" type="file" accept="image/*"
+            capture="user" />
           <button type="button" class="btn-cancel profile-photo-cancel" id="cancelProfilePhotoBtn">Cancel</button>
           <div id="profilePhotoQuickMsg" class="form-msg" aria-live="polite"></div>
         </div>
@@ -846,10 +885,12 @@
     </div>
     <!-- ===== LOGOUT CONFIRMATION MODAL ===== -->
     <div class="modal-overlay" id="logoutConfirmModal">
-      <div class="modal logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle" aria-describedby="logoutConfirmDescription">
+      <div class="modal logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle"
+        aria-describedby="logoutConfirmDescription">
         <div class="modal-header">
           <h3 id="logoutConfirmTitle"><i class="fa-solid fa-right-from-bracket"></i> Confirm logout</h3>
-          <button type="button" class="modal-close" onclick="closeLogoutModal()" aria-label="Close logout confirmation">&times;</button>
+          <button type="button" class="modal-close" onclick="closeLogoutModal()"
+            aria-label="Close logout confirmation">&times;</button>
         </div>
         <div class="modal-body logout-confirm-body">
           <div class="logout-warning-icon" aria-hidden="true"><i class="fa-solid fa-right-from-bracket"></i></div>
@@ -877,7 +918,8 @@
   </div>
 
   <nav class="mobile-bottom-nav" aria-label="Patient mobile navigation">
-    <button type="button" class="mobile-nav-item active" data-mobile-section="dashboard" aria-label="Home" aria-current="page">
+    <button type="button" class="mobile-nav-item active" data-mobile-section="dashboard" aria-label="Home"
+      aria-current="page">
       <i class="fa-solid fa-house"></i>
       <span>Home</span>
     </button>
@@ -901,14 +943,24 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260825a"></script>
+  <script src="/supabase-client.js?v=20260907a"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/patient-dashboard.js?v=20260901a"></script>
+  <script src="/scripts/pages/patient-dashboard.js?v=20260907b"></script>
 
-  <script src="/pull-to-refresh.js?v=20260824a" defer></script>
+  <!-- Scroll focused input into view when mobile keyboard opens -->
+  <script>
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const focused = document.activeElement;
+        if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) {
+          setTimeout(() => {
+            focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 80);
+        }
+      });
+    }
+  </script>
+  <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 
 </html>
-
-
-

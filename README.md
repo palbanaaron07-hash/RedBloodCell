@@ -1,6 +1,6 @@
 # VeinDrop / RedBloodCell
 
-VeinDrop is a multi-page blood-bank prototype. Its operational pages use classic HTML, CSS, and JavaScript with Supabase as the primary application backend. The React/Vite entry is a separate PWA landing/dashboard shell.
+VeinDrop is a multi-page blood-bank prototype. Its operational pages use classic HTML, CSS, and JavaScript with Supabase as the primary application backend.
 
 ## Development
 
@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-Vite opens `homie.html`, the existing marketing home. `index.html` remains the installable React/PWA entry at `/`.
+`index.html` (and `homie.html`) serves as the marketing home page for the system.
 
 ## Production verification
 
@@ -23,7 +23,6 @@ The Vite configuration explicitly treats every root HTML page as an entry. The v
 ## Architecture boundaries
 
 - Root `*.html` files are stable public routes. Keep their filenames when refactoring internals.
-- `src/` contains bundled React code and styles.
 - `public/` contains classic browser scripts, PWA files, and other files that must retain stable root URLs.
 - `public/scripts/pages/` contains behavior extracted unchanged from the corresponding HTML pages.
 - `supabase/` contains the primary PostgreSQL migrations and privileged Edge Functions.

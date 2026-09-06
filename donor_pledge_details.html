@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Blood Donation Response & Screening Instructions - VeinDrop</title>
+  <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="donor_pledge_details.css?v=20260907d" />
+</head>
+
+<body>
+  <!-- Header Bar -->
+  <header class="pledge-header">
+    <div class="header-container">
+      <a href="patient_dashboard.html#section-community" class="header-back-btn" id="headerBackBtn" title="Back to Requests" aria-label="Back to Requests">
+        <i class="fa-solid fa-arrow-left-long"></i>
+      </a>
+
+      <div class="header-brand">
+        <img src="assets/veindrop-mark.svg" alt="VeinDrop" class="brand-logo" onerror="this.style.display='none'" />
+        <div class="brand-text">
+          <span class="brand-title">VeinDrop</span>
+          <span class="brand-subtitle">Donor Response Portal</span>
+        </div>
+      </div>
+
+      <div class="header-badge">
+        <i class="fa-solid fa-hand-holding-heart"></i>
+        <span>Life Saver Pledge</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="pledge-main">
+    <div class="pledge-container">
+
+      <!-- Progress Stepper -->
+      <nav class="stepper-nav" aria-label="Donation Confirmation Steps">
+        <div class="step-item active" id="stepIndicator1">
+          <div class="step-circle"><i class="fa-solid fa-handshake-angle"></i></div>
+          <div class="step-label">
+            <span class="step-num">Step 1</span>
+            <span class="step-name">Recipient Perks & Assistance</span>
+          </div>
+        </div>
+        <div class="step-connector" id="stepConnector1"></div>
+        <div class="step-item" id="stepIndicator2">
+          <div class="step-circle"><i class="fa-solid fa-clipboard-check"></i></div>
+          <div class="step-label">
+            <span class="step-num">Step 2</span>
+            <span class="step-name">Eligibility & Confirmation</span>
+          </div>
+        </div>
+        <div class="step-connector" id="stepConnector2"></div>
+        <div class="step-item" id="stepIndicator3">
+          <div class="step-circle"><i class="fa-solid fa-notes-medical"></i></div>
+          <div class="step-label">
+            <span class="step-num">Step 3</span>
+            <span class="step-name">Medical Instructions & Pass</span>
+          </div>
+        </div>
+      </nav>
+
+      <!-- VIEW 1: Recipient Details & Perks / Assistance Provided -->
+      <section class="pledge-section-view active" id="viewStep1">
+        <!-- Recipient Overview Card -->
+        <div class="recipient-hero-card">
+          <div class="hero-top-row">
+            <div class="urgency-pill" id="heroUrgencyPill">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span id="heroUrgencyText">Urgent Blood Request</span>
+            </div>
+            <div class="reference-code" id="heroRefCode">REQ-2026-BH88</div>
+          </div>
+
+          <div class="hero-main-info">
+            <div class="hero-blood-badge" id="heroBloodBadge">
+              <span class="blood-type" id="heroBloodType">O+</span>
+              <span class="blood-sub" id="heroUnitsNeeded">2 Units</span>
+            </div>
+            <div class="hero-recipient-text">
+              <span class="recipient-eyebrow">Blood Donation For Recipient</span>
+              <h1 class="recipient-name" id="heroRecipientName">Maria Santos</h1>
+              <p class="recipient-location" id="heroHospital">
+                <i class="fa-solid fa-hospital"></i> Governor Celestino Gallares Memorial Medical Center (Tagbilaran City)
+              </p>
+            </div>
+          </div>
+
+          <div class="hero-reason-box">
+            <div class="reason-label"><i class="fa-solid fa-file-waveform"></i> Medical / Patient Case Description:</div>
+            <p class="reason-content" id="heroReasonContent">
+              Urgent blood transfusion needed for scheduled surgical procedure. All compatibility screening and hospital processing will be coordinated upon arrival.
+            </p>
+          </div>
+        </div>
+
+        <!-- WHAT RECIPIENT WILL PROVIDE CARD -->
+        <div class="perks-card">
+          <div class="card-header-with-badge">
+            <div class="header-icon-box perks-icon"><i class="fa-solid fa-gift"></i></div>
+            <div>
+              <h2 class="card-title">What the Recipient / Family Will Provide for You</h2>
+              <p class="card-subtitle">Support, care, and assistance packages arranged for donors by the patient's family</p>
+            </div>
+          </div>
+
+          <div class="perks-grid">
+            <!-- Perk 1: Meals & Snacks -->
+            <label class="perk-checkbox-card checked" for="perkMeals">
+              <div class="perk-checkbox-wrap">
+                <input type="checkbox" id="perkMeals" class="perk-input" checked />
+                <span class="custom-checkbox"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="perk-icon-wrap food-icon">
+                <i class="fa-solid fa-utensils"></i>
+              </div>
+              <div class="perk-content">
+                <div class="perk-title-row">
+                  <span class="perk-title">Nutritious Meals & Packed Snacks</span>
+                  <span class="perk-tag guaranteed">Guaranteed</span>
+                </div>
+                <p class="perk-desc">
+                  Hearty recovery meal, iron-rich snacks, biscuits, milk, and energy fruit juices provided immediately following blood donation.
+                </p>
+              </div>
+            </label>
+
+            <!-- Perk 2: Travel & Transportation -->
+            <label class="perk-checkbox-card checked" for="perkTravel">
+              <div class="perk-checkbox-wrap">
+                <input type="checkbox" id="perkTravel" class="perk-input" checked />
+                <span class="custom-checkbox"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="perk-icon-wrap travel-icon">
+                <i class="fa-solid fa-van-shuttle"></i>
+              </div>
+              <div class="perk-content">
+                <div class="perk-title-row">
+                  <span class="perk-title">Travel & Transportation Allowance</span>
+                  <span class="perk-tag reimbursement">Reimbursed</span>
+                </div>
+                <p class="perk-desc">
+                  Fare coverage or gas reimbursement for your travel (tricycle, bus, jeepney, or private vehicle) to the donation center.
+                </p>
+              </div>
+            </label>
+
+            <!-- Perk 3: Token of Appreciation / Money Assistance -->
+            <label class="perk-checkbox-card checked" for="perkToken">
+              <div class="perk-checkbox-wrap">
+                <input type="checkbox" id="perkToken" class="perk-input" checked />
+                <span class="custom-checkbox"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="perk-icon-wrap money-icon">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+              </div>
+              <div class="perk-content">
+                <div class="perk-title-row">
+                  <span class="perk-title">Emergency Donor Allowance / Token</span>
+                  <span class="perk-tag optional">Provided</span>
+                </div>
+                <p class="perk-desc">
+                  Financial assistance or token of appreciation to compensate for your valuable time, missed work, and immediate personal expenses.
+                </p>
+              </div>
+            </label>
+
+            <!-- Perk 4: Health Screening & Labs -->
+            <label class="perk-checkbox-card checked" for="perkLabs">
+              <div class="perk-checkbox-wrap">
+                <input type="checkbox" id="perkLabs" class="perk-input" checked />
+                <span class="custom-checkbox"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="perk-icon-wrap lab-icon">
+                <i class="fa-solid fa-microscope"></i>
+              </div>
+              <div class="perk-content">
+                <div class="perk-title-row">
+                  <span class="perk-title">Free Complete Medical & Blood Screening</span>
+                  <span class="perk-tag covered">100% Free</span>
+                </div>
+                <p class="perk-desc">
+                  Free hemoglobin, blood typing, viral screening (HIV, Hepatitis B/C, Syphilis, Malaria) and physical health examination covered in full.
+                </p>
+              </div>
+            </label>
+          </div>
+
+
+          <!-- Special Note from Recipient -->
+          <div class="recipient-message-box">
+            <div class="msg-header">
+              <i class="fa-solid fa-quote-left"></i>
+              <span>Personal Message from Recipient's Family:</span>
+            </div>
+            <p class="msg-body" id="recipientFamilyNote">
+              "We are deeply grateful for your willingness to help save our loved one. We will personally make sure you are well taken care of, comfortable, and that your travel and food are completely supported. Thank you from the bottom of our hearts."
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Bar Step 1 -->
+        <div class="step-actions-bar">
+          <a href="patient_dashboard.html#section-community" class="btn-secondary-outline">
+            <i class="fa-solid fa-xmark"></i> Cancel & Return
+          </a>
+          <button type="button" class="btn-primary-action" id="btnProceedStep2" onclick="goToStep(2)">
+            <span>Continue to Health Check & Pledge</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- VIEW 2: Donor Self-Assessment & Confirmation -->
+      <section class="pledge-section-view" id="viewStep2">
+        <div class="medical-checklist-card">
+          <div class="card-header-with-badge">
+            <div class="header-icon-box medical-icon"><i class="fa-solid fa-heart-circle-check"></i></div>
+            <div>
+              <h2 class="card-title">Pre-Donation Medical Eligibility Self-Check</h2>
+              <p class="card-subtitle">Please verify that you meet the standard Philippine DOH / Red Cross blood donation criteria</p>
+            </div>
+          </div>
+
+          <div class="eligibility-notice">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Checking these boxes confirms that you are feeling well today and eligible to safely donate blood.</span>
+          </div>
+
+          <div class="checklist-items-grid">
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkAgeWeight" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>Age & Weight:</strong>
+                <span>I am between 18 - 65 years old and weigh at least 50 kg (110 lbs).</span>
+              </div>
+            </label>
+
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkSleep" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>Adequate Rest:</strong>
+                <span>I have had at least 6 to 8 hours of sleep in the last 24 hours.</span>
+              </div>
+            </label>
+
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkAlcohol" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>No Alcohol:</strong>
+                <span>I have not consumed any alcoholic drinks in the past 24 hours.</span>
+              </div>
+            </label>
+
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkHealth" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>Good Health Today:</strong>
+                <span>I have no fever, cough, flu symptoms, and am not currently taking antibiotics.</span>
+              </div>
+            </label>
+
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkTattoo" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>Tattoos & Piercings:</strong>
+                <span>I have not gotten any new tattoos or piercings within the past 12 months.</span>
+              </div>
+            </label>
+
+            <label class="eligibility-check-item">
+              <input type="checkbox" id="checkHydration" class="eligibility-input" checked />
+              <span class="check-box-styled"><i class="fa-solid fa-check"></i></span>
+              <div class="check-item-text">
+                <strong>Hydration & Readiness:</strong>
+                <span>I will drink sufficient water and eat a non-fatty meal prior to blood extraction.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- DONOR CONTACT & APPOINTMENT FORM -->
+        <div class="donor-form-card">
+          <div class="card-header-with-badge">
+            <div class="header-icon-box form-icon"><i class="fa-solid fa-user-pen"></i></div>
+            <div>
+              <h2 class="card-title">Your Donor Pledge Details</h2>
+              <p class="card-subtitle">Confirm your contact information and target donation schedule</p>
+            </div>
+          </div>
+
+          <form id="pledgeConfirmationForm" onsubmit="handleConfirmPledge(event)">
+            <div class="form-grid-2col">
+              <div class="form-group">
+                <label for="donorFullName"><i class="fa-solid fa-user"></i> Donor Full Name</label>
+                <input type="text" id="donorFullName" class="form-input" required placeholder="e.g., Juan Dela Cruz" />
+              </div>
+
+              <div class="form-group">
+                <label for="donorBloodType"><i class="fa-solid fa-droplet"></i> Your Blood Type</label>
+                <select id="donorBloodType" class="form-input" required>
+                  <option value="O+">O Positive (O+)</option>
+                  <option value="O-">O Negative (O-)</option>
+                  <option value="A+">A Positive (A+)</option>
+                  <option value="A-">A Negative (A-)</option>
+                  <option value="B+">B Positive (B+)</option>
+                  <option value="B-">B Negative (B-)</option>
+                  <option value="AB+">AB Positive (AB+)</option>
+                  <option value="AB-">AB Negative (AB-)</option>
+                  <option value="Unknown">I will undergo blood typing at the hospital</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="donorPhone"><i class="fa-solid fa-phone"></i> Mobile Phone Number</label>
+                <input type="tel" id="donorPhone" class="form-input" required placeholder="09XX-XXX-XXXX" />
+              </div>
+
+              <div class="form-group">
+                <label for="donorPreferredDate"><i class="fa-solid fa-calendar-day"></i> Preferred Donation Date</label>
+                <input type="date" id="donorPreferredDate" class="form-input" required />
+              </div>
+
+              <div class="form-group full-width">
+                <label for="donorPreferredTime"><i class="fa-solid fa-clock"></i> Preferred Time Window</label>
+                <select id="donorPreferredTime" class="form-input" required>
+                  <option value="Morning (8:00 AM - 11:30 AM)">Morning (8:00 AM - 11:30 AM) - Recommended</option>
+                  <option value="Afternoon (1:00 PM - 4:00 PM)">Afternoon (1:00 PM - 4:00 PM)</option>
+                  <option value="Emergency Immediate Response">Immediate / As soon as possible</option>
+                </select>
+              </div>
+
+              <div class="form-group full-width">
+                <label for="donorNotes"><i class="fa-solid fa-comment-medical"></i> Note for Recipient / Hospital Coordinator (Optional)</label>
+                <textarea id="donorNotes" class="form-input form-textarea" rows="2" placeholder="e.g., I will arrive around 9:30 AM at the Blood Bank reception. Please coordinate my travel assistance upon arrival."></textarea>
+              </div>
+            </div>
+
+            <div class="form-consent-box">
+              <label class="consent-label">
+                <input type="checkbox" id="consentCommitment" required checked />
+                <span>I sincerely confirm my pledge to donate blood for this recipient. I understand that medical professionals will perform screening prior to extraction.</span>
+              </label>
+            </div>
+
+            <div class="step-actions-bar">
+              <button type="button" class="btn-secondary-outline" onclick="goToStep(1)">
+                <i class="fa-solid fa-arrow-left"></i> Back to Perks
+              </button>
+              <button type="submit" class="btn-primary-action btn-confirm-pledge" id="btnSubmitPledge">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <span>Confirm & Receive Medical Screening Instructions</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- VIEW 3: Confirmation, Official Medical Screening Instructions & Donation Pass -->
+      <section class="pledge-section-view" id="viewStep3">
+        <!-- Success Banner -->
+        <div class="success-hero-banner">
+          <div class="success-icon-badge">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div class="success-banner-content">
+            <span class="success-tag">Donation Pledge Confirmed</span>
+            <h1 class="success-title">Thank You, Life Saver!</h1>
+            <p class="success-subtitle">
+              Your pledge has been registered in the VeinDrop network. The blood bank coordinator and recipient family have been alerted. Please follow the official medical screening guidelines below for your donation appointment.
+            </p>
+          </div>
+        </div>
+
+        <!-- DIGITAL BLOOD DONATION PASS (PRINTABLE) -->
+        <div class="donation-pass-container" id="printableDonationPass">
+          <div class="pass-header">
+            <div class="pass-brand">
+              <img src="assets/veindrop-mark.svg" alt="VeinDrop" class="pass-logo" onerror="this.style.display='none'" />
+              <div>
+                <div class="pass-system-name">VeinDrop Blood Network</div>
+                <div class="pass-doc-title">Official Blood Donation Referral Pass</div>
+              </div>
+            </div>
+            <div class="pass-status-pill">
+              <i class="fa-solid fa-shield-halved"></i> Active Priority
+            </div>
+          </div>
+
+          <div class="pass-body-grid">
+            <div class="pass-info-block">
+              <span class="pass-label">Pass Reference ID</span>
+              <span class="pass-value highlight" id="passRefId">VD-PLG-89214</span>
+            </div>
+            <div class="pass-info-block">
+              <span class="pass-label">Target Recipient</span>
+              <span class="pass-value" id="passRecipientName">Maria Santos</span>
+            </div>
+            <div class="pass-info-block">
+              <span class="pass-label">Blood Type Needed</span>
+              <span class="pass-value blood" id="passBloodType">O+</span>
+            </div>
+            <div class="pass-info-block">
+              <span class="pass-label">Designated Facility</span>
+              <span class="pass-value" id="passHospital">Gov. Celestino Gallares Memorial Medical Center</span>
+            </div>
+            <div class="pass-info-block">
+              <span class="pass-label">Registered Donor</span>
+              <span class="pass-value" id="passDonorName">Juan Dela Cruz</span>
+            </div>
+            <div class="pass-info-block">
+              <span class="pass-label">Pledged Date & Window</span>
+              <span class="pass-value" id="passDateTime">Sep 06, 2026 (Morning)</span>
+            </div>
+          </div>
+
+          <div class="pass-perks-summary">
+            <div class="pass-perks-title"><i class="fa-solid fa-gift"></i> Recipient Assistance Packages Arranged:</div>
+            <div class="pass-perks-tags" id="passPerksList">
+              <span class="pass-perk-badge"><i class="fa-solid fa-check"></i> Post-Donation Meal & Juice</span>
+              <span class="pass-perk-badge"><i class="fa-solid fa-check"></i> Travel Allowance Covered</span>
+              <span class="pass-perk-badge"><i class="fa-solid fa-check"></i> Free Blood Screening Labs</span>
+            </div>
+
+          </div>
+
+          <div class="pass-footer">
+            <div class="pass-qr-mock">
+              <i class="fa-solid fa-qrcode"></i>
+              <span>Scan at Blood Bank Reception</span>
+            </div>
+            <div class="pass-notice">
+              Please present this digital pass or a screenshot to the hospital blood bank admissions counter upon arrival.
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTION BUTTONS FOR PASS -->
+        <div class="pass-action-row">
+          <button type="button" class="btn-pass-action print-btn" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print / Save PDF Pass
+          </button>
+          <button type="button" class="btn-pass-action copy-btn" onclick="copyPassDetails()">
+            <i class="fa-solid fa-copy"></i> Copy Details to Clipboard
+          </button>
+          <a href="patient_dashboard.html" class="btn-pass-action return-btn">
+            <i class="fa-solid fa-house"></i> Return to Dashboard
+          </a>
+        </div>
+
+        <!-- COMPREHENSIVE MEDICAL SCREENING & DONATION INSTRUCTIONS -->
+        <div class="instructions-section">
+          <div class="section-title-wrap">
+            <i class="fa-solid fa-clipboard-list-check"></i>
+            <h2>Official Blood Donation & Medical Screening Instructions</h2>
+            <p>Step-by-step guidance for a safe, smooth, and comfortable blood donation</p>
+          </div>
+
+          <!-- Process Timeline -->
+          <div class="process-timeline">
+            <!-- Phase 1 -->
+            <div class="timeline-step-card">
+              <div class="timeline-num">1</div>
+              <div class="timeline-card-content">
+                <div class="timeline-badge phase-reg"><i class="fa-solid fa-id-card"></i> Phase 1: Donor Registration</div>
+                <h3 class="timeline-title">Admissions & Questionnaire</h3>
+                <ul class="timeline-list">
+                  <li><strong>Valid ID Required:</strong> Bring 1 government-issued photo ID (Driver's License, PhilHealth, UMID, Passport, National ID, School/Company ID).</li>
+                  <li><strong>Donor History Form:</strong> Complete the standard Department of Health (DOH) confidential health questionnaire honestly.</li>
+                  <li><strong>Pass Verification:</strong> Present your VeinDrop Donation Pass reference code to priority triage.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Phase 2 -->
+            <div class="timeline-step-card">
+              <div class="timeline-num">2</div>
+              <div class="timeline-card-content">
+                <div class="timeline-badge phase-exam"><i class="fa-solid fa-stethoscope"></i> Phase 2: Physical & Clinical Exam</div>
+                <h3 class="timeline-title">Vital Signs & Hemoglobin Screening</h3>
+                <ul class="timeline-list">
+                  <li><strong>Vital Signs Check:</strong> Blood pressure must be within 90/60 – 140/90 mmHg; Pulse rate 60–100 bpm regular; Body temp under 37.5°C.</li>
+                  <li><strong>Hemoglobin Fingerstick:</strong> A quick micro-drop test. Hemoglobin must be at least <strong>12.5 g/dL</strong> (for females) or <strong>13.0 g/dL</strong> (for males) to guarantee donor safety.</li>
+                  <li><strong>Medical Officer Consultation:</strong> A doctor or licensed med-tech reviews medical history and grants clearance.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Phase 3 -->
+            <div class="timeline-step-card">
+              <div class="timeline-num">3</div>
+              <div class="timeline-card-content">
+                <div class="timeline-badge phase-extract"><i class="fa-solid fa-droplet"></i> Phase 3: Blood Collection (Phlebotomy)</div>
+                <h3 class="timeline-title">Safe & Sterile Blood Extraction (10 - 15 Mins)</h3>
+                <ul class="timeline-list">
+                  <li><strong>100% Sterile Equipment:</strong> Extraction uses a brand-new, single-use, sterile needle and blood bag. There is zero risk of catching infections from donating.</li>
+                  <li><strong>Volume Collected:</strong> Approx. 450 mL (1 bag), which represents less than 8-10% of your total blood volume and is quickly replenished by your body.</li>
+                  <li><strong>Comfort & Relaxation:</strong> Relax in the donor recliner, squeeze the soft stress ball gently, and breathe normally.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Phase 4 -->
+            <div class="timeline-step-card">
+              <div class="timeline-num">4</div>
+              <div class="timeline-card-content">
+                <div class="timeline-badge phase-recovery"><i class="fa-solid fa-cookie-bite"></i> Phase 4: Post-Donation Recovery & Perks</div>
+                <h3 class="timeline-title">Rest, Refreshments & Assistance Handover</h3>
+                <ul class="timeline-list">
+                  <li><strong>Mandatory 15-Minute Rest:</strong> Rest comfortably in the recovery lounge with feet elevated.</li>
+                  <li><strong>Enjoy Your Meal & Drinks:</strong> Consume the iron-rich food and sweet refreshments provided by the recipient's family.</li>
+                  <li><strong>Allowance & Handover:</strong> Receive your travel allowance reimbursement and token of appreciation.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- DO'S AND DON'TS GRID -->
+          <div class="dos-donts-container">
+            <div class="dos-card">
+              <div class="dos-header">
+                <i class="fa-solid fa-circle-check"></i>
+                <h3>BEFORE & AFTER DONATION — WHAT TO DO</h3>
+              </div>
+              <ul class="guide-bullets">
+                <li><i class="fa-solid fa-glass-water"></i> <strong>Hydrate Well:</strong> Drink at least 3 to 4 glasses (500-750 mL) of water 2-3 hours before donating.</li>
+                <li><i class="fa-solid fa-egg"></i> <strong>Eat a Healthy Meal:</strong> Have an iron-rich meal (e.g. lean meat, fish, beans, green leafy vegetables) 1-2 hours before.</li>
+                <li><i class="fa-solid fa-bed"></i> <strong>Get Adequate Sleep:</strong> Have at least 6 to 8 hours of uninterrupted rest the night before.</li>
+                <li><i class="fa-solid fa-shirt"></i> <strong>Wear Comfortable Clothing:</strong> Wear shirts with sleeves that can easily roll up past the elbow.</li>
+                <li><i class="fa-solid fa-band-aid"></i> <strong>Keep Bandage On:</strong> Keep the venipuncture bandage clean and dry for at least 4-6 hours.</li>
+              </ul>
+            </div>
+
+            <div class="donts-card">
+              <div class="donts-header">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <h3>THINGS TO AVOID</h3>
+              </div>
+              <ul class="guide-bullets">
+                <li><i class="fa-solid fa-ban"></i> <strong>No Alcohol:</strong> Avoid all beer, wine, and liquor for at least 24 hours prior to donation.</li>
+                <li><i class="fa-solid fa-burger"></i> <strong>Avoid Fatty Foods:</strong> Do not eat excessively greasy or deep-fried food on donation day as it may affect plasma clarity.</li>
+                <li><i class="fa-solid fa-dumbbell"></i> <strong>No Strenuous Exercise:</strong> Avoid heavy lifting, intense gym workouts, or running for 24 hours after extraction.</li>
+                <li><i class="fa-solid fa-smoking"></i> <strong>Avoid Smoking:</strong> Refrain from smoking for at least 2 hours before and after donation.</li>
+                <li><i class="fa-solid fa-pills"></i> <strong>No Aspirin:</strong> Avoid taking aspirin or blood thinners within 48 hours prior if donating platelets.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- LABORATORY TESTING & SAFETY DISCLOSURE -->
+          <div class="lab-screening-card">
+            <div class="lab-screening-header">
+              <i class="fa-solid fa-flask-vial"></i>
+              <div>
+                <h3>Mandatory Laboratory Screening Tests Performed</h3>
+                <p>Every unit of collected blood undergoes rigorous clinical testing before transfusion for patient and public safety</p>
+              </div>
+            </div>
+            <div class="lab-tests-pills">
+              <span class="test-pill"><i class="fa-solid fa-shield-virus"></i> Human Immunodeficiency Virus (HIV 1/2)</span>
+              <span class="test-pill"><i class="fa-solid fa-virus"></i> Hepatitis B Surface Antigen (HBsAg)</span>
+              <span class="test-pill"><i class="fa-solid fa-virus-covid"></i> Hepatitis C Virus (HCV)</span>
+              <span class="test-pill"><i class="fa-solid fa-bacteria"></i> Syphilis (Treponema pallidum)</span>
+              <span class="test-pill"><i class="fa-solid fa-mosquito"></i> Malaria Parasite Screening</span>
+              <span class="test-pill"><i class="fa-solid fa-dna"></i> ABO & Rh Blood Group Confirmation</span>
+            </div>
+          </div>
+
+          <!-- Bottom Contact & Assistance Banner -->
+          <div class="bottom-support-card">
+            <div class="support-left">
+              <i class="fa-solid fa-headset"></i>
+              <div>
+                <h4>Need assistance or have scheduling questions?</h4>
+                <p>Our hospital blood coordinators and patient support desk are ready to assist you.</p>
+              </div>
+            </div>
+            <div class="support-actions">
+              <a href="tel:09123456789" class="btn-support-call"><i class="fa-solid fa-phone"></i> Call Blood Center</a>
+              <a href="patient_dashboard.html" class="btn-support-done"><i class="fa-solid fa-check"></i> I'm Ready / Done</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toastBox">
+    <div class="toast-content">
+      <i class="fa-solid fa-circle-check toast-icon"></i>
+      <span class="toast-message" id="toastMessage">Action completed successfully.</span>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/supabase-client.js?v=20260906e"></script>
+  <script src="/scripts/pages/donor-pledge-details.js?v=20260906a"></script>
+</body>
+
+
+</html>

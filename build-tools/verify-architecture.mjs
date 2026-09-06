@@ -39,7 +39,7 @@ for (const page of pages) {
   if (!existsSync(builtPath)) errors.push(`Missing built page: dist/${page}`);
 }
 
-for (const page of pages.filter((name) => name !== 'index.html')) {
+for (const page of pages) {
   const html = readFileSync(resolve(root, page), 'utf8');
   const inlineScriptCount = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>/gi)].length;
   const expectedInlineCount = allowedInlineScripts.get(page) ?? 0;

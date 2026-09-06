@@ -486,7 +486,15 @@ function buildUnifiedAccountProfile(user, context = {}) {
     ...normalized,
     patient_id: patientProfile?.patient_id || null,
     donor_id: donorProfile?.donor_id || null,
-    blood_type: patientProfile?.blood_type_needed || donorProfile?.blood_type || normalized.blood_type || null,
+    blood_type: normalizeBloodType(
+      patientProfile?.blood_type_needed ||
+      patientProfile?.blood_type ||
+      donorProfile?.blood_type ||
+      normalized.blood_type ||
+      normalized.blood_type_needed ||
+      user?.user_metadata?.blood_type ||
+      null
+    ) || null,
     role: roles.length > 1 ? 'patient_donor' : roles[0],
     roles,
     has_patient_profile: Boolean(patientProfile?.patient_id),
@@ -634,11 +642,20 @@ async function getMyDonorDashboardData() {
 
   let historyResult = await bloodBank().rpc('get_my_donation_history');
   if (historyResult.error && isMissingMultiRoleRpc(historyResult.error)) {
-    historyResult = await bloodBank()
-      .from('donation_record')
-      .select('donation_id, blood_type, quantity, donation_date')
-      .eq('donor_id', donor.donor_id)
-      .order('donation_date', { ascending: false });
+    // Attempt with status and notes first
+    try {
+      historyResult = await bloodBank()
+        .from('donation_record')
+        .select('donation_id, blood_type, quantity, donation_date, status, notes')
+        .eq('donor_id', donor.donor_id)
+        .order('donation_date', { ascending: false });
+    } catch (_) {
+      historyResult = await bloodBank()
+        .from('donation_record')
+        .select('donation_id, blood_type, quantity, donation_date')
+        .eq('donor_id', donor.donor_id)
+        .order('donation_date', { ascending: false });
+    }
   }
 
   let matchingResult = await bloodBank().rpc('get_my_matching_requests');
@@ -653,10 +670,19 @@ async function getMyDonorDashboardData() {
     return { data: null, error: mapError(matchingResult.error, 'Failed to load matching requests.') };
   }
 
+  const normalizedDonations = (historyResult.data || []).map((item) => ({
+    donation_id: item.donation_id,
+    blood_type: item.blood_type || donor.blood_type || '--',
+    quantity: Number(item.quantity) || 1,
+    donation_date: item.donation_date,
+    status: String(item.status || 'completed').toLowerCase(),
+    notes: item.notes || item.reason || ''
+  }));
+
   return {
     data: {
       donor,
-      donations: historyResult.data || [],
+      donations: normalizedDonations,
       matching_requests: matchingResult.data || []
     },
     error: null
@@ -911,6 +937,24 @@ async function resolveRegularUserProfile(user) {
       };
       contextResult = await getLinkedAccountProfiles(user);
       if (!contextResult.error && contextResult.data?.donor) context = contextResult.data;
+    }
+  }
+
+  // Fallback: if the context still has no donor profile, do a direct email lookup.
+  // This handles accounts whose auth metadata only declares 'patient' but whose email
+  // matches an existing donor row (e.g. Barry registered as a donor separately).
+  if (!context.donor && user.email) {
+    const { data: donorRow, error: donorLookupError } = await bloodBank()
+      .from('donor')
+      .select('*')
+      .ilike('email', String(user.email).trim())
+      .maybeSingle();
+    if (!donorLookupError && donorRow?.donor_id) {
+      context = {
+        ...context,
+        donor: donorRow,
+        roles: normalizeAccountRoles([...(context.roles || []), 'donor'])
+      };
     }
   }
 
@@ -1186,10 +1230,10 @@ async function clearAuthSession() {
   if (!SUPABASE_CONFIGURED) return;
   try {
     await supabaseClient.auth.signOut({ scope: 'local' });
-  } catch (_) {}
+  } catch (_) { }
   try {
     await supabaseClient.auth.signOut();
-  } catch (_) {}
+  } catch (_) { }
 
   // Defensive cleanup for stale cached auth tokens across browsers.
   const clearStorageKeys = (storage) => {
@@ -1202,7 +1246,7 @@ async function clearAuthSession() {
         }
       }
       keys.forEach((key) => storage.removeItem(key));
-    } catch (_) {}
+    } catch (_) { }
   };
 
   clearStorageKeys(window.localStorage);
@@ -1311,31 +1355,31 @@ async function listDonors() {
       .filter((row) => {
         const email = String(row.email || '').toLowerCase();
         const first = String(row.first_name || '').toLowerCase();
-        const last  = String(row.last_name  || '').toLowerCase();
+        const last = String(row.last_name || '').toLowerCase();
         const isTempEmail = email.startsWith('donor.test.') && email.endsWith('@example.com');
-        const isTempName  = first === 'temp' && last === 'donor';
+        const isTempName = first === 'temp' && last === 'donor';
         return !isTempEmail && !isTempName;
       })
       .map((row) => ({
-        id:                 row.donor_id,
-        first_name:         row.first_name,
-        middle_name:        row.middle_name,
-        last_name:          row.last_name,
-        email:              row.email,
-        phone:              row.contact_number,
-        blood_type:         row.blood_type,
-        gender:             row.gender,
-        date_of_birth:      row.date_of_birth,
-        address:            row.address,
+        id: row.donor_id,
+        first_name: row.first_name,
+        middle_name: row.middle_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.contact_number,
+        blood_type: row.blood_type,
+        gender: row.gender,
+        date_of_birth: row.date_of_birth,
+        address: row.address,
         availability_status: row.availability_status,
-        donor_status:       row.donor_status || 'registered',
-        show_on_map:        row.show_on_map === true,
-        location_status:    row.location_status || 'needs_review',
-        map_area:           row.map_area || row.address || null,
-        area:               row.map_area || null,
+        donor_status: row.donor_status || 'registered',
+        show_on_map: row.show_on_map === true,
+        location_status: row.location_status || 'needs_review',
+        map_area: row.map_area || row.address || null,
+        area: row.map_area || null,
         last_donation_date: row.last_donation_date,
-        created_at:         row.created_at,
-        is_eligible:        String(row.availability_status || '').toLowerCase() === 'available'
+        created_at: row.created_at,
+        is_eligible: String(row.availability_status || '').toLowerCase() === 'available'
       }));
 
     return { data: donors, error: null };
@@ -1350,43 +1394,65 @@ async function listVisibleDonors() {
   try {
     const { data, error } = await bloodBank().rpc('list_visible_donors');
 
+    const isScreenedAndEligibleRow = (row) => {
+      const status = String(row?.donor_status || '').toLowerCase();
+      if (['registered', 'checked_in', 'deferred', 'incomplete'].includes(status)) {
+        return false;
+      }
+      if (status === 'approved') return true;
+      if (row?.last_donation_date) {
+        const next = new Date(row.last_donation_date);
+        next.setDate(next.getDate() + 56);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (next > today) return false; // Still within 56-day waiting period
+      }
+      return status === 'donated' || status === 'available';
+    };
+
     if (error) {
       if (isMissingMultiRoleRpc(error)) {
         // Preserve older deployments until the additive multi-role migration is applied.
         const fallback = await listDonors();
         if (fallback.error) return fallback;
         return {
-          data: (fallback.data || []).map((donor) => ({
-            id: donor.id,
-            donor_id: donor.id,
-            blood_type: donor.blood_type,
-            availability_status: donor.availability_status,
-            donor_status: donor.donor_status,
-            show_on_map: donor.show_on_map,
-            location_status: donor.location_status,
-            map_area: donor.map_area,
-            area: donor.area,
-            last_donation_date: donor.last_donation_date
-          })),
+          data: (fallback.data || [])
+            .filter((d) => d.show_on_map === true && String(d.location_status).toLowerCase() === 'verified' && isScreenedAndEligibleRow(d))
+            .map((donor) => ({
+              id: donor.id,
+              donor_id: donor.id,
+              blood_type: donor.blood_type,
+              availability_status: donor.availability_status,
+              donor_status: donor.donor_status,
+              show_on_map: donor.show_on_map,
+              location_status: donor.location_status,
+              map_area: donor.map_area,
+              area: donor.area,
+              last_donation_date: donor.last_donation_date
+            })),
           error: null
         };
       }
       return { data: null, error: mapError(error, 'Failed to load donor zones.') };
     }
 
-    return {
-      data: (data || []).map((row) => ({
+    const filtered = (data || [])
+      .filter((row) => isScreenedAndEligibleRow(row))
+      .map((row) => ({
         id: row.donor_id,
         donor_id: row.donor_id,
         blood_type: row.blood_type,
         availability_status: row.availability_status,
-        donor_status: row.donor_status || 'registered',
+        donor_status: row.donor_status || 'approved',
         show_on_map: row.show_on_map === true,
         location_status: row.location_status || 'needs_review',
         map_area: row.map_area || null,
         area: row.map_area || null,
         last_donation_date: row.last_donation_date
-      })),
+      }));
+
+    return {
+      data: filtered,
       error: null
     };
   } catch (_) {
@@ -1443,6 +1509,39 @@ async function updateDonorMapSettings(donorId, payload) {
     return { data, error: null };
   } catch (err) {
     return { data: null, error: { message: 'Network error while updating donor map settings.' } };
+  }
+}
+
+async function setMyDonorMapVisibility(showOnMap) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  try {
+    const { data: user } = await getCurrentUser();
+    if (!user) return { data: null, error: { message: 'Authentication required.' } };
+
+    const { data: donor, error: fetchErr } = await bloodBank()
+      .from('donor')
+      .select('donor_id, show_on_map, location_status, map_area')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+
+    if (fetchErr || !donor) {
+      return { data: null, error: mapError(fetchErr, 'Donor profile not found.') };
+    }
+
+    const { data, error } = await bloodBank()
+      .from('donor')
+      .update({
+        show_on_map: Boolean(showOnMap),
+        location_status: donor.location_status || 'verified'
+      })
+      .eq('donor_id', donor.donor_id)
+      .select('donor_id, show_on_map, location_status, map_area')
+      .single();
+
+    if (error) return { data: null, error: mapError(error, 'Failed to update map visibility.') };
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: { message: 'Network error updating map visibility.' } };
   }
 }
 
@@ -1568,7 +1667,9 @@ async function listMyBloodRequests() {
     return { data: null, error: mapError(error, 'Failed to load blood requests.') };
   }
 
-  const normalized = (data || []).map((row) => {
+  const normalized = (data || [])
+    .filter((row) => !String(row.note || row.notes || '').includes('[DELETED]'))
+    .map((row) => {
     const rawStatus = String(row.status || '').trim().toLowerCase();
     let normalizedStatus = rawStatus || 'pending';
 
@@ -1587,21 +1688,122 @@ async function listMyBloodRequests() {
       normalizedStatus = 'rejected';
     }
 
+    // Parse structured tags from note field
+    const rawNoteStr = String(row.note || row.notes || '');
+    const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
+    const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+    const cleanNote = rawNoteStr
+      .replace(/\[Community Crowdsourced\]/g, '')
+      .replace(/\[Hospital:[^\]]+\]/g, '')
+      .trim();
+
     return {
-    id: row.request_id,
-    blood_type: row.blood_type_needed,
-    units_needed: Number(row.quantity || 0),
-    urgency: row.urgency_level || 'normal',
-    status: normalizedStatus,
-    status_raw: row.status || 'pending',
-    created_at: row.request_date || row.created_at || null,
-    hospital: row.hospital_name || row.hospital || 'Blood Bank',
-    notes: row.notes || '',
-    admin_note: row.admin_note || row.admin_message || row.admin_comment || row.note || ''
+      id: row.request_id,
+      blood_type: normalizeBloodType(row.blood_type_needed),
+      units_needed: Number(row.quantity || 1),
+      urgency: row.urgency_level || 'normal',
+      status: normalizedStatus,
+      status_raw: row.status || 'pending',
+      created_at: row.request_date || row.created_at || null,
+      hospital: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
+      donation_point: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
+      notes: cleanNote,
+      raw_note: rawNoteStr,
+      admin_note: row.admin_note || row.admin_message || row.admin_comment || ''
     };
   });
 
   return { data: normalized, error: null };
+}
+
+async function updateMyBloodRequest(requestId, payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const hospitalName = String(payload.hospital || '').trim();
+  const hospitalTag = hospitalName ? `[Hospital:${hospitalName}]` : '';
+  const rawNote = String(payload.notes || '').trim();
+  const note = [hospitalTag, rawNote].filter(Boolean).join(' ') || null;
+
+  const updates = {
+    blood_type_needed: normalizeBloodType(payload.blood_type),
+    quantity: Number(payload.units_needed) || 1,
+    urgency_level: payload.urgency || 'normal',
+    note
+  };
+
+  const { data, error } = await bloodBank()
+    .from('blood_request')
+    .update(updates)
+    .eq('request_id', requestId)
+    .select('*')
+    .single();
+
+  if (error) return { data: null, error: mapError(error, 'Failed to update request.') };
+  return { data, error: null };
+}
+
+async function deleteMyBloodRequest(requestId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { error: { message: 'Not authenticated' } };
+
+  const numId = Number(requestId);
+  const targetId = !isNaN(numId) ? numId : requestId;
+
+  // Best-effort cleanup of child rows in case foreign keys aren't set with ON DELETE CASCADE
+  try {
+    await bloodBank().from('blood_request_status_log').delete().eq('request_id', targetId);
+  } catch (_) {}
+  try {
+    await bloodBank().from('blood_request_notification_queue').delete().eq('request_id', targetId);
+  } catch (_) {}
+
+  // Delete from bloodBank schema
+  let { data: delData, error } = await bloodBank()
+    .from('blood_request')
+    .delete()
+    .eq('request_id', targetId)
+    .select('request_id');
+
+  // If error or 0 rows deleted, also try public schema
+  if (error || !delData || delData.length === 0) {
+    try {
+      const fallback = await supabaseClient
+        .from('blood_request')
+        .delete()
+        .eq('request_id', targetId)
+        .select('request_id');
+      if (!fallback.error && fallback.data && fallback.data.length > 0) {
+        error = null;
+        delData = fallback.data;
+      }
+    } catch (_) {}
+  }
+
+  // If hard delete was restricted by database RLS, perform soft-delete tag so it's removed everywhere
+  if (error || !delData || delData.length === 0) {
+    try {
+      const { data: existing } = await bloodBank()
+        .from('blood_request')
+        .select('note')
+        .eq('request_id', targetId)
+        .single();
+      const currentNote = String(existing?.note || '');
+      const newNote = currentNote.includes('[DELETED]') ? currentNote : `[DELETED] ${currentNote}`.trim();
+      const updRes = await bloodBank()
+        .from('blood_request')
+        .update({ note: newNote, status: 'rejected' })
+        .eq('request_id', targetId);
+      if (!updRes.error) {
+        error = null;
+      }
+    } catch (_) {}
+  }
+
+  if (error) return { error: mapError(error, 'Failed to delete request.') };
+  return { error: null };
 }
 
 async function listCommunityBloodRequests() {
@@ -1609,7 +1811,7 @@ async function listCommunityBloodRequests() {
 
   try {
     let requestsData = [];
-    
+
     // First try query with patient foreign key join
     const { data, error } = await bloodBank()
       .from('blood_request')
@@ -1631,7 +1833,9 @@ async function listCommunityBloodRequests() {
       }
     }
 
-    const normalized = requestsData.map((row, idx) => {
+    const normalized = requestsData
+      .filter((row) => !String(row.note || row.notes || row.description || '').includes('[DELETED]'))
+      .map((row, idx) => {
       const patient = row.patient || {};
       const rawStatus = String(row.status || '').trim().toLowerCase();
       let normalizedStatus = rawStatus || 'pending';
@@ -1654,7 +1858,16 @@ async function listCommunityBloodRequests() {
         row.requester_name ||
         `Community Recipient #${row.patient_id || row.request_id || (idx + 1)}`;
 
-      const hospital = row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
+      // Parse structured tags from note field
+      const rawNoteStr = String(row.note || row.notes || row.description || '');
+      const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
+      const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+      const cleanNote = rawNoteStr
+        .replace(/\[Community Crowdsourced\]/g, '')
+        .replace(/\[Hospital:[^\]]+\]/g, '')
+        .trim() || 'Blood transfusion support requested for hospitalized patient.';
+
+      const hospital = parsedHospital || row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
       const urgency = String(row.urgency_level || row.urgency || 'normal').toLowerCase();
       const rawDate = row.request_date || row.created_at || new Date().toISOString();
 
@@ -1671,62 +1884,10 @@ async function listCommunityBloodRequests() {
         created_at: rawDate,
         hospital: hospital,
         donation_point: hospital,
-        notes: row.note || row.notes || row.description || 'Blood transfusion support requested for hospitalized patient.',
+        notes: cleanNote,
         admin_note: row.admin_note || row.admin_message || row.admin_comment || ''
       };
     });
-
-    // Provide default community demo requests if table is empty, so donors immediately see realistic community needs
-    if (normalized.length === 0) {
-      const demoCommunity = [
-        {
-          id: 'demo-101',
-          patient_id: 101,
-          requester_name: 'Tahsin Rahman',
-          patient_phone: '09171234567',
-          blood_type: 'A+',
-          units_needed: 2,
-          urgency: 'urgent',
-          status: 'pending',
-          status_raw: 'pending',
-          created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
-          hospital: 'Philippine General Hospital, Manila',
-          donation_point: 'Science Lab & Blood Center, Manila',
-          notes: 'Accident trauma patient, emergency orthopedic surgery scheduled. Anemia history. Age 45.'
-        },
-        {
-          id: 'demo-102',
-          patient_id: 102,
-          requester_name: 'Maria Elena Santos',
-          patient_phone: '09189876543',
-          blood_type: 'O+',
-          units_needed: 3,
-          urgency: 'urgent',
-          status: 'approved',
-          status_raw: 'approved',
-          created_at: new Date(Date.now() - 3600000 * 7).toISOString(),
-          hospital: 'St. Luke\'s Medical Center, QC',
-          donation_point: 'St. Luke\'s Blood Bank Pavilion, QC',
-          notes: 'Dengue fever patient with critically dropping platelet count. Seeking volunteer whole blood donors.'
-        },
-        {
-          id: 'demo-103',
-          patient_id: 103,
-          requester_name: 'David Christopher Cruz',
-          patient_phone: '09225551234',
-          blood_type: 'B+',
-          units_needed: 1,
-          urgency: 'normal',
-          status: 'pending',
-          status_raw: 'pending',
-          created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-          hospital: 'San Lazaro Hospital, Manila',
-          donation_point: 'San Lazaro Blood Donor Ward',
-          notes: 'Dialysis patient requiring scheduled routine red cell transfusion.'
-        }
-      ];
-      return { data: demoCommunity, error: null };
-    }
 
     return { data: normalized, error: null };
   } catch (err) {
@@ -1790,62 +1951,127 @@ async function createBloodRequest(payload) {
   }
 
   let inventoryId = Number(payload.inventory_id);
-  if (!Number.isInteger(inventoryId) || inventoryId <= 0) {
-    const { data: inventoryMatch, error: inventoryError } = await bloodBank()
-      .from('blood_inventory')
-      .select('inventory_id, units_available, status, blood_type')
-      .gt('units_available', 0)
-      .order('last_updated', { ascending: false })
-      .limit(50);
+  let isCrowdsourced = false;
 
-    if (inventoryError) {
-      if (isStackDepthError(inventoryError)) {
+  // 1. Fetch available inventory records to check for physical stock
+  const { data: allInventory, error: inventoryError } = await bloodBank()
+    .from('blood_inventory')
+    .select('inventory_id, units_available, status, blood_type')
+    .order('last_updated', { ascending: false })
+    .limit(100);
+
+  if (inventoryError && !isStackDepthError(inventoryError)) {
+    console.warn('Inventory lookup warning in createBloodRequest:', inventoryError);
+  }
+
+  const inventoryList = Array.isArray(allInventory) ? allInventory : [];
+
+  // Find positive stock row with matching blood type
+  const matchingPositiveInventory = inventoryList.find((row) => {
+    const status = String(row.status || '').toLowerCase();
+    const units = Number(row.units_available || 0);
+    return normalizeBloodType(row.blood_type) === requestedBloodType &&
+      units > 0 &&
+      !['expired', 'quarantined'].includes(status);
+  });
+
+  if (Number.isInteger(inventoryId) && inventoryId > 0) {
+    const exists = inventoryList.some((r) => Number(r.inventory_id) === inventoryId);
+    if (!exists) {
+      inventoryId = matchingPositiveInventory?.inventory_id ? Number(matchingPositiveInventory.inventory_id) : null;
+    }
+  } else if (matchingPositiveInventory?.inventory_id) {
+    inventoryId = Number(matchingPositiveInventory.inventory_id);
+  } else {
+    // Path B: Zero physical inventory -> Route to Community Crowdsourcing
+    isCrowdsourced = true;
+    // Still need a valid inventory_id due to NOT NULL constraint —
+    // find any inventory row for the blood type, or any row at all
+    const anyMatchingInv = inventoryList.find((r) => normalizeBloodType(r.blood_type) === requestedBloodType);
+    const anyInv = anyMatchingInv || inventoryList[0];
+    if (anyInv?.inventory_id) {
+      inventoryId = Number(anyInv.inventory_id);
+    } else {
+      // Last resort: fetch directly from DB
+      const { data: fallbackRow } = await bloodBank()
+        .from('blood_inventory')
+        .select('inventory_id')
+        .limit(1)
+        .maybeSingle();
+      inventoryId = fallbackRow?.inventory_id ? Number(fallbackRow.inventory_id) : null;
+    }
+  }
+
+  const rawNote = String(payload.notes || payload.note || payload.description || '').trim();
+  const hospitalName = String(payload.hospital || payload.donation_point || '').trim();
+  const hospitalTag = hospitalName ? `[Hospital:${hospitalName}]` : '';
+  const crowdsourcedTag = isCrowdsourced ? '[Community Crowdsourced]' : '';
+  const baseNote = rawNote || (isCrowdsourced ? 'Sourced on-demand via community donor mobilization.' : null);
+  const requestNote = [crowdsourcedTag, hospitalTag, baseNote].filter(Boolean).join(' ') || null;
+
+  const requestPayload = {
+    patient_id: effectivePatientId,
+    blood_type_needed: requestedBloodType,
+    quantity: Number(payload.quantity || payload.units_needed) || 1,
+    urgency_level: payload.urgency_level || payload.urgency || 'normal',
+    status: payload.status || 'pending',
+    note: requestNote
+  };
+
+  if (inventoryId && Number.isInteger(inventoryId) && inventoryId > 0) {
+    requestPayload.inventory_id = inventoryId;
+  }
+
+  let { data, error } = await bloodBank()
+    .from('blood_request')
+    .insert(requestPayload)
+    .select('*')
+    .single();
+
+  // If insert failed due to foreign key or not-null constraint on inventory_id, attempt automatic fallbacks
+  if (error) {
+    const errMsg = String(error.message || error.details || '').toLowerCase();
+
+    // If FK violation on inventory_id: try omitting inventory_id first (for nullable schema)
+    if (errMsg.includes('foreign key') || errMsg.includes('blood_request_inventory_id_fkey')) {
+      delete requestPayload.inventory_id;
+      let retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
+      if (!retry.error) {
+        data = retry.data;
+        error = null;
+      } else {
+        // If omitting caused not-null constraint, link to any valid inventory row in DB
+        const fallbackInv = inventoryList[0]?.inventory_id || (await bloodBank().from('blood_inventory').select('inventory_id').limit(1).maybeSingle()).data?.inventory_id;
+        if (fallbackInv) {
+          requestPayload.inventory_id = Number(fallbackInv);
+          retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
+          data = retry.data;
+          error = retry.error;
+        }
+      }
+    } else if (errMsg.includes('not-null') || errMsg.includes('null value') || errMsg.includes('inventory_id')) {
+      // NOT NULL constraint: link to any available inventory row
+      const fallbackInv = inventoryList.find((r) => normalizeBloodType(r.blood_type) === requestedBloodType)?.inventory_id
+        || inventoryList[0]?.inventory_id
+        || (await bloodBank().from('blood_inventory').select('inventory_id').limit(1).maybeSingle()).data?.inventory_id;
+
+      if (fallbackInv) {
+        requestPayload.inventory_id = Number(fallbackInv);
+        const retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
+        data = retry.data;
+        error = retry.error;
+      } else {
+        // inventory_id is NOT NULL in schema and blood_inventory table is empty or inaccessible.
+        // The admin must run fix-blood-request-inventory-nullable.sql in Supabase SQL Editor.
         return {
           data: null,
           error: {
-            message:
-              'Database RLS recursion is blocking inventory lookup. Ask the admin to run supabase-patient-request-rls-fix.sql, then retry.'
+            message: 'Cannot submit request: the database requires inventory_id to be set, but no inventory records exist. Ask the admin to run fix-blood-request-inventory-nullable.sql in the Supabase SQL Editor to allow requests without inventory.'
           }
         };
       }
-      return {
-        data: null,
-        error: mapError(inventoryError, 'Failed to find matching blood inventory.')
-      };
     }
-
-    const matchingInventory = Array.isArray(inventoryMatch)
-      ? inventoryMatch.find((row) => {
-          const status = String(row.status || '').toLowerCase();
-          return normalizeBloodType(row.blood_type) === requestedBloodType &&
-            !['expired', 'quarantined'].includes(status);
-        })
-      : null;
-
-    if (!matchingInventory?.inventory_id) {
-      return {
-        data: null,
-        error: {
-          message: `No available inventory found for blood type ${requestedBloodType}. Please contact the blood bank.`
-        }
-      };
-    }
-
-    inventoryId = Number(matchingInventory.inventory_id);
   }
-
-  const { data, error } = await bloodBank()
-    .from('blood_request')
-    .insert({
-      patient_id: effectivePatientId,
-      inventory_id: inventoryId,
-      blood_type_needed: requestedBloodType,
-      quantity: Number(payload.quantity || payload.units_needed) || 1,
-      urgency_level: payload.urgency_level || payload.urgency || 'normal',
-      status: payload.status || 'pending'
-    })
-    .select('*')
-    .single();
 
   if (error && isStackDepthError(error)) {
     return {
@@ -1865,54 +2091,106 @@ async function updateMyPatientProfile(payload) {
 
   try {
 
-  const {
-    data: { user },
-    error: userError
-  } = await supabaseClient.auth.getUser();
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
 
-  if (userError || !user) {
-    return { data: null, error: { message: 'Not authenticated' } };
-  }
+    if (userError || !user) {
+      return { data: null, error: { message: 'Not authenticated' } };
+    }
 
-  const patientResult = await ensurePatient(user, {
-    firstName: payload.first_name,
-    middleName: payload.middle_name,
-    lastName: payload.last_name,
-    phone: payload.phone,
-    address: payload.address,
-    bloodType: payload.blood_type
-  });
+    const patientResult = await ensurePatient(user, {
+      firstName: payload.first_name,
+      middleName: payload.middle_name,
+      lastName: payload.last_name,
+      phone: payload.phone,
+      address: payload.address,
+      bloodType: payload.blood_type
+    });
 
-  if (patientResult.error) {
-    return { data: null, error: patientResult.error };
-  }
+    if (patientResult.error) {
+      return { data: null, error: patientResult.error };
+    }
 
-  const updates = {
-    first_name: String(payload.first_name || '').trim(),
-    middle_name: String(payload.middle_name || '').trim() || null,
-    last_name: String(payload.last_name || '').trim(),
-    blood_type_needed: normalizeBloodType(payload.blood_type),
-    contact_number: String(payload.phone || '').trim() || null,
-    address: String(payload.address || '').trim() || null
-  };
+    const updates = {
+      first_name: String(payload.first_name || '').trim(),
+      middle_name: String(payload.middle_name || '').trim() || null,
+      last_name: String(payload.last_name || '').trim(),
+      blood_type_needed: normalizeBloodType(payload.blood_type),
+      contact_number: String(payload.phone || '').trim() || null,
+      address: String(payload.address || '').trim() || null
+    };
 
-  if (!isValidBloodType(updates.blood_type_needed)) {
-    return { data: null, error: { message: 'Please select a valid blood type.' } };
-  }
+    if (!isValidBloodType(updates.blood_type_needed)) {
+      return { data: null, error: { message: 'Please select a valid blood type.' } };
+    }
 
-  const normalizedGender = String(payload.gender || '').trim() || null;
-  const meta = user.user_metadata || {};
-  const metadataPatch = {
-    first_name: updates.first_name,
-    middle_name: updates.middle_name,
-    last_name: updates.last_name,
-    blood_type: updates.blood_type_needed,
-    phone: updates.contact_number,
-    address: updates.address,
-    gender: normalizedGender
-  };
+    const normalizedGender = String(payload.gender || '').trim() || null;
+    const meta = user.user_metadata || {};
+    const metadataPatch = {
+      first_name: updates.first_name,
+      middle_name: updates.middle_name,
+      last_name: updates.last_name,
+      blood_type: updates.blood_type_needed,
+      phone: updates.contact_number,
+      address: updates.address,
+      gender: normalizedGender
+    };
 
-  if (!patientResult.profile?.patient_id) {
+    if (!patientResult.profile?.patient_id) {
+      await supabaseClient.auth.updateUser({
+        data: {
+          ...meta,
+          ...metadataPatch
+        }
+      });
+
+      const updatedUser = {
+        ...user,
+        user_metadata: {
+          ...meta,
+          ...metadataPatch,
+          roles: normalizeAccountRoles([...normalizeAccountRoles(meta.roles), 'patient'])
+        }
+      };
+      const normalized = normalizePatientProfile(
+        updatedUser,
+        buildFallbackPatientProfile(updatedUser, {
+          firstName: updates.first_name,
+          middleName: updates.middle_name,
+          lastName: updates.last_name,
+          phone: updates.contact_number,
+          address: updates.address,
+          bloodType: updates.blood_type_needed
+        })
+      );
+
+      return {
+        data: {
+          profile: {
+            ...normalized,
+            role: 'patient',
+            roles: normalizeAccountRoles([...normalizeAccountRoles(meta.roles), 'patient']),
+            has_patient_profile: false,
+            email: user.email
+          }
+        },
+        error: null
+      };
+    }
+
+    const { data: updatedPatient, error: updateError } = await bloodBank()
+      .from('patient')
+      .update(updates)
+      .eq('patient_id', patientResult.profile.patient_id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      return { data: null, error: mapError(updateError, 'Failed to update patient profile') };
+    }
+
     await supabaseClient.auth.updateUser({
       data: {
         ...meta,
@@ -1928,70 +2206,18 @@ async function updateMyPatientProfile(payload) {
         roles: normalizeAccountRoles([...normalizeAccountRoles(meta.roles), 'patient'])
       }
     };
-    const normalized = normalizePatientProfile(
-      updatedUser,
-      buildFallbackPatientProfile(updatedUser, {
-        firstName: updates.first_name,
-        middleName: updates.middle_name,
-        lastName: updates.last_name,
-        phone: updates.contact_number,
-        address: updates.address,
-        bloodType: updates.blood_type_needed
-      })
-    );
+    const contextResult = await getLinkedAccountProfiles(updatedUser);
+    const context = contextResult.error
+      ? { patient: updatedPatient, donor: null, roles: ['patient'] }
+      : { ...contextResult.data, patient: updatedPatient };
+    const unifiedProfile = buildUnifiedAccountProfile(updatedUser, context);
 
     return {
       data: {
-        profile: {
-          ...normalized,
-          role: 'patient',
-          roles: normalizeAccountRoles([...normalizeAccountRoles(meta.roles), 'patient']),
-          has_patient_profile: false,
-          email: user.email
-        }
+        profile: unifiedProfile
       },
       error: null
     };
-  }
-
-  const { data: updatedPatient, error: updateError } = await bloodBank()
-    .from('patient')
-    .update(updates)
-    .eq('patient_id', patientResult.profile.patient_id)
-    .select('*')
-    .single();
-
-  if (updateError) {
-    return { data: null, error: mapError(updateError, 'Failed to update patient profile') };
-  }
-
-  await supabaseClient.auth.updateUser({
-    data: {
-      ...meta,
-      ...metadataPatch
-    }
-  });
-
-  const updatedUser = {
-    ...user,
-    user_metadata: {
-      ...meta,
-      ...metadataPatch,
-      roles: normalizeAccountRoles([...normalizeAccountRoles(meta.roles), 'patient'])
-    }
-  };
-  const contextResult = await getLinkedAccountProfiles(updatedUser);
-  const context = contextResult.error
-    ? { patient: updatedPatient, donor: null, roles: ['patient'] }
-    : { ...contextResult.data, patient: updatedPatient };
-  const unifiedProfile = buildUnifiedAccountProfile(updatedUser, context);
-
-  return {
-    data: {
-      profile: unifiedProfile
-    },
-    error: null
-  };
   } catch (err) {
     return {
       data: null,
@@ -2149,7 +2375,7 @@ async function getInventoryDashboardData() {
 function subscribeToInventoryChanges(onChange) {
   if (!SUPABASE_CONFIGURED) {
     return {
-      unsubscribe() {}
+      unsubscribe() { }
     };
   }
 
@@ -2185,7 +2411,7 @@ function subscribeToInventoryChanges(onChange) {
 function subscribeToRequestChanges(patientId, onChange) {
   if (!SUPABASE_CONFIGURED) {
     return {
-      unsubscribe() {}
+      unsubscribe() { }
     };
   }
 
@@ -2388,9 +2614,9 @@ function getDonorLifecycleBadgeClass(status) {
   const map = {
     registered: 'registered',
     checked_in: 'checked-in',
-    approved:   'approved',
-    donated:    'donated',
-    deferred:   'deferred',
+    approved: 'approved',
+    donated: 'donated',
+    deferred: 'deferred',
     incomplete: 'incomplete'
   };
   return map[String(status || '').toLowerCase()] || 'registered';
@@ -2403,9 +2629,9 @@ function getDonorLifecycleLabel(status) {
   const map = {
     registered: 'Registered',
     checked_in: 'Checked-in',
-    approved:   'Approved (Medical)',
-    donated:    'Donated',
-    deferred:   'Deferred',
+    approved: 'Approved (Medical)',
+    donated: 'Donated',
+    deferred: 'Deferred',
     incomplete: 'Incomplete'
   };
   return map[String(status || '').toLowerCase()] || 'Registered';
@@ -2506,19 +2732,19 @@ async function approveDonorMedical(payload) {
 }
 
 /**
- * Mark a donor as having successfully donated.
- * Sets donor_status -> 'donated', updates last_donation_date today.
- * Auto-creates a blood_inventory record and a donation_record row.
- * payload: { donor_id, units, blood_type }
- * NOTE: Audit inserts are best-effort and will not block the primary update.
+ * Mark a donor donation with status tracking (completed, failed, cancelled, pending).
+ * payload: { donor_id, units, blood_type, status, notes, reason }
  */
 async function markDonorDonated(payload) {
   if (!SUPABASE_CONFIGURED) return configError();
   try {
-    const { donor_id, units, blood_type } = payload;
+    const { donor_id, units = 1, blood_type, status = 'completed', notes = '', reason = '' } = payload;
     const donationBloodType = normalizeBloodType(blood_type);
-    if (!donor_id || !units || !donationBloodType) {
-      return { data: null, error: { message: 'donor_id, units, and blood_type are required.' } };
+    const donationStatus = String(status || 'completed').toLowerCase();
+    const finalNotes = String(notes || reason || '').trim();
+
+    if (!donor_id || !donationBloodType) {
+      return { data: null, error: { message: 'donor_id and blood_type are required.' } };
     }
     if (!isValidBloodType(donationBloodType)) {
       return { data: null, error: { message: 'Invalid blood type.' } };
@@ -2526,7 +2752,7 @@ async function markDonorDonated(payload) {
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Fetch donor for eligibility check (best-effort; skip checks if RLS blocks)
+    // 1. Fetch donor for eligibility check (best-effort)
     let existingDonor = null;
     try {
       const { data: fetched } = await bloodBank()
@@ -2535,10 +2761,10 @@ async function markDonorDonated(payload) {
         .eq('donor_id', donor_id)
         .single();
       existingDonor = fetched;
-    } catch (_) { /* ignore - proceed without pre-check */ }
+    } catch (_) { /* ignore - proceed */ }
 
-    // 2. Client-side 56-day rule (only if we got donor data)
-    if (existingDonor) {
+    // 2. Client-side 56-day rule check only for completed donations
+    if (donationStatus === 'completed' && existingDonor) {
       const eligibility = isEligibleToCheckIn(existingDonor);
       if (!eligibility.eligible) {
         return {
@@ -2548,50 +2774,89 @@ async function markDonorDonated(payload) {
       }
     }
 
-    // 3. Primary donor status update
-    const { data: updatedDonor, error: updateErr } = await bloodBank()
-      .from('donor')
-      .update({
-        donor_status: 'donated',
-        last_donation_date: todayStr,
-        availability_status: 'donated'
-      })
-      .eq('donor_id', donor_id)
-      .select('*')
-      .single();
+    let updatedDonor = existingDonor;
+    let inventoryRow = null;
+    const nextDate = new Date(todayStr);
+    nextDate.setDate(nextDate.getDate() + 56);
 
-    if (updateErr) {
-      return { data: null, error: mapError(updateErr, 'Failed to update donor status.') };
-    }
+    if (donationStatus === 'completed') {
+      // 3. Primary donor status update for completed donation
+      const { data: donorData, error: updateErr } = await bloodBank()
+        .from('donor')
+        .update({
+          donor_status: 'donated',
+          last_donation_date: todayStr,
+          availability_status: 'donated'
+        })
+        .eq('donor_id', donor_id)
+        .select('*')
+        .single();
 
-    // 4. Create blood_inventory record
-    const { data: inventoryRow, error: invErr } = await bloodBank()
-      .from('blood_inventory')
-      .insert({
-        donor_id,
-        blood_type: donationBloodType || normalizeBloodType(updatedDonor.blood_type),
-        units_available: Number(units) || 1,
-        date_stock: todayStr,
-        status: 'available'
-      })
-      .select('inventory_id')
-      .single();
+      if (updateErr) {
+        return { data: null, error: mapError(updateErr, 'Failed to update donor status.') };
+      }
+      updatedDonor = donorData;
 
-    if (invErr) {
-      return { data: null, error: mapError(invErr, 'Donor status updated but failed to create inventory record.') };
-    }
-
-    // 5. Create donation_record row (best-effort)
-    try {
-      await bloodBank()
-        .from('donation_record')
+      // 4. Create blood_inventory record
+      const { data: invData, error: invErr } = await bloodBank()
+        .from('blood_inventory')
         .insert({
           donor_id,
-          inventory_id: inventoryRow.inventory_id,
-          blood_type: donationBloodType || normalizeBloodType(updatedDonor.blood_type),
-          quantity: Number(units) || 1,
-          donation_date: todayStr
-        });
+          blood_type: donationBloodType || normalizeBloodType(updatedDonor?.blood_type),
+          units_available: Number(units) || 1,
+          date_stock: todayStr,
+          status: 'available'
+        })
+        .select('inventory_id')
+        .single();
+
+      if (invErr) {
+        return { data: null, error: mapError(invErr, 'Donor status updated but failed to create inventory record.') };
+      }
+      inventoryRow = invData;
+    } else if (donationStatus === 'failed') {
+      // For failed donation, defer donor if clinical failure
+      const { data: donorData } = await bloodBank()
+        .from('donor')
+        .update({
+          donor_status: 'deferred',
+          deferred_reason: finalNotes || 'Screening/donation issue'
+        })
+        .eq('donor_id', donor_id)
+        .select('*')
+        .single();
+      if (donorData) updatedDonor = donorData;
+    }
+
+    // 5. Create donation_record row (with status & notes)
+    try {
+      const recordPayload = {
+        donor_id,
+        inventory_id: inventoryRow?.inventory_id || null,
+        blood_type: donationBloodType || normalizeBloodType(updatedDonor?.blood_type),
+        quantity: Number(units) || 1,
+        donation_date: todayStr,
+        status: donationStatus,
+        notes: finalNotes || null
+      };
+
+      // Try inserting with status/notes
+      const { error: insertErr } = await bloodBank()
+        .from('donation_record')
+        .insert(recordPayload);
+
+      if (insertErr) {
+        // Fallback for legacy schema without status/notes columns
+        await bloodBank()
+          .from('donation_record')
+          .insert({
+            donor_id,
+            inventory_id: inventoryRow?.inventory_id || null,
+            blood_type: donationBloodType || normalizeBloodType(updatedDonor?.blood_type),
+            quantity: Number(units) || 1,
+            donation_date: todayStr
+          });
+      }
     } catch (_) { /* non-blocking */ }
 
     // 6. Audit log (best-effort)
@@ -2599,25 +2864,54 @@ async function markDonorDonated(payload) {
       await bloodBank().from('donor_status_log').insert({
         donor_id,
         old_status: existingDonor?.donor_status || 'checked_in',
-        new_status: 'donated',
-        notes: `${units} unit(s) collected. Inventory ID: ${inventoryRow.inventory_id}`
+        new_status: donationStatus === 'completed' ? 'donated' : (donationStatus === 'failed' ? 'deferred' : 'registered'),
+        notes: `Donation ${donationStatus}. ${units} unit(s). ${finalNotes ? 'Reason/Notes: ' + finalNotes : ''}`
       });
     } catch (_) { /* non-blocking */ }
 
-    const nextDate = new Date(todayStr);
-    nextDate.setDate(nextDate.getDate() + 56);
-
     return {
       data: {
-        donor: { ...updatedDonor, id: updatedDonor.donor_id },
-        inventory_id: inventoryRow.inventory_id,
+        donor: updatedDonor ? { ...updatedDonor, id: updatedDonor.donor_id } : null,
+        inventory_id: inventoryRow?.inventory_id || null,
         donation_date: todayStr,
-        next_eligible_date: nextDate.toISOString().split('T')[0]
+        status: donationStatus,
+        notes: finalNotes,
+        next_eligible_date: donationStatus === 'completed' ? nextDate.toISOString().split('T')[0] : null
       },
       error: null
     };
   } catch (err) {
-    return { data: null, error: { message: 'Network error while marking donor as donated.' } };
+    return { data: null, error: { message: 'Network error while recording donation.' } };
+  }
+}
+
+/**
+ * Update donation record status and notes (Admin/Staff only)
+ */
+async function updateDonationRecordStatus(payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { donation_id, status, notes = '', reason = '' } = payload || {};
+  if (!donation_id || !status) {
+    return { data: null, error: { message: 'donation_id and status are required.' } };
+  }
+  try {
+    const finalNotes = notes || reason || null;
+    const { data, error } = await bloodBank()
+      .from('donation_record')
+      .update({
+        status: String(status).toLowerCase(),
+        notes: finalNotes
+      })
+      .eq('donation_id', donation_id)
+      .select('*')
+      .single();
+
+    if (error) {
+      return { data: null, error: mapError(error, 'Failed to update donation record.') };
+    }
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: { message: 'Network error while updating donation record.' } };
   }
 }
 

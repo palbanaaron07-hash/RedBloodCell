@@ -142,12 +142,9 @@ User browser
 - Responsive layouts and mobile navigation;
 - A web app manifest and service worker for installability and limited app-shell caching.
 
-There are two landing implementations:
+The system uses a unified landing implementation:
 
-- `homie.html` is the standalone marketing home page and is the page opened by the Vite development server;
-- `index.html` loads the React PWA interface from `src/App.jsx`.
-
-The React page currently contains fixed demonstration values for donor zones, inventory, chat, and activity. Operational dashboard data is handled mainly by the standalone HTML pages and `supabase-client.js`.
+- `index.html` (and `homie.html`) is the standalone marketing home page and entry point.
 
 ### 3.3 Back-end and data technologies
 
@@ -162,8 +159,7 @@ The React page currently contains fixed demonstration values for donor zones, in
 
 | File | Purpose | Data status |
 |---|---|---|
-| `homie.html` | Public marketing home page | Static presentation/navigation |
-| `index.html`, `src/App.jsx` | React PWA home/dashboard concept | Mostly fixed demonstration data |
+| `index.html`, `homie.html` | Public marketing home page | Static presentation/navigation |
 | `learn_more.html` | System feature explanation | Static content |
 | `register.html` | Four-step account registration | Supabase-backed with best-effort PHP/MySQL sync |
 | `login.html` | Login and role-based routing | Supabase primary; PHP fallback |
@@ -800,7 +796,7 @@ Use these repository files to verify or update this context:
 - `supabase-donor-map-visibility.sql` — map consent/verification fields;
 - `supabase/functions/*/index.ts` — privileged Edge Functions;
 - `api/*.php` — legacy MySQL compatibility endpoints;
-- `src/App.jsx`, `public/manifest.webmanifest`, `public/sw.js` — React PWA concept and offline shell;
+- `public/manifest.webmanifest`, `public/sw.js` — PWA manifest and offline shell;
 - `System_Proposal.txt` — earlier high-level system proposal.
 
 ---

@@ -31,7 +31,8 @@
 
     return Boolean(target.closest(
       'input, textarea, select, button, a, [contenteditable="true"], ' +
-      '.modal, dialog, .leaflet-container, [data-no-pull-refresh]'
+      '.modal, dialog, .leaflet-container, [data-no-pull-refresh], ' +
+      '.filter-menu, .filter-dropdown, .my-req-dropdown, .tab-filter-bar'
     ));
   }
 
