@@ -404,3 +404,16 @@ window.goToStep = goToStep;
 window.handleConfirmPledge = handleConfirmPledge;
 window.copyPassDetails = copyPassDetails;
 window.showToast = showToast;
+
+if (typeof attachPageRefreshListeners === 'function') {
+  attachPageRefreshListeners({
+    onRefresh: async () => {
+      try {
+        if (typeof loadRequestAndDonorData === 'function') {
+          await loadRequestAndDonorData();
+        }
+      } catch (_) { }
+    },
+    debounceMs: 2500
+  });
+}

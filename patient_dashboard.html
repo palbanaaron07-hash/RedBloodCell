@@ -19,9 +19,9 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="patient_dashboard.css?v=20260907f" />
+  <link rel="stylesheet" href="/patient_dashboard.css?v=20260907fix" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="patient_mobile_nav.css?v=20260825a" />
+  <link rel="stylesheet" href="/patient_mobile_nav.css?v=20260907fix" />
 </head>
 
 <body>
@@ -70,9 +70,14 @@
         <i class="fa-solid fa-user"></i>
         <span class="nav-item-label">My Profile</span>
       </a>
+      <a href="#" class="nav-item" id="sidebarLogoutNavItem" onclick="openLogoutModal(event)">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span class="nav-item-label">Log Out</span>
+      </a>
     </nav>
-    <a href="login.html" class="sidebar-logout" title="Log out" id="logoutBtn">
-    </a>
+    <button type="button" class="sidebar-logout" title="Log out" id="logoutBtn" onclick="openLogoutModal(event)" aria-label="Log out">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </button>
 
   </aside>
 
@@ -899,7 +904,7 @@
         </div>
         <div class="modal-footer logout-confirm-actions">
           <button type="button" class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-          <button type="button" class="btn-submit logout-confirm-action" id="confirmLogoutBtn">Yes, log out</button>
+          <button type="button" class="btn-submit logout-confirm-action" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes, log out</button>
         </div>
       </div>
     </div>
@@ -943,23 +948,9 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260907a"></script>
+  <script src="/supabase-client.js?v=20260907logout"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/patient-dashboard.js?v=20260907b"></script>
-
-  <!-- Scroll focused input into view when mobile keyboard opens -->
-  <script>
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
-        const focused = document.activeElement;
-        if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) {
-          setTimeout(() => {
-            focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 80);
-        }
-      });
-    }
-  </script>
+  <script src="/scripts/pages/patient-dashboard.js?v=20260907logout"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 

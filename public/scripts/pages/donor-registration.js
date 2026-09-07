@@ -563,3 +563,16 @@
         submitBtn.textContent = originalBtnText;
       }
     });
+
+    if (typeof attachPageRefreshListeners === 'function') {
+      attachPageRefreshListeners({
+        onRefresh: async () => {
+          try {
+            if (typeof initializeAccountLinkedRegistration === 'function') {
+              await initializeAccountLinkedRegistration();
+            }
+          } catch (_) { }
+        },
+        debounceMs: 2500
+      });
+    }

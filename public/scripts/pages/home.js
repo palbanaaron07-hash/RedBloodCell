@@ -88,8 +88,6 @@
     const navLinks = document.querySelectorAll('.topnav a');
 
     // Section-to-href map (order matters: top -> bottom of page)
-    // NOTE: #inventory is a card inside services-grid, NOT a full section,
-    // so we exclude it from scroll-based detection. It only highlights on click.
     const sectionMap = [
       { id: 'our-system', href: '#our-system' },
       { id: 'about', href: '#about' },
@@ -97,7 +95,7 @@
     ];
 
     let rafPending = false;
-    let lastActiveHref = null; // track previous so we skip no-op DOM touches
+    let lastActiveHref = null;
     let pendingNavHref = null;
 
     function setActiveByScroll() {
@@ -118,8 +116,6 @@
 
       let activeHref = null;
 
-      // Walk top-to-bottom; keep updating - last section whose
-      // top edge has passed OFFSET wins (most specific section visible).
       for (const { id, href } of sectionMap) {
         const el = document.getElementById(id);
         if (el && el.getBoundingClientRect().top <= OFFSET) {
@@ -127,14 +123,11 @@
         }
       }
 
-      // The final section may not reach the header offset when the page is at its
-      // maximum scroll position, so keep its navigation item active at the bottom.
       const isAtPageBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
       if (isAtPageBottom) {
         activeHref = '#privacy-policy';
       }
 
-      // Only touch the DOM when something actually changed
       if (activeHref !== lastActiveHref) {
         lastActiveHref = activeHref;
         navLinks.forEach((link) => {
@@ -145,7 +138,6 @@
       rafPending = false;
     }
 
-    // Throttle to one DOM update per animation frame (max ~60 fps)
     function onScroll() {
       if (!rafPending) {
         rafPending = true;
@@ -164,3 +156,32 @@
         pendingNavHref = href;
       });
     });
+
+    async function refreshHomeSession() {
+      try {
+        if (typeof getCurrentUser !== 'function') return;
+        const { user, profile } = await getCurrentUser();
+        const loginLink = document.querySelector('.top-actions .login-link');
+        if (loginLink) {
+          if (user && profile) {
+            const isAdmin = profile.roles?.includes('admin') || profile.role === 'admin';
+            loginLink.innerHTML = '<i class="fa-solid fa-gauge" aria-hidden="true"></i> Dashboard';
+            loginLink.href = isAdmin ? 'admin_dashboard.html' : 'patient_dashboard.html';
+          } else {
+            loginLink.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i> Login';
+            loginLink.href = 'login.html';
+          }
+        }
+      } catch (_) { }
+    }
+
+    refreshHomeSession();
+
+    if (typeof attachPageRefreshListeners === 'function') {
+      attachPageRefreshListeners({
+        onRefresh: () => {
+          refreshHomeSession();
+        },
+        debounceMs: 2500
+      });
+    }

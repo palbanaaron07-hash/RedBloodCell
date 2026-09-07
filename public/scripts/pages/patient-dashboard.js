@@ -900,17 +900,56 @@ function closeDriveDetailsModal() {
   document.body.classList.remove('modal-open');
 }
 
+async function refreshDashboardData(options = {}) {
+  try {
+    if (typeof getCurrentUserProfile === 'function') {
+      const { profile } = await getCurrentUserProfile();
+      if (profile) {
+        currentProfile = profile;
+        applyProfileToUI(profile);
+      }
+    }
+    if (currentProfile?.has_patient_profile) {
+      loadRequests();
+    }
+    if (currentProfile?.has_donor_profile) {
+      loadDonorDashboard();
+    }
+    renderBloodDrives();
+    if (typeof updateUnreadBadge === 'function') {
+      updateUnreadBadge();
+    }
+  } catch (err) {
+    console.warn('Dashboard background refresh warning:', err);
+  }
+}
+
 function initRequestsRealtime() {
-  if (typeof subscribeToRequestChanges !== 'function') return;
   // Unsubscribe existing
   if (requestSubscription && typeof requestSubscription.unsubscribe === 'function') {
     try { requestSubscription.unsubscribe(); } catch (_) { }
   }
   const patientId = currentProfile?.patient_id || currentProfile?.id || null;
-  if (!patientId) return;
-  requestSubscription = subscribeToRequestChanges(patientId, () => {
-    loadRequests();
-  });
+  const userId = currentProfile?.user_id || currentProfile?.id || null;
+
+  if (typeof subscribeToPatientDashboard === 'function') {
+    requestSubscription = subscribeToPatientDashboard({ patientId, userId }, (change) => {
+      if (change.type === 'blood_request' || change.type === 'donor_pledge') {
+        if (currentProfile?.has_patient_profile) loadRequests();
+        if (currentProfile?.has_donor_profile) loadDonorDashboard();
+      } else if (change.type === 'blood_drive') {
+        renderBloodDrives();
+      } else if (change.type === 'blood_inventory') {
+        if (currentProfile?.has_patient_profile) loadRequests();
+      } else if (change.type === 'notifications') {
+        if (typeof updateUnreadBadge === 'function') updateUnreadBadge();
+      }
+    });
+  } else if (typeof subscribeToRequestChanges === 'function' && patientId) {
+    requestSubscription = subscribeToRequestChanges(patientId, () => {
+      loadRequests();
+    });
+  }
 }
 
 function hasAccountRole(role) {
@@ -1554,6 +1593,17 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
+
+if (typeof attachPageRefreshListeners === 'function') {
+  attachPageRefreshListeners({
+    onRefresh: (info) => {
+      refreshDashboardData(info);
+    },
+    debounceMs: 2500
+  });
+}
+
+
 // ---- Profile Edit ----
 function openProfileModal() {
   if (!currentProfile) return;
@@ -1712,10 +1762,13 @@ document.getElementById('profilePhotoModal').addEventListener('click', (event) =
 });
 
 // ---- Logout ----
-document.getElementById('logoutBtn').addEventListener('click', async (e) => {
-  e.preventDefault();
-  await signOut();
-});
+const sidebarLogoutBtn = document.getElementById('logoutBtn');
+if (sidebarLogoutBtn) {
+  sidebarLogoutBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    openLogoutModal(e);
+  });
+}
 
 // ---- Blood Requests & Community Feed State ----
 let allCommunityRequests = [];
@@ -2605,42 +2658,71 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 function openLogoutModal(event) {
-  if (event) event.stopPropagation();
+  if (event) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+  }
   const dropdown = document.getElementById('headerProfileDropdown');
   if (dropdown) dropdown.classList.remove('active');
-  closeNotificationPanel();
-  setSidebarOpen(false);
+  if (typeof closeNotificationPanel === 'function') closeNotificationPanel();
+  if (typeof setSidebarOpen === 'function') setSidebarOpen(false);
   document.body.classList.add('modal-open');
-  document.getElementById('logoutConfirmModal').classList.add('active');
+  const modal = document.getElementById('logoutConfirmModal');
+  if (modal) modal.classList.add('active');
 }
+window.openLogoutModal = openLogoutModal;
 
-function closeLogoutModal() {
-  document.getElementById('logoutConfirmModal').classList.remove('active');
+function closeLogoutModal(event) {
+  if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  const modal = document.getElementById('logoutConfirmModal');
+  if (modal) modal.classList.remove('active');
   document.body.classList.remove('modal-open');
 }
+window.closeLogoutModal = closeLogoutModal;
 
-const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
-if (confirmLogoutBtn) {
-  confirmLogoutBtn.addEventListener('click', async () => {
-    confirmLogoutBtn.disabled = true;
-    confirmLogoutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging out...';
+async function handleConfirmLogout(event) {
+  if (event) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+  }
+  const btn = document.getElementById('confirmLogoutBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging out...';
+  }
+
+  // Guaranteed fallback redirect if anything delays
+  const fallbackRedirect = setTimeout(() => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) { }
+    window.location.replace('login.html');
+  }, 700);
+
+  try {
     if (typeof signOut === 'function') {
       await signOut();
     } else {
-      document.body.classList.remove('modal-open');
-      window.location.href = 'login.html';
+      if (typeof clearAuthSession === 'function') {
+        await clearAuthSession();
+      }
+      window.location.replace('login.html');
     }
-  });
+  } catch (err) {
+    console.warn('Logout error:', err);
+    window.location.replace('login.html');
+  } finally {
+    clearTimeout(fallbackRedirect);
+  }
+}
+window.handleConfirmLogout = handleConfirmLogout;
+
+const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
+if (confirmLogoutBtn) {
+  confirmLogoutBtn.addEventListener('click', handleConfirmLogout);
 }
 
-// Update the sidebar logout to also show confirmation
-const sidebarLogoutBtn = document.getElementById('logoutBtn');
-if (sidebarLogoutBtn) {
-  sidebarLogoutBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    openLogoutModal();
-  });
-}
 
 // ----- Request admin-note modal -----
 function openRequestNoteModal(requestId, noteText) {

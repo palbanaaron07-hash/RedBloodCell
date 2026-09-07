@@ -190,4 +190,14 @@
   });
 
   updateView();
+
+  if (typeof attachPageRefreshListeners === 'function') {
+    attachPageRefreshListeners({
+      onRefresh: () => {
+        state = loadState();
+        updateView();
+      },
+      debounceMs: 2000
+    });
+  }
 })();

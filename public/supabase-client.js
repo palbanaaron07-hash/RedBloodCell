@@ -1218,30 +1218,24 @@ async function completePasswordReset(password, email = '') {
 }
 
 async function signOut() {
-  if (!SUPABASE_CONFIGURED) {
-    window.location.href = 'login.html';
-    return;
+  try {
+    await clearAuthSession();
+  } catch (err) {
+    console.warn('Error during signOut:', err);
+  } finally {
+    window.location.replace('login.html');
   }
-  await clearAuthSession();
-  window.location.href = 'login.html';
 }
 
 async function clearAuthSession() {
-  if (!SUPABASE_CONFIGURED) return;
-  try {
-    await supabaseClient.auth.signOut({ scope: 'local' });
-  } catch (_) { }
-  try {
-    await supabaseClient.auth.signOut();
-  } catch (_) { }
-
-  // Defensive cleanup for stale cached auth tokens across browsers.
+  // 1. Immediately clear all auth tokens from localStorage and sessionStorage
   const clearStorageKeys = (storage) => {
     try {
+      if (!storage) return;
       const keys = [];
       for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token') || key.includes('veindrop'))) {
           keys.push(key);
         }
       }
@@ -1251,6 +1245,16 @@ async function clearAuthSession() {
 
   clearStorageKeys(window.localStorage);
   clearStorageKeys(window.sessionStorage);
+
+  // 2. Safely call Supabase signOut with a strict 500ms timeout so UI never hangs
+  if (SUPABASE_CONFIGURED && window.supabaseClient?.auth) {
+    try {
+      await Promise.race([
+        supabaseClient.auth.signOut({ scope: 'local' }),
+        new Promise((resolve) => setTimeout(resolve, 500))
+      ]);
+    } catch (_) { }
+  }
 }
 
 async function getCurrentUser() {
@@ -2443,6 +2447,244 @@ function subscribeToRequestChanges(patientId, onChange) {
   };
 }
 
+function subscribeToPatientDashboard(options, onChange) {
+  if (!SUPABASE_CONFIGURED) {
+    return { unsubscribe() { } };
+  }
+
+  const patientId = typeof options === 'object' ? options?.patientId : options;
+  const userId = typeof options === 'object' ? options?.userId : null;
+  const cb = typeof onChange === 'function' ? onChange : (typeof options === 'function' ? options : null);
+  if (!cb) return { unsubscribe() { } };
+
+  const chanName = `patient-dash-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let channel = supabaseClient.channel(chanName);
+
+  // 1. Blood requests (all community requests and patient's requests)
+  channel = channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'blood_bank',
+      table: 'blood_request'
+    },
+    (payload) => {
+      cb({ type: 'blood_request', payload });
+    }
+  );
+
+  // 2. Donor pledges (when donor pledges to a request or donation status changes)
+  channel = channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'blood_bank',
+      table: 'donor_pledge'
+    },
+    (payload) => {
+      cb({ type: 'donor_pledge', payload });
+    }
+  );
+
+  // 3. Blood drives
+  channel = channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'blood_bank',
+      table: 'blood_drive'
+    },
+    (payload) => {
+      cb({ type: 'blood_drive', payload });
+    }
+  );
+
+  // 4. Blood inventory
+  channel = channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'blood_bank',
+      table: 'blood_inventory'
+    },
+    (payload) => {
+      cb({ type: 'blood_inventory', payload });
+    }
+  );
+
+  // 5. Notifications for this user/patient if available
+  if (userId) {
+    channel = channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'blood_bank',
+        table: 'notifications'
+      },
+      (payload) => {
+        cb({ type: 'notifications', payload });
+      }
+    );
+  }
+
+  channel.subscribe();
+
+  return {
+    unsubscribe() {
+      try {
+        supabaseClient.removeChannel(channel);
+      } catch (_) { }
+    }
+  };
+}
+
+function subscribeToNotifications(userId, onChange) {
+  if (!SUPABASE_CONFIGURED || !userId) {
+    return { unsubscribe() { } };
+  }
+
+  const chanName = `notif-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const channel = supabaseClient
+    .channel(chanName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'blood_bank',
+        table: 'notifications'
+      },
+      (payload) => {
+        if (typeof onChange === 'function') onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return {
+    unsubscribe() {
+      try {
+        supabaseClient.removeChannel(channel);
+      } catch (_) { }
+    }
+  };
+}
+
+function subscribeToDonorPledges(donorId, onChange) {
+  if (!SUPABASE_CONFIGURED) {
+    return { unsubscribe() { } };
+  }
+
+  const chanName = `pledge-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const filter = donorId ? `donor_id=eq.${Number(donorId)}` : undefined;
+  const channel = supabaseClient
+    .channel(chanName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'blood_bank',
+        table: 'donor_pledge',
+        ...(filter ? { filter } : {})
+      },
+      (payload) => {
+        if (typeof onChange === 'function') onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return {
+    unsubscribe() {
+      try {
+        supabaseClient.removeChannel(channel);
+      } catch (_) { }
+    }
+  };
+}
+
+function attachPageRefreshListeners(options = {}) {
+  const onRefresh = typeof options === 'function' ? options : options?.onRefresh;
+  if (typeof onRefresh !== 'function') return () => { };
+
+  const debounceMs = typeof options?.debounceMs === 'number' ? options.debounceMs : 2500;
+  let lastRefreshTime = Date.now();
+  let refreshTimer = null;
+  let lastViewportWidth = window.innerWidth;
+  let resizeTimer = null;
+
+  function triggerRefresh(reason) {
+    const now = Date.now();
+    if (now - lastRefreshTime < debounceMs) {
+      if (!refreshTimer) {
+        refreshTimer = setTimeout(() => {
+          refreshTimer = null;
+          lastRefreshTime = Date.now();
+          onRefresh({ reason: 'debounced', timestamp: lastRefreshTime });
+        }, debounceMs - (now - lastRefreshTime));
+      }
+      return;
+    }
+    lastRefreshTime = now;
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+    onRefresh({ reason: reason || 'landing', timestamp: lastRefreshTime });
+  }
+
+  function handlePageShow(event) {
+    triggerRefresh(event?.persisted ? 'bfcache_landing' : 'pageshow');
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      triggerRefresh('tab_focus');
+    }
+  }
+
+  function handleWindowFocus() {
+    triggerRefresh('window_focus');
+  }
+
+  function handleOnline() {
+    triggerRefresh('network_online');
+  }
+
+  function handleCustomRefresh() {
+    triggerRefresh('pull_to_refresh');
+  }
+
+  // Fires when switching between DevTools simulator and desktop mode (viewport width changes)
+  function handleResize() {
+    const newWidth = window.innerWidth;
+    if (newWidth === lastViewportWidth) return; // height-only change (mobile keyboard), ignore
+    const diff = Math.abs(newWidth - lastViewportWidth);
+    lastViewportWidth = newWidth;
+    if (diff < 120) return; // ignore minor drag-resizes, only trigger on simulator <-> desktop toggle
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resizeTimer = null;
+      triggerRefresh('viewport_resize');
+    }, 500);
+  }
+
+  window.addEventListener('pageshow', handlePageShow);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleWindowFocus);
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('veindrop:refresh', handleCustomRefresh);
+  window.addEventListener('resize', handleResize);
+
+  return function detach() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    if (resizeTimer) clearTimeout(resizeTimer);
+    window.removeEventListener('pageshow', handlePageShow);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', handleWindowFocus);
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('veindrop:refresh', handleCustomRefresh);
+    window.removeEventListener('resize', handleResize);
+  };
+}
+
 async function updateInventoryStock(payload) {
   if (!SUPABASE_CONFIGURED) return configError();
 
@@ -2551,9 +2793,33 @@ async function getOverviewRecentRequests(limit = 5) {
   if (!SUPABASE_CONFIGURED) return configError();
 
   try {
+    // Prefer the list-requests Edge Function which uses the service role key
+    // so that RLS on blood_bank.blood_request does not block admin reads.
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const accessToken = session?.access_token;
+
+    if (accessToken) {
+      const endpoint = `${SUPABASE_FUNCTIONS_BASE_URL}/list-requests?limit=${limit}`;
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.data)) {
+        return { data: json.data, error: null };
+      }
+      // Fall through to direct query on error (e.g. function not yet deployed)
+      console.warn('[getOverviewRecentRequests] Edge Function failed:', json.error || res.status, '— falling back to direct query');
+    }
+
+    // Fallback: direct PostgREST query (works once RLS policy is applied)
     const { data, error } = await bloodBank()
       .from('blood_request')
-      .select('request_id, inventory_id, blood_type_needed, quantity, urgency_level, status, request_date, patient:patient_id(first_name,middle_name,last_name,hospital_name,contact_number)')
+      .select('request_id, inventory_id, blood_type_needed, quantity, urgency_level, status, request_date, note, admin_note, patient_id, patient(first_name, middle_name, last_name, hospital_name, contact_number)')
       .order('request_date', { ascending: false })
       .limit(limit);
 

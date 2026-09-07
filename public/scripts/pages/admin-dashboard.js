@@ -2205,23 +2205,64 @@
     });
 
     function openLogoutModal(event) {
-      if (event) event.stopPropagation();
+      if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      }
       const dropdown = document.getElementById('headerProfileDropdown');
       if (dropdown) dropdown.classList.remove('active');
-      document.getElementById('logoutConfirmModal').classList.add('active');
+      const modal = document.getElementById('logoutConfirmModal');
+      if (modal) modal.classList.add('active');
     }
+    window.openLogoutModal = openLogoutModal;
 
-    function closeLogoutModal() {
-      document.getElementById('logoutConfirmModal').classList.remove('active');
+    function closeLogoutModal(event) {
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      const modal = document.getElementById('logoutConfirmModal');
+      if (modal) modal.classList.remove('active');
     }
+    window.closeLogoutModal = closeLogoutModal;
+
+    async function handleConfirmLogout(event) {
+      if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      }
+      const btn = document.getElementById('confirmLogoutBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging out...';
+      }
+
+      const fallbackTimer = setTimeout(() => {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (_) {}
+        window.location.replace('login.html');
+      }, 700);
+
+      try {
+        if (typeof signOut === 'function') {
+          await signOut();
+        } else {
+          if (typeof clearAuthSession === 'function') {
+            await clearAuthSession();
+          }
+          window.location.replace('login.html');
+        }
+      } catch (err) {
+        console.warn('Logout error:', err);
+        window.location.replace('login.html');
+      } finally {
+        clearTimeout(fallbackTimer);
+      }
+    }
+    window.handleConfirmLogout = handleConfirmLogout;
 
     const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
     if (confirmLogoutBtn) {
-      confirmLogoutBtn.addEventListener('click', async () => {
-        confirmLogoutBtn.disabled = true;
-        confirmLogoutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging out...';
-        await signOut();
-      });
+      confirmLogoutBtn.addEventListener('click', handleConfirmLogout);
     }
 
     // ---- Donor Management ----
@@ -2318,8 +2359,7 @@
       document.getElementById('mapSettingsMsg').className = 'form-msg';
 
       // Hide sub-panels and clear lifecycle message
-      hideDonatePanel();
-      hideDeferPanel();
+      hideAllLifecyclePanels();
       showLifecycleMsg('', '');
 
       // Update lifecycle section (status badge, waiting pill, button states)
@@ -2334,8 +2374,7 @@
 
     function closeDonorProfileModal() {
       activeDonorId = null;
-      hideDonatePanel();
-      hideDeferPanel();
+      hideAllLifecyclePanels();
       showLifecycleMsg('', '');
       document.getElementById('donorProfileModal').classList.remove('active');
       document.getElementById('donorProfileMsg').textContent = '';
@@ -2597,7 +2636,7 @@
       });
     });
 
-    // ---- Lifecycle Panel Helpers ----
+        // ---- Lifecycle Panel Helpers ----
 
     function showLifecycleMsg(text, type) {
       const msg = document.getElementById('lifecycleMsg');
@@ -2606,12 +2645,35 @@
       msg.className = 'form-msg ' + (type || '');
     }
 
-    function hideDonatePanel() {
-      document.getElementById('donateConfirmPanel').classList.remove('visible');
+    function hideCheckInPanel() {
+      const panel = document.getElementById('checkInPanel');
+      if (panel) panel.classList.remove('visible');
     }
+    window.hideCheckInPanel = hideCheckInPanel;
+
+    function hideScreeningPanel() {
+      const panel = document.getElementById('screeningPanel');
+      if (panel) panel.classList.remove('visible');
+    }
+    window.hideScreeningPanel = hideScreeningPanel;
+
+    function hideDonatePanel() {
+      const panel = document.getElementById('donateConfirmPanel');
+      if (panel) panel.classList.remove('visible');
+    }
+    window.hideDonatePanel = hideDonatePanel;
 
     function hideDeferPanel() {
-      document.getElementById('deferPanel').classList.remove('visible');
+      const panel = document.getElementById('deferPanel');
+      if (panel) panel.classList.remove('visible');
+    }
+    window.hideDeferPanel = hideDeferPanel;
+
+    function hideAllLifecyclePanels() {
+      hideCheckInPanel();
+      hideScreeningPanel();
+      hideDonatePanel();
+      hideDeferPanel();
     }
 
     function updateProfileLifecycleUI(donor) {
@@ -2620,20 +2682,24 @@
 
       // Status badge
       const badge = document.getElementById('profileStatusBadge');
-      badge.className = 'badge ' + getDonorLifecycleBadgeClass(status);
-      badge.textContent = getDonorLifecycleLabel(status);
+      if (badge) {
+        badge.className = 'badge ' + getDonorLifecycleBadgeClass(status);
+        badge.textContent = getDonorLifecycleLabel(status);
+      }
 
       // Waiting pill
       const pill = document.getElementById('profileWaitingPill');
-      if (!donor?.last_donation_date) {
-        pill.className = 'waiting-pill no-history';
-        pill.innerHTML = '<i class="fa-solid fa-clock"></i> No donation history';
-      } else if (eligible) {
-        pill.className = 'waiting-pill eligible';
-        pill.innerHTML = '<i class="fa-solid fa-circle-check"></i> Eligible to donate';
-      } else {
-        pill.className = 'waiting-pill';
-        pill.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> ${daysRemaining} day(s) remaining`;
+      if (pill) {
+        if (!donor?.last_donation_date) {
+          pill.className = 'waiting-pill no-history';
+          pill.innerHTML = '<i class="fa-solid fa-clock"></i> No donation history';
+        } else if (eligible) {
+          pill.className = 'waiting-pill eligible';
+          pill.innerHTML = '<i class="fa-solid fa-circle-check"></i> Eligible to donate';
+        } else {
+          pill.className = 'waiting-pill';
+          pill.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> ${daysRemaining} day(s) remaining`;
+        }
       }
 
       // Button states
@@ -2644,76 +2710,179 @@
 
       // Check-in: enabled only if registered or deferred (and 56-day rule passes)
       const canCheckIn = (status === 'registered' || status === 'deferred') && eligible;
-      btnCheckIn.disabled = !canCheckIn;
-      btnCheckIn.title = canCheckIn
-        ? 'Check donor in at the clinic'
-        : (status === 'checked_in' ? 'Already checked in'
-          : status === 'approved' ? 'Already approved'
-            : status === 'donated' && !eligible ? `Cannot check in yet - ${daysRemaining} day(s) remaining`
-              : 'Check-in not available in current status');
+      if (btnCheckIn) {
+        btnCheckIn.disabled = !canCheckIn;
+        btnCheckIn.title = canCheckIn
+          ? 'Check donor in at the clinic'
+          : (status === 'checked_in' ? 'Already checked in'
+            : status === 'approved' ? 'Already approved'
+              : status === 'donated' && !eligible ? `Cannot check in yet - ${daysRemaining} day(s) remaining`
+                : 'Check-in not available in current status');
+      }
 
       // Approve: enabled only if checked_in
       const canApprove = (status === 'checked_in');
-      btnApprove.disabled = !canApprove;
-      btnApprove.title = canApprove ? 'Approve donor after medical screening' : (status === 'approved' ? 'Already approved' : 'Donor must be checked in first');
+      if (btnApprove) {
+        btnApprove.disabled = !canApprove;
+        btnApprove.title = canApprove ? 'Perform & approve medical screening' : (status === 'approved' ? 'Already approved' : 'Donor must be checked in first');
+      }
 
       // Mark as donated: enabled only if approved
       const canDonate = (status === 'approved');
-      btnMarkDonated.disabled = !canDonate;
-      btnMarkDonated.title = canDonate ? 'Record successful blood draw' : (status === 'checked_in' ? 'Medical screening must be approved first' : 'Donor must be approved first');
+      if (btnMarkDonated) {
+        btnMarkDonated.disabled = !canDonate;
+        btnMarkDonated.title = canDonate ? 'Record successful blood draw' : (status === 'checked_in' ? 'Medical screening must be approved first' : 'Donor must be approved first');
+      }
 
       // Defer: enabled any time except already deferred
       const canDefer = (status !== 'deferred');
-      btnDefer.disabled = !canDefer;
-      btnDefer.title = canDefer ? 'Defer this donor (medically ineligible)' : 'Donor is already deferred';
+      if (btnDefer) {
+        btnDefer.disabled = !canDefer;
+        btnDefer.title = canDefer ? 'Defer this donor (medically ineligible)' : 'Donor is already deferred';
+      }
     }
 
-    // ---- Handle Check-in ----
-    async function handleCheckIn() {
+    function scrollToLifecyclePanel(panelId, focusSelector) {
+      setTimeout(() => {
+        const panel = document.getElementById(panelId);
+        if (panel) {
+          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          if (focusSelector) {
+            const inputEl = panel.querySelector(focusSelector) || document.getElementById(focusSelector.replace(/^#/, ''));
+            if (inputEl) {
+              try { inputEl.focus({ preventScroll: true }); } catch (_) { inputEl.focus(); }
+            }
+          }
+        }
+      }, 60);
+    }
+
+    // ---- Handle Check-in (Show intake panel) ----
+    function handleCheckIn() {
       if (!activeDonorId) return;
-      hideDonatePanel(); hideDeferPanel();
-      const btn = document.getElementById('btnCheckIn');
-      btn.disabled = true;
+      hideAllLifecyclePanels();
+      const notesEl = document.getElementById('checkInNotes');
+      if (notesEl) notesEl.value = '';
+      const panel = document.getElementById('checkInPanel');
+      if (panel) panel.classList.add('visible');
+      showLifecycleMsg('', '');
+      scrollToLifecyclePanel('checkInPanel', '#checkInNotes');
+    }
+    window.handleCheckIn = handleCheckIn;
+
+    // ---- Submit Check-in ----
+    async function submitCheckIn() {
+      if (!activeDonorId) return;
+      const notes = document.getElementById('checkInNotes')?.value?.trim() || '';
+      const btn = document.getElementById('btnConfirmCheckIn');
+      if (btn) btn.disabled = true;
       showLifecycleMsg('Checking in donor...', 'info');
 
-      const { data, error } = await checkInDonor({ donor_id: activeDonorId });
+      const { data, error } = await checkInDonor({ donor_id: activeDonorId, notes });
       if (error) {
         showLifecycleMsg(error.message || 'Check-in failed.', 'error');
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
       }
 
+      hideCheckInPanel();
+      if (btn) btn.disabled = false;
+
       // Update the local cache and UI
-      const idx = donorCache.findIndex(d => (d.id ?? d.donor_id) === activeDonorId);
+      const idx = donorCache.findIndex(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
       if (idx !== -1) { donorCache[idx] = { ...donorCache[idx], ...data }; }
       updateProfileLifecycleUI(data);
       renderDonorRows();
       refreshOverviewStats();
-      showLifecycleMsg('Donor checked in successfully! OK Proceed to medical screening.', 'success');
+      showLifecycleMsg('Donor checked in successfully! Proceed to medical screening.', 'success');
     }
+    window.submitCheckIn = submitCheckIn;
 
-    // ---- Handle Approve ----
-    async function handleApprove() {
+    // ---- Handle Approve (Show Pre-donation Medical Screening panel) ----
+    function handleApprove() {
       if (!activeDonorId) return;
-      const btn = document.getElementById('btnApprove');
-      btn.disabled = true;
-      showLifecycleMsg('Approving medical screening...', 'info');
+      hideAllLifecyclePanels();
+      if (document.getElementById('screenWeight')) document.getElementById('screenWeight').value = '';
+      if (document.getElementById('screenBp')) document.getElementById('screenBp').value = '';
+      if (document.getElementById('screenHemoglobin')) document.getElementById('screenHemoglobin').value = '';
+      if (document.getElementById('screenPulse')) document.getElementById('screenPulse').value = '';
+      if (document.getElementById('screenTemp')) document.getElementById('screenTemp').value = '';
+      if (document.getElementById('screenEligibility')) document.getElementById('screenEligibility').value = 'Fit to donate';
+      if (document.getElementById('screenNotes')) document.getElementById('screenNotes').value = '';
 
-      const { data, error } = await approveDonorMedical({ donor_id: activeDonorId });
+      const panel = document.getElementById('screeningPanel');
+      if (panel) panel.classList.add('visible');
+      showLifecycleMsg('', '');
+      scrollToLifecyclePanel('screeningPanel', '#screenWeight');
+    }
+    window.handleApprove = handleApprove;
+
+    // ---- Submit Approve Medical (with Screening Record) ----
+    async function submitApproveMedical() {
+      if (!activeDonorId) return;
+      const weight = document.getElementById('screenWeight')?.value?.trim();
+      const bp = document.getElementById('screenBp')?.value?.trim();
+      const hemoglobin = document.getElementById('screenHemoglobin')?.value?.trim();
+      const pulse = document.getElementById('screenPulse')?.value?.trim();
+      const temp = document.getElementById('screenTemp')?.value?.trim();
+      const assessment = document.getElementById('screenEligibility')?.value || 'Fit to donate';
+      const notes = document.getElementById('screenNotes')?.value?.trim() || '';
+
+      if (!weight || isNaN(Number(weight))) {
+        showLifecycleMsg('Please enter a valid donor weight (kg).', 'error');
+        return;
+      }
+      if (Number(weight) < 50) {
+        showLifecycleMsg('Warning: Standard donor weight requirement is at least 50 kg.', 'error');
+      }
+      if (!bp) {
+        showLifecycleMsg('Please enter blood pressure (e.g. 120/80 mmHg).', 'error');
+        return;
+      }
+      if (!hemoglobin || isNaN(Number(hemoglobin))) {
+        showLifecycleMsg('Please enter hemoglobin level (g/dL).', 'error');
+        return;
+      }
+
+      // Compile structured screening record
+      const screeningSummary = [
+        `[Pre-Donation Screening]`,
+        `Weight: ${weight} kg`,
+        `BP: ${bp} mmHg`,
+        `Hb: ${hemoglobin} g/dL`,
+        pulse ? `Pulse: ${pulse} bpm` : '',
+        temp ? `Temp: ${temp} °C` : '',
+        `Assessment: ${assessment}`,
+        notes ? `Notes: ${notes}` : ''
+      ].filter(Boolean).join(' | ');
+
+      const btn = document.getElementById('btnConfirmScreen');
+      if (btn) btn.disabled = true;
+      showLifecycleMsg('Recording medical screening and approving donor...', 'info');
+
+      const { data, error } = await approveDonorMedical({
+        donor_id: activeDonorId,
+        notes: screeningSummary
+      });
+
       if (error) {
         showLifecycleMsg(error.message || 'Failed to approve donor.', 'error');
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
       }
 
+      hideScreeningPanel();
+      if (btn) btn.disabled = false;
+
       // Update the local cache and UI
-      const idx = donorCache.findIndex(d => (d.id ?? d.donor_id) === activeDonorId);
+      const idx = donorCache.findIndex(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
       if (idx !== -1) { donorCache[idx] = { ...donorCache[idx], ...data }; }
       updateProfileLifecycleUI(data);
       renderDonorRows();
       refreshOverviewStats();
-      showLifecycleMsg('Medical screening approved! OK Donor is now eligible for blood draw.', 'success');
+      showLifecycleMsg('Medical screening approved! Donor is eligible for blood draw.', 'success');
     }
+    window.submitApproveMedical = submitApproveMedical;
 
     // ---- Toggle Outcome Reason Fields ----
     function toggleDonateOutcomeFields() {
@@ -2732,7 +2901,7 @@
     // ---- Handle Mark as Donated (show panel) ----
     function handleMarkDonated() {
       if (!activeDonorId) return;
-      hideDeferPanel();
+      hideAllLifecyclePanels();
       // Pre-fill blood type from current donor
       const donor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
       const btSelect = document.getElementById('donateBloodType');
@@ -2745,6 +2914,7 @@
       document.getElementById('donateUnits').value = 1;
       document.getElementById('donateConfirmPanel').classList.add('visible');
       showLifecycleMsg('', '');
+      scrollToLifecyclePanel('donateConfirmPanel', '#donateUnits');
     }
     window.handleMarkDonated = handleMarkDonated;
 
@@ -2808,11 +2978,13 @@
     // ---- Handle Defer (show panel) ----
     function handleDefer() {
       if (!activeDonorId) return;
-      hideDonatePanel();
+      hideAllLifecyclePanels();
       document.getElementById('deferNotes').value = '';
       document.getElementById('deferPanel').classList.add('visible');
       showLifecycleMsg('', '');
+      scrollToLifecyclePanel('deferPanel', '#deferReasonSelect');
     }
+    window.handleDefer = handleDefer;
 
     // ---- Submit Defer ----
     async function submitDefer() {
@@ -2840,6 +3012,7 @@
       showLifecycleMsg(`Donor deferred: ${reason} OK`, 'error');
       btn.disabled = false;
     }
+    window.submitDefer = submitDefer;
 
     document.getElementById('addDonorForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -3444,11 +3617,13 @@
       startRequestNotificationPolling();
     }
 
+    
     // Call init after existing initialization
     window.addEventListener('DOMContentLoaded', () => {
       // Small delay to let other data load first
       setTimeout(initNotifications, 500);
     });
+
 
     // Cleanup on unload
     window.addEventListener('beforeunload', () => {
@@ -3459,4 +3634,22 @@
         clearInterval(notifRequestPollTimer);
       }
     });
+
+    // Auto-refresh when landing, returning via bfcache, or switching back to the tab
+    if (typeof attachPageRefreshListeners === 'function') {
+      attachPageRefreshListeners({
+        onRefresh: async () => {
+          try {
+            await Promise.allSettled([
+              typeof refreshOverviewStats === 'function' ? refreshOverviewStats() : Promise.resolve(),
+              typeof refreshOverviewPanels === 'function' ? refreshOverviewPanels() : Promise.resolve(),
+              typeof loadRequests === 'function' ? loadRequests() : Promise.resolve(),
+              typeof loadDonors === 'function' ? loadDonors() : Promise.resolve(),
+              typeof refreshInventorySection === 'function' ? refreshInventorySection() : Promise.resolve()
+            ]);
+          } catch (_) { }
+        },
+        debounceMs: 2500
+      });
+    }
     // ==================== END NOTIFICATIONS SYSTEM ====================

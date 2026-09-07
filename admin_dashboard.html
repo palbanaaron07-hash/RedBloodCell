@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard - VeinDrop</title>
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="admin_dashboard.css?v=20260816a" />
+  <link rel="stylesheet" href="/admin_dashboard.css?v=20260907fix" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 
@@ -43,7 +43,6 @@
       <a href="#" class="nav-item" data-section="requests">
         <i class="fa-solid fa-hand-holding-medical"></i>
         <span class="nav-item-label">Blood Requests</span>
-        <span class="nav-badge">0</span>
       </a>
       <a href="#" class="nav-item" data-section="inventory">
         <i class="fa-solid fa-flask-vial"></i>
@@ -337,14 +336,6 @@
         <div class="panel full-width">
           <div class="panel-header">
             <h3><i class="fa-solid fa-hand-holding-medical"></i> All Requests</h3>
-            <div class="panel-actions">
-              <button class="panel-btn active" data-request-filter="all">All (<span id="requestsAllCount">0</span>)</button>
-              <button class="panel-btn" data-request-filter="pending">Pending (<span id="requestsPendingCount">0</span>)</button>
-              <button class="panel-btn" data-request-filter="approved">Approved (<span id="requestsApprovedCount">0</span>)</button>
-              <button class="panel-btn" data-request-filter="needs_clarification">Needs Clarification (<span id="requestsClarificationCount">0</span>)</button>
-              <button class="panel-btn" data-request-filter="rejected">Rejected (<span id="requestsRejectedCount">0</span>)</button>
-              <button class="panel-btn" data-request-filter="fulfilled">Fulfilled (<span id="requestsFulfilledCount">0</span>)</button>
-            </div>
           </div>
           <div class="panel-body" style="padding: 12px 0;">
             <div class="request-list" id="requestsSectionList" style="padding: 0 18px;">
@@ -927,6 +918,74 @@
               </button>
             </div>
 
+            <!-- Check-in sub-panel -->
+            <div class="checkin-panel" id="checkInPanel">
+              <div class="ci-title"><i class="fa-solid fa-user-check"></i> Clinic Check-In Intake</div>
+              <div class="form-group">
+                <label>Check-In Notes / Queue Remarks (optional)</label>
+                <input type="text" id="checkInNotes" placeholder="e.g. Arrived on time, valid ID presented" />
+              </div>
+              <div class="checkin-actions">
+                <button type="button" class="btn-cancel-checkin" onclick="hideCheckInPanel()">Cancel</button>
+                <button type="button" class="btn-confirm-checkin" id="btnConfirmCheckIn" onclick="submitCheckIn()">
+                  <i class="fa-solid fa-check"></i> Save & Check In
+                </button>
+              </div>
+            </div>
+
+            <!-- Pre-donation Screening sub-panel (PHN) -->
+            <div class="screening-panel" id="screeningPanel">
+              <div class="sp-title">
+                <i class="fa-solid fa-notes-medical"></i> Pre-Donation Medical Screening (PHN)
+              </div>
+              <div class="sp-subtitle">Record physical examination and vital signs before blood draw.</div>
+              <div class="screening-grid">
+                <div class="form-group">
+                  <label>Weight (kg) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <input type="number" id="screenWeight" placeholder="e.g. 55" step="0.5" min="30" max="250" />
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Min 50 kg for blood donation</span>
+                </div>
+                <div class="form-group">
+                  <label>Blood Pressure (mmHg) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <input type="text" id="screenBp" placeholder="e.g. 120/80" />
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Systolic 90-140 / Diastolic 60-90</span>
+                </div>
+                <div class="form-group">
+                  <label>Hemoglobin (g/dL) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <input type="number" id="screenHemoglobin" placeholder="e.g. 13.5" step="0.1" min="5" max="25" />
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Female: &ge;12.5 | Male: &ge;13.0</span>
+                </div>
+                <div class="form-group">
+                  <label>Pulse Rate (bpm)</label>
+                  <input type="number" id="screenPulse" placeholder="e.g. 75" min="40" max="180" />
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Normal: 60 - 100 bpm</span>
+                </div>
+                <div class="form-group">
+                  <label>Body Temp (&deg;C)</label>
+                  <input type="number" id="screenTemp" placeholder="e.g. 36.5" step="0.1" min="34" max="42" />
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Normal: 36.5 - 37.5 &deg;C</span>
+                </div>
+                <div class="form-group">
+                  <label>Medical Assessment</label>
+                  <select id="screenEligibility">
+                    <option value="Fit to donate">Fit to donate (Passed)</option>
+                    <option value="Conditional approval">Conditional approval</option>
+                    <option value="Requires physician review">Requires physician review</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group" style="margin-top:6px;">
+                <label>Screening Remarks / Clinical Observations</label>
+                <textarea id="screenNotes" rows="2" placeholder="e.g. Donor is well-rested, no cold/cough symptoms, cleared for blood extraction."></textarea>
+              </div>
+              <div class="screening-actions">
+                <button type="button" class="btn-cancel-screen" onclick="hideScreeningPanel()">Cancel</button>
+                <button type="button" class="btn-confirm-screen" id="btnConfirmScreen" onclick="submitApproveMedical()">
+                  <i class="fa-solid fa-file-circle-check"></i> Save & Approve Medical
+                </button>
+              </div>
+            </div>
+
             <!-- Donate confirmation sub-panel -->
             <div class="donate-confirm-panel" id="donateConfirmPanel">
               <div class="dc-title"><i class="fa-solid fa-syringe"></i> Confirm Donation</div>
@@ -1088,7 +1147,7 @@
         </div>
         <div class="modal-footer" style="justify-content: center; gap: 12px; padding: 0 24px 24px;">
           <button type="button" class="btn-cancel" style="flex:1;" onclick="closeLogoutModal()">Cancel</button>
-          <button type="button" class="btn-submit" style="flex:1; background: #ef4444;" id="confirmLogoutBtn">Yes,
+          <button type="button" class="btn-submit" style="flex:1; background: #ef4444;" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes,
             Logout</button>
         </div>
       </div>

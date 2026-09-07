@@ -945,3 +945,16 @@
         btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Account';
       }
     });
+
+    // Reload when switching between DevTools simulator and desktop mode
+    if (typeof attachPageRefreshListeners === 'function') {
+      attachPageRefreshListeners({
+        onRefresh: (info) => {
+          // Only reload on viewport width change (simulator ↔ desktop toggle)
+          if (info?.reason === 'viewport_resize') {
+            window.location.reload();
+          }
+        },
+        debounceMs: 1000
+      });
+    }

@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { existsSync, readFileSync } from 'node:fs';
+
 const rootDirectory = dirname(fileURLToPath(import.meta.url));
 
 const rootHtmlPages = [
@@ -24,6 +26,28 @@ export default defineConfig({
     port: 5173,
     open: true
   },
+  plugins: [
+    {
+      name: 'serve-raw-css',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const rawUrl = req.url || '';
+          const url = new URL(rawUrl, 'http://127.0.0.1');
+          if (url.pathname.endsWith('.css') && !url.searchParams.has('import')) {
+            const cleanPath = url.pathname.replace(/^\/+/, '');
+            const filePath = resolve(rootDirectory, cleanPath);
+            if (existsSync(filePath)) {
+              res.setHeader('Content-Type', 'text/css; charset=utf-8');
+              res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+              res.end(readFileSync(filePath, 'utf8'));
+              return;
+            }
+          }
+          next();
+        });
+      }
+    }
+  ],
   build: {
     rollupOptions: {
       input: Object.fromEntries(

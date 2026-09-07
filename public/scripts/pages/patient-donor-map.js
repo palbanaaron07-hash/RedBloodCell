@@ -717,3 +717,14 @@ if (logoutBtn) {
   updateFilterPickerDisplays();
   await searchDonors();
 })();
+
+if (typeof attachPageRefreshListeners === 'function') {
+  attachPageRefreshListeners({
+    onRefresh: async () => {
+      try {
+        if (typeof searchDonors === 'function') await searchDonors();
+      } catch (_) { }
+    },
+    debounceMs: 2500
+  });
+}
