@@ -505,11 +505,12 @@ img {
 }
 
 .dropdown-item.logout {
-  color: var(--blood-vivid);
+  color: var(--blood-rich);
 }
 
 .dropdown-item.logout:hover {
   background: var(--blood-mist);
+  color: var(--blood-dark);
 }
 
 .dropdown-item i {

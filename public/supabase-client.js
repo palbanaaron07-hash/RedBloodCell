@@ -1696,9 +1696,12 @@ async function listMyBloodRequests() {
     const rawNoteStr = String(row.note || row.notes || '');
     const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
     const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+    const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
+    const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
     const cleanNote = rawNoteStr
       .replace(/\[Community Crowdsourced\]/g, '')
       .replace(/\[Hospital:[^\]]+\]/g, '')
+      .replace(/\[NeededTime:[^\]]+\]/g, '')
       .trim();
 
     return {
@@ -1709,6 +1712,7 @@ async function listMyBloodRequests() {
       status: normalizedStatus,
       status_raw: row.status || 'pending',
       created_at: row.request_date || row.created_at || null,
+      needed_time: parsedNeededTime,
       hospital: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
       donation_point: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
       notes: cleanNote,
@@ -1727,8 +1731,10 @@ async function updateMyBloodRequest(requestId, payload) {
 
   const hospitalName = String(payload.hospital || '').trim();
   const hospitalTag = hospitalName ? `[Hospital:${hospitalName}]` : '';
+  const neededTimeStr = String(payload.needed_time || payload.needed_date || payload.time_needed || '').trim();
+  const timeTag = neededTimeStr ? `[NeededTime:${neededTimeStr}]` : '';
   const rawNote = String(payload.notes || '').trim();
-  const note = [hospitalTag, rawNote].filter(Boolean).join(' ') || null;
+  const note = [hospitalTag, timeTag, rawNote].filter(Boolean).join(' ') || null;
 
   const updates = {
     blood_type_needed: normalizeBloodType(payload.blood_type),
@@ -1759,54 +1765,23 @@ async function deleteMyBloodRequest(requestId) {
   // Best-effort cleanup of child rows in case foreign keys aren't set with ON DELETE CASCADE
   try {
     await bloodBank().from('blood_request_status_log').delete().eq('request_id', targetId);
-  } catch (_) {}
-  try {
-    await bloodBank().from('blood_request_notification_queue').delete().eq('request_id', targetId);
-  } catch (_) {}
+  } catch (_) { }
 
-  // Delete from bloodBank schema
-  let { data: delData, error } = await bloodBank()
+  const { error } = await bloodBank()
     .from('blood_request')
     .delete()
-    .eq('request_id', targetId)
-    .select('request_id');
+    .eq('request_id', targetId);
 
-  // If error or 0 rows deleted, also try public schema
-  if (error || !delData || delData.length === 0) {
-    try {
-      const fallback = await supabaseClient
-        .from('blood_request')
-        .delete()
-        .eq('request_id', targetId)
-        .select('request_id');
-      if (!fallback.error && fallback.data && fallback.data.length > 0) {
-        error = null;
-        delData = fallback.data;
-      }
-    } catch (_) {}
+  if (error) {
+    const fallback = await bloodBank()
+      .from('blood_request')
+      .update({ note: '[DELETED]' })
+      .eq('request_id', targetId);
+    if (fallback.error) {
+      return { error: mapError(fallback.error, 'Failed to delete request.') };
+    }
   }
 
-  // If hard delete was restricted by database RLS, perform soft-delete tag so it's removed everywhere
-  if (error || !delData || delData.length === 0) {
-    try {
-      const { data: existing } = await bloodBank()
-        .from('blood_request')
-        .select('note')
-        .eq('request_id', targetId)
-        .single();
-      const currentNote = String(existing?.note || '');
-      const newNote = currentNote.includes('[DELETED]') ? currentNote : `[DELETED] ${currentNote}`.trim();
-      const updRes = await bloodBank()
-        .from('blood_request')
-        .update({ note: newNote, status: 'rejected' })
-        .eq('request_id', targetId);
-      if (!updRes.error) {
-        error = null;
-      }
-    } catch (_) {}
-  }
-
-  if (error) return { error: mapError(error, 'Failed to delete request.') };
   return { error: null };
 }
 
@@ -1866,9 +1841,12 @@ async function listCommunityBloodRequests() {
       const rawNoteStr = String(row.note || row.notes || row.description || '');
       const hospitalTagMatch = rawNoteStr.match(/\[Hospital:([^\]]+)\]/);
       const parsedHospital = hospitalTagMatch ? hospitalTagMatch[1].trim() : null;
+      const timeTagMatch = rawNoteStr.match(/\[NeededTime:([^\]]+)\]/);
+      const parsedNeededTime = timeTagMatch ? timeTagMatch[1].trim() : (row.needed_time || row.needed_date || null);
       const cleanNote = rawNoteStr
         .replace(/\[Community Crowdsourced\]/g, '')
         .replace(/\[Hospital:[^\]]+\]/g, '')
+        .replace(/\[NeededTime:[^\]]+\]/g, '')
         .trim() || 'Blood transfusion support requested for hospitalized patient.';
 
       const hospital = parsedHospital || row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
@@ -1886,6 +1864,7 @@ async function listCommunityBloodRequests() {
         status: normalizedStatus,
         status_raw: row.status || 'pending',
         created_at: rawDate,
+        needed_time: parsedNeededTime,
         hospital: hospital,
         donation_point: hospital,
         notes: cleanNote,
@@ -2008,10 +1987,12 @@ async function createBloodRequest(payload) {
 
   const rawNote = String(payload.notes || payload.note || payload.description || '').trim();
   const hospitalName = String(payload.hospital || payload.donation_point || '').trim();
+  const neededTimeStr = String(payload.needed_time || payload.needed_date || payload.time_needed || payload.schedule_date || '').trim();
   const hospitalTag = hospitalName ? `[Hospital:${hospitalName}]` : '';
+  const timeTag = neededTimeStr ? `[NeededTime:${neededTimeStr}]` : '';
   const crowdsourcedTag = isCrowdsourced ? '[Community Crowdsourced]' : '';
   const baseNote = rawNote || (isCrowdsourced ? 'Sourced on-demand via community donor mobilization.' : null);
-  const requestNote = [crowdsourcedTag, hospitalTag, baseNote].filter(Boolean).join(' ') || null;
+  const requestNote = [crowdsourcedTag, hospitalTag, timeTag, baseNote].filter(Boolean).join(' ') || null;
 
   const requestPayload = {
     patient_id: effectivePatientId,
@@ -2789,47 +2770,73 @@ async function updateInventoryStock(payload) {
   }
 }
 
-async function getOverviewRecentRequests(limit = 5) {
+async function getOverviewRecentRequests(limit = 100) {
   if (!SUPABASE_CONFIGURED) return configError();
 
   try {
-    // Prefer the list-requests Edge Function which uses the service role key
-    // so that RLS on blood_bank.blood_request does not block admin reads.
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const accessToken = session?.access_token;
+    let requestsData = [];
 
-    if (accessToken) {
-      const endpoint = `${SUPABASE_FUNCTIONS_BASE_URL}/list-requests?limit=${limit}`;
-      const res = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.data)) {
-        return { data: json.data, error: null };
-      }
-      // Fall through to direct query on error (e.g. function not yet deployed)
-      console.warn('[getOverviewRecentRequests] Edge Function failed:', json.error || res.status, '— falling back to direct query');
-    }
-
-    // Fallback: direct PostgREST query (works once RLS policy is applied)
+    // 1. Direct PostgREST query with patient relation join
     const { data, error } = await bloodBank()
       .from('blood_request')
-      .select('request_id, inventory_id, blood_type_needed, quantity, urgency_level, status, request_date, note, admin_note, patient_id, patient(first_name, middle_name, last_name, hospital_name, contact_number)')
+      .select('*, patient(first_name, middle_name, last_name, hospital_name, contact_number, address)')
       .order('request_date', { ascending: false })
       .limit(limit);
 
-    if (error) {
-      return { data: null, error: mapError(error, 'Failed to load overview requests') };
+    if (!error && Array.isArray(data) && data.length > 0) {
+      requestsData = data;
+    } else {
+      // 2. Direct fallback without foreign key join in case schema join errors
+      const fallback = await bloodBank()
+        .from('blood_request')
+        .select('*')
+        .order('request_date', { ascending: false })
+        .limit(limit);
+
+      if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length > 0) {
+        requestsData = fallback.data;
+      } else {
+        // 3. Try Edge Function if PostgREST was blocked by RLS
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const accessToken = session?.access_token;
+        if (accessToken) {
+          const endpoint = `${SUPABASE_FUNCTIONS_BASE_URL}/list-requests?limit=${limit}`;
+          const res = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${accessToken}`
+            }
+          }).catch(() => null);
+
+          if (res && res.ok) {
+            const json = await res.json().catch(() => ({}));
+            if (Array.isArray(json.data) && json.data.length > 0) {
+              requestsData = json.data;
+            }
+          }
+        }
+      }
     }
 
-    return { data: data || [], error: null };
+    const normalized = (requestsData || [])
+      .filter((row) => !String(row.note || row.notes || '').includes('[DELETED]'))
+      .map((row) => {
+        const rawNote = String(row.note || row.notes || row.description || '');
+        const hospMatch = rawNote.match(/\[Hospital:([^\]]+)\]/);
+        const timeMatch = rawNote.match(/\[NeededTime:([^\]]+)\]/);
+        const patient = Array.isArray(row.patient) ? row.patient[0] : (row.patient || {});
+        return {
+          ...row,
+          patient,
+          hospital_name: hospMatch ? hospMatch[1].trim() : (row.hospital_name || patient.hospital_name || patient.address || 'Hospital'),
+          needed_time: timeMatch ? timeMatch[1].trim() : (row.needed_time || row.needed_date || '')
+        };
+      });
+
+    return { data: normalized, error: null };
   } catch (err) {
-    return { data: null, error: { message: 'Network error while loading overview requests.' } };
+    return { data: [], error: { message: 'Network error while loading overview requests.' } };
   }
 }
 

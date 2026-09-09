@@ -335,7 +335,7 @@
 
         <div class="panel full-width">
           <div class="panel-header">
-            <h3><i class="fa-solid fa-hand-holding-medical"></i> All Requests</h3>
+            <h3><i class="fa-solid fa-hand-holding-medical"></i> Blood Requests</h3>
           </div>
           <div class="panel-body" style="padding: 12px 0;">
             <div class="request-list" id="requestsSectionList" style="padding: 0 18px;">
@@ -858,6 +858,7 @@
                 <small>Patients see approximate area only, not the full address.</small>
               </span>
             </label>
+            <div id="profileMapEligibilityHint" style="margin-bottom: 10px;"></div>
             <div class="form-row">
               <div class="form-group">
                 <label>Location Status</label>
@@ -1147,8 +1148,57 @@
         </div>
         <div class="modal-footer" style="justify-content: center; gap: 12px; padding: 0 24px 24px;">
           <button type="button" class="btn-cancel" style="flex:1;" onclick="closeLogoutModal()">Cancel</button>
-          <button type="button" class="btn-submit" style="flex:1; background: #ef4444;" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes,
+          <button type="button" class="btn-submit" style="flex:1;" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes,
             Logout</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DONOR NOT ELIGIBLE MAP POPUP MODAL ===== -->
+    <div class="modal-overlay" id="donorIneligibleModal" style="z-index: 300;">
+      <div class="modal" style="width: 440px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+        <div class="modal-header" style="background: #fff1f2; border-bottom: 1px solid #fecdd3; padding: 16px 20px;">
+          <h3 style="color: #be123c; display: flex; align-items: center; gap: 10px; font-size: 1.05rem; margin: 0;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: #e11d48; font-size: 1.15rem;"></i>
+            Donor Not Eligible for Map
+          </h3>
+          <button class="modal-close" onclick="closeDonorIneligibleModal()" style="color: #9f1239;">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center; padding: 28px 24px 20px;">
+          <div style="width: 56px; height: 56px; background: #ffe4e6; color: #e11d48; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 16px;">
+            <i class="fa-solid fa-ban"></i>
+          </div>
+          <h4 style="margin-bottom: 10px; font-size: 1.1rem; color: #1e293b; font-weight: 700;">
+            Cannot Enable Map Visibility
+          </h4>
+          <p id="donorIneligibleModalMsg" style="font-size: 0.9rem; color: #475569; line-height: 1.55; margin-bottom: 16px;">
+            This donor is not yet eligible to donate blood and cannot be placed on the patient map.
+          </p>
+          <div id="donorIneligibleModalReasonBox" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #e11d48; border-radius: 8px; padding: 12px 14px; text-align: left; font-size: 0.84rem; color: #334155; margin-bottom: 8px;">
+            <strong>Reason:</strong> <span id="donorIneligibleModalReason">Donor has not completed medical screening yet. Medical approval is required first.</span>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: flex-end; padding: 12px 20px 20px; border-top: none; background: #fff;">
+          <button type="button" class="btn-primary" style="background: #e11d48; border: none; padding: 9px 20px; font-weight: 600;" onclick="closeDonorIneligibleModal()">
+            <i class="fa-solid fa-check"></i> Understood
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ADMIN REQUEST DETAIL MODAL ===== -->
+    <div class="modal-overlay" id="adminRequestDetailModal" style="z-index: 280;">
+      <div class="modal" style="width: 560px; max-width: 94vw;">
+        <div class="modal-header">
+          <h3 id="adminRequestDetailTitle"><i class="fa-solid fa-hand-holding-medical"></i> Request Details</h3>
+          <button class="modal-close" onclick="closeAdminRequestDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="adminRequestDetailBody" style="padding: 22px;">
+          <!-- Populated by JS -->
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn-cancel" onclick="closeAdminRequestDetailModal()">Close</button>
+          <div id="adminRequestDetailActions" style="display: flex; gap: 8px;"></div>
         </div>
       </div>
     </div>

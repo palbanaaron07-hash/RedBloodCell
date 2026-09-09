@@ -75,7 +75,8 @@
         <span class="nav-item-label">Log Out</span>
       </a>
     </nav>
-    <button type="button" class="sidebar-logout" title="Log out" id="logoutBtn" onclick="openLogoutModal(event)" aria-label="Log out">
+    <button type="button" class="sidebar-logout" title="Log out" id="logoutBtn" onclick="openLogoutModal(event)"
+      aria-label="Log out">
       <i class="fa-solid fa-right-from-bracket"></i>
     </button>
 
@@ -623,6 +624,10 @@
             </div>
           </div>
           <div class="form-group">
+            <label>Time &amp; Date Needed</label>
+            <input type="text" name="needed_time" placeholder="e.g. As soon as possible, or Sep 12, 2026 at 10:00 AM" />
+          </div>
+          <div class="form-group">
             <label>Description / Reason for Request <span class="req">*</span></label>
             <textarea name="notes" placeholder="e.g. Accident patient, surgery scheduled. Anemia issue. Age 45"
               required></textarea>
@@ -677,6 +682,11 @@
               <label>Donation Point / Hospital</label>
               <input type="text" id="editReqHospital" name="hospital" placeholder="e.g. Philippine General Hospital" />
             </div>
+          </div>
+          <div class="form-group">
+            <label>Time &amp; Date Needed</label>
+            <input type="text" id="editReqNeededTime" name="needed_time"
+              placeholder="e.g. As soon as possible, or Sep 12, 2026 at 10:00 AM" />
           </div>
           <div class="form-group">
             <label>Description / Reason for Request <span class="req">*</span></label>
@@ -904,7 +914,8 @@
         </div>
         <div class="modal-footer logout-confirm-actions">
           <button type="button" class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-          <button type="button" class="btn-submit logout-confirm-action" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes, log out</button>
+          <button type="button" class="btn-submit logout-confirm-action" id="confirmLogoutBtn"
+            onclick="handleConfirmLogout(event)">Yes, log out</button>
         </div>
       </div>
     </div>

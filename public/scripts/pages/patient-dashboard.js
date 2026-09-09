@@ -1829,24 +1829,25 @@ function formatTimeAgo(isoString) {
 
 function renderCommunityCard(r) {
   const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
-  const requesterName = escapeHtml(r.requester_name || 'Recipient Requester');
-  const initials = (requesterName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('') || 'R').toUpperCase();
   const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
   const units = Number(r.units_needed || 1);
   const donationPoint = escapeHtml(r.donation_point || r.hospital || 'General Hospital Blood Bank');
   const postedTime = formatTimeAgo(r.created_at);
   const description = escapeHtml(r.notes || 'Patient requires urgent blood transfusion support.');
   const reqId = r.id;
+  const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
   return `
         <article class="feed-request-card" id="feedCard-${reqId}" data-request-id="${reqId}">
           <div class="feed-card-header">
             <div class="feed-requester-info">
-              <div class="feed-requester-avatar">
-                <span>${initials}</span>
+              <div class="feed-requester-avatar" style="background:#fee2e2; color:#991b1b; display:flex; align-items:center; justify-content:center; font-weight:700;">
+                <i class="fa-solid fa-droplet" aria-hidden="true"></i>
               </div>
-              <div>
-                <h4 class="feed-requester-name">${requesterName}</h4>
+              <div style="flex:1; min-width:0;">
+                <h4 class="feed-requester-name" style="font-size:1.02rem; font-weight:700; color:#1e293b; margin:0 0 2px;">
+                  Request #${reqId}
+                </h4>
                 <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Posted on ${postedTime}</span>
               </div>
             </div>
@@ -1859,7 +1860,7 @@ function renderCommunityCard(r) {
                   <i class="fa-solid fa-droplet"></i>
                 </div>
                 <div>
-                  <span class="feed-looking-label">Looking for</span>
+                  <span class="feed-looking-label">LOOKING FOR</span>
                   <h3 class="feed-blood-title">${units} bag${units > 1 ? 's' : ''} ${bloodTypeStr} blood</h3>
                 </div>
               </div>
@@ -1872,8 +1873,8 @@ function renderCommunityCard(r) {
                 <p class="feed-info-val">${donationPoint}</p>
               </div>
               <div class="feed-info-col">
-                <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time & Date</span>
-                <p class="feed-info-val">${isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'}</p>
+                <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date</span>
+                <p class="feed-info-val">${timeDateDisplay}</p>
               </div>
             </div>
 
@@ -1888,14 +1889,14 @@ function renderCommunityCard(r) {
       ? `<button type="button" class="btn-feed-ignore" onclick="unhideFeedCard('${reqId}')"><i class="fa-solid fa-eye"></i> Unhide</button>`
       : `<button type="button" class="btn-feed-ignore" onclick="hideFeedCard('${reqId}')">Hide</button>`
     }
-            <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">See Details</button>
+            <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">Details</button>
           </div>
         </article>
       `;
 }
 
 function hideFeedCard(reqId) {
-  const card = document.getElementById(`feedCard-${reqId}`);
+  const card = document.getElementById(`feedCard-${reqId}`) || document.getElementById(`myReqCard-${reqId}`);
   if (card) {
     card.style.transition = 'all 0.3s ease';
     card.style.opacity = '0';
@@ -1906,6 +1907,7 @@ function hideFeedCard(reqId) {
         sessionStorage.setItem('veindrop_ignored_requests', JSON.stringify(Array.from(ignoredCommunityIds)));
       } catch (_) { }
       applyCommunityFilter();
+      if (typeof applyRequestFilter === 'function') applyRequestFilter();
       showToastWithAction('Request hidden from feed.', 'Undo', () => {
         unhideFeedCard(reqId);
       });
@@ -1916,6 +1918,7 @@ function hideFeedCard(reqId) {
       sessionStorage.setItem('veindrop_ignored_requests', JSON.stringify(Array.from(ignoredCommunityIds)));
     } catch (_) { }
     applyCommunityFilter();
+    if (typeof applyRequestFilter === 'function') applyRequestFilter();
   }
 }
 
@@ -1925,6 +1928,7 @@ function unhideFeedCard(reqId) {
     sessionStorage.setItem('veindrop_ignored_requests', JSON.stringify(Array.from(ignoredCommunityIds)));
   } catch (_) { }
   applyCommunityFilter();
+  if (typeof applyRequestFilter === 'function') applyRequestFilter();
   showToast('Request restored to feed.');
 }
 
@@ -1932,25 +1936,26 @@ window.hideFeedCard = hideFeedCard;
 window.unhideFeedCard = unhideFeedCard;
 
 function openCommunityRequestDetails(reqId) {
-  const req = allCommunityRequests.find(r => String(r.id) === String(reqId));
+  const req = allCommunityRequests.find(r => String(r.id) === String(reqId)) ||
+    (Array.isArray(allPatientRequests) ? allPatientRequests.find(r => String(r.id || r.request_id) === String(reqId)) : null);
   if (!req) return;
   selectedCommunityRequest = req;
 
   const modal = document.getElementById('communityRequestDetailModal');
   const body = document.getElementById('communityRequestDetailBody');
   const isUrgent = String(req.urgency || '').toLowerCase() === 'urgent' || String(req.urgency || '').toLowerCase() === 'critical';
-  const requesterName = escapeHtml(req.requester_name || 'Community Recipient');
-  const bloodType = escapeHtml(req.blood_type || 'O+');
-  const units = Number(req.units_needed || 1);
-  const hospital = escapeHtml(req.donation_point || req.hospital || 'Blood Bank Center');
-  const description = escapeHtml(req.notes || 'Emergency blood transfusion required.');
+  const bloodType = escapeHtml(req.blood_type || req.blood_type_needed || 'O+');
+  const units = Number(req.units_needed || req.quantity || 1);
+  const hospital = escapeHtml(req.donation_point || req.hospital || req.hospital_name || 'Blood Bank Center');
+  const description = escapeHtml(req.notes || req.note || 'Emergency blood transfusion required.');
   const contact = escapeHtml(req.patient_phone || 'Available via Hospital Blood Coordinator');
+  const timeDateDisplay = escapeHtml(req.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
   body.innerHTML = `
         <div class="community-detail-info-card">
           <div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-user"></i> Requester</span>
-            <span class="val">${requesterName}</span>
+            <span class="label"><i class="fa-solid fa-file-waveform"></i> Request</span>
+            <span class="val" style="font-weight:700;">Request #${req.id || req.request_id}</span>
           </div>
           <div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-droplet"></i> Blood Needed</span>
@@ -1963,6 +1968,10 @@ function openCommunityRequestDetails(reqId) {
           <div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-hospital"></i> Donation Point</span>
             <span class="val">${hospital}</span>
+          </div>
+          <div class="community-detail-item">
+            <span class="label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date Needed</span>
+            <span class="val">${timeDateDisplay}</span>
           </div>
           <div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-phone"></i> Contact</span>
@@ -2005,6 +2014,25 @@ function handlePledgeHelp() {
 }
 
 
+function isMyOwnRequest(r) {
+  if (!r) return false;
+  const myIds = new Set(
+    (Array.isArray(allRequests) ? allRequests : [])
+      .map(x => String(x.id || x.request_id))
+      .filter(Boolean)
+  );
+  const reqId = String(r.id || r.request_id || '');
+  if (reqId && myIds.has(reqId)) return true;
+
+  const currentPatientId = currentProfile?.patient_id || currentProfile?.id;
+  if (currentPatientId && String(r.patient_id) === String(currentPatientId)) return true;
+
+  const currentUserId = currentProfile?.user_id;
+  if (currentUserId && String(r.user_id) === String(currentUserId)) return true;
+
+  return false;
+}
+
 function applyCommunityFilter() {
   const feed = document.getElementById('communityRequestFeed');
   if (!feed) return;
@@ -2012,10 +2040,13 @@ function applyCommunityFilter() {
   const hiddenCountEl = document.getElementById('hiddenCount');
   if (hiddenCountEl) hiddenCountEl.textContent = ignoredCommunityIds.size;
 
+  // Filter out own requests from the public community feed
+  const othersRequests = allCommunityRequests.filter(r => !isMyOwnRequest(r));
+
   if (activeCommunityFilter === 'hidden') {
-    const hiddenList = allCommunityRequests.filter(r => ignoredCommunityIds.has(String(r.id)));
+    const hiddenList = othersRequests.filter(r => ignoredCommunityIds.has(String(r.id)));
     const countEl = document.getElementById('communityCount');
-    if (countEl) countEl.textContent = allCommunityRequests.filter(r => !ignoredCommunityIds.has(String(r.id))).length;
+    if (countEl) countEl.textContent = othersRequests.filter(r => !ignoredCommunityIds.has(String(r.id))).length;
 
     if (!hiddenList.length) {
       feed.innerHTML = `
@@ -2032,7 +2063,7 @@ function applyCommunityFilter() {
     return;
   }
 
-  const visible = allCommunityRequests.filter(r => !ignoredCommunityIds.has(String(r.id)));
+  const visible = othersRequests.filter(r => !ignoredCommunityIds.has(String(r.id)));
   const filtered = visible.filter(r => {
     if (activeCommunityFilter === 'urgent') {
       return String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
@@ -2064,7 +2095,9 @@ async function loadCommunityRequests() {
   try {
     if (typeof listCommunityBloodRequests === 'function') {
       const { data } = await listCommunityBloodRequests();
-      allCommunityRequests = Array.isArray(data) ? data : [];
+      const rawList = Array.isArray(data) ? data : [];
+      // Exclude user's own requests from the Community feed
+      allCommunityRequests = rawList.filter(r => !isMyOwnRequest(r));
     }
   } catch (err) {
     console.warn('Failed to load community requests:', err);
@@ -2076,7 +2109,7 @@ function renderRequestCard(r) {
   const reqId = r.id;
   const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
   const units = Number(r.units_needed || 1);
-  const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent';
+  const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
   const donationPoint = escapeHtml(r.donation_point || r.hospital || 'Blood Bank');
   const description = escapeHtml(r.notes || 'Blood transfusion support requested.');
   const postedTime = formatTimeAgo(r.created_at);
@@ -2084,23 +2117,20 @@ function renderRequestCard(r) {
   const statusLabel = status === 'needs_clarification' ? 'Needs Clarification' : (status.charAt(0).toUpperCase() + status.slice(1));
   const canEdit = status === 'pending';
   const menuId = `myReqMenu-${reqId}`;
-
-  // Build initials from current user profile (same as community cards)
-  const firstName = currentProfile?.first_name || '';
-  const lastName = currentProfile?.last_name || '';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Requester';
-  const initials = (fullName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('') || 'R').toUpperCase();
+  const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
   return `
     <article class="feed-request-card" id="myReqCard-${reqId}" data-request-id="${reqId}">
       <div class="feed-card-header">
         <div class="feed-requester-info">
-          <div class="feed-requester-avatar">
-            <span>${initials}</span>
+          <div class="feed-requester-avatar" style="background:#fee2e2; color:#991b1b; display:flex; align-items:center; justify-content:center; font-weight:700;">
+            <i class="fa-solid fa-droplet" aria-hidden="true"></i>
           </div>
-          <div>
-            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;margin-bottom:2px;">
-              <h4 class="feed-requester-name" style="margin:0;">${escapeHtml(fullName)}</h4>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;">
+              <h4 class="feed-requester-name" style="margin:0; font-size:1.02rem; font-weight:700; color:#1e293b;">
+                Request #${reqId}
+              </h4>
               <span class="feed-status-pill ${status}">${statusLabel}</span>
             </div>
             <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Posted on ${postedTime}</span>
@@ -2124,7 +2154,7 @@ function renderRequestCard(r) {
               <i class="fa-solid fa-droplet"></i>
             </div>
             <div>
-              <span class="feed-looking-label">Looking for</span>
+              <span class="feed-looking-label">LOOKING FOR</span>
               <h3 class="feed-blood-title">${units} bag${units > 1 ? 's' : ''} ${bloodTypeStr} blood</h3>
             </div>
           </div>
@@ -2138,7 +2168,7 @@ function renderRequestCard(r) {
           </div>
           <div class="feed-info-col">
             <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date</span>
-            <p class="feed-info-val">${isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'}</p>
+            <p class="feed-info-val">${timeDateDisplay}</p>
           </div>
         </div>
 
@@ -2146,6 +2176,11 @@ function renderRequestCard(r) {
           <span class="feed-desc-label">Short Description of the Problem</span>
           <p class="feed-desc-text">${description || 'No description provided.'}</p>
         </div>
+      </div>
+
+      <div class="feed-actions-row">
+        <button type="button" class="btn-feed-ignore" onclick="hideFeedCard('${reqId}')">Hide</button>
+        <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">Details</button>
       </div>
     </article>
   `;
@@ -2178,6 +2213,8 @@ function openEditRequestModal(reqId) {
   if (urgSel) urgSel.value = r.urgency || 'normal';
   const hospIn = document.getElementById('editReqHospital');
   if (hospIn) hospIn.value = r.donation_point || r.hospital || '';
+  const timeIn = document.getElementById('editReqNeededTime');
+  if (timeIn) timeIn.value = r.needed_time || '';
   const notesIn = document.getElementById('editReqNotes');
   if (notesIn) notesIn.value = r.notes || '';
   const msgEl = document.getElementById('editReqMsg');
@@ -2400,6 +2437,7 @@ async function loadRequests() {
 
     // Full list in My Requests section (filtered)
     applyRequestFilter();
+    applyCommunityFilter();
 
     // Recent 3 on dashboard
     if (dashList) dashList.innerHTML = requests.slice(0, 3).map(renderRequestCard).join('');
@@ -2540,6 +2578,7 @@ document.getElementById('editRequestForm').addEventListener('submit', async (e) 
     units_needed: document.getElementById('editReqUnits').value,
     urgency: document.getElementById('editReqUrgency').value,
     hospital: document.getElementById('editReqHospital').value,
+    needed_time: document.getElementById('editReqNeededTime')?.value || '',
     notes: document.getElementById('editReqNotes').value
   };
 
