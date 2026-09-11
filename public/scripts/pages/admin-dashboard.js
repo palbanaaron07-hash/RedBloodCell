@@ -1937,13 +1937,29 @@ function openAdminRequestDetails(requestId) {
   const statusBadge = getRequestStatusInfo(status);
   const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
   const statusSummaryStr = `${securedBags}/${units} Bag${units !== 1 ? 's' : ''} Secured`;
-  const summaryTitle = `Request #${row.request_id || row.id} • Type Needed: ${bloodType} • Location: "${hospital}" • Urgency: ${urgencyStr} • Status: ${statusSummaryStr}`;
   const rawNotes = String(row.note || row.notes || row.description || 'No medical notes provided.').replace(/\[Hospital:[^\]]+\]/g, '').replace(/\[Community Crowdsourced\]/g, '').trim();
+  const urgencyChipStyle = isUrgent
+    ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3;'
+    : 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;';
 
   body.innerHTML = `
-        <div style="background:#faf5f5;border:1px solid #f1dede;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
-          <h4 style="margin:0 0 4px;font-size:0.95rem;font-weight:700;color:#1e293b;line-height:1.4;">${escapeHtml(summaryTitle)}</h4>
-          <span style="font-size:0.78rem;color:#64748b;"><i class="fa-regular fa-clock"></i> Date Requested: ${escapeHtml(formatRelativeTime(row.request_date))}</span>
+        <div style="background:#faf5f5;border:1px solid #f1dede;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:#1e293b;">Request #${escapeHtml(String(row.request_id || row.id))}</h4>
+            <span class="badge ${statusBadge.className}">${statusBadge.label}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:700;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;padding:3px 9px;"><i class="fa-solid fa-droplet" style="font-size:0.68rem;"></i>${escapeHtml(bloodType)}</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:700;${urgencyChipStyle}border-radius:6px;padding:3px 9px;"><i class="fa-solid fa-bolt" style="font-size:0.68rem;"></i>${escapeHtml(urgencyStr)}</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:3px 9px;"><i class="fa-solid fa-bag-shopping" style="font-size:0.68rem;"></i>${escapeHtml(statusSummaryStr)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:#64748b;flex-wrap:wrap;">
+            <i class="fa-solid fa-location-dot" style="font-size:0.72rem;color:#94a3b8;"></i>
+            <span style="font-weight:600;color:#475569;">${escapeHtml(hospital)}</span>
+            <span style="color:#cbd5e1;">•</span>
+            <i class="fa-regular fa-clock"></i>
+            <span>Requested ${escapeHtml(formatRelativeTime(row.request_date))}</span>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
           <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;">
@@ -2048,8 +2064,6 @@ function renderRequestsSection() {
     const securedBags = Number(row.bags_secured ?? (status === 'fulfilled' ? units : (status === 'processing' ? Math.min(units, 1) : 0)));
     const statusSummaryStr = `${securedBags}/${units} Bag${units !== 1 ? 's' : ''} Secured`;
 
-    const summaryTitle = `Request #${reqId} • Type Needed: ${bloodType} • Location: "${hospital}" • Urgency: ${urgencyStr} • Status: ${statusSummaryStr}`;
-
     const isCrowdsourced = isCommunityRow(row);
     const crowdsourceBadge = isCrowdsourced
       ? '<span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:0.70rem;"><i class="fa-solid fa-users"></i> Community</span>'
@@ -2082,14 +2096,28 @@ function renderRequestsSection() {
             </div>`
       : '';
 
+    const urgencyChipStyle = isUrgent
+      ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3;'
+      : 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;';
+
     return `<div class="request-card" style="opacity:${isHidden ? '0.5' : '1'}; flex-wrap:wrap; gap:12px;">
           <div class="request-type">${escapeHtml(bloodType)}</div>
-          <div class="request-info" style="flex:1; min-width:260px;">
-            <strong style="font-size:0.88rem; line-height:1.4; color:#1e293b; margin-bottom:4px; word-break:break-word;">${escapeHtml(summaryTitle)}</strong>
-            <div style="font-size:0.74rem; color:var(--gray-500); display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px;">
-              <span>Requester: ${escapeHtml(patientName)}</span>
-              ${crowdsourceBadge}
+          <div class="request-info" style="flex:1; min-width:200px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
+              <strong style="font-size:0.88rem; color:#1e293b;">Request #${escapeHtml(String(reqId))}</strong>
               <span class="badge ${statusBadge.className}">${statusBadge.label}</span>
+              ${crowdsourceBadge}
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px;">
+              <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;padding:2px 7px;"><i class="fa-solid fa-droplet" style="font-size:0.65rem;"></i>${escapeHtml(bloodType)}</span>
+              <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;${urgencyChipStyle}border-radius:6px;padding:2px 7px;"><i class="fa-solid fa-bolt" style="font-size:0.65rem;"></i>${escapeHtml(urgencyStr)}</span>
+              <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:2px 7px;"><i class="fa-solid fa-bag-shopping" style="font-size:0.65rem;"></i>${escapeHtml(statusSummaryStr)}</span>
+            </div>
+            <div style="font-size:0.74rem; color:var(--gray-500); display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+              <i class="fa-solid fa-location-dot" style="font-size:0.68rem;color:#94a3b8;"></i>
+              <span style="font-weight:600;color:#475569;">${escapeHtml(hospital)}</span>
+              <span style="color:#cbd5e1;">•</span>
+              <span>Requester: ${escapeHtml(patientName)}</span>
             </div>
           </div>
           <div class="request-meta" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
