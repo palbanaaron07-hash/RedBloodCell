@@ -229,6 +229,94 @@ function bloodBank() {
   return supabaseClient.schema('blood_bank');
 }
 
+const REQUEST_DOCUMENT_BUCKET = 'request-supporting-documents';
+const REQUEST_DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+const REQUEST_DOCUMENT_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'application/pdf': 'pdf'
+};
+
+function validateRequestSupportingDocument(file) {
+  if (!file || !Number(file.size)) return { ok: true, file: null, message: '' };
+  if (!REQUEST_DOCUMENT_TYPES[file.type]) {
+    return { ok: false, file: null, message: 'Supporting document must be a JPG, PNG, or PDF.' };
+  }
+  if (Number(file.size) > REQUEST_DOCUMENT_MAX_BYTES) {
+    return { ok: false, file: null, message: 'Supporting document must be 20 MB or smaller.' };
+  }
+  return { ok: true, file, message: '' };
+}
+
+async function saveRequestVerificationSupport(requestId, facilityContact, file) {
+  const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+  if (userError || !user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const validation = validateRequestSupportingDocument(file);
+  if (!validation.ok) return { data: null, error: { message: validation.message } };
+
+  const contact = String(facilityContact || '').trim();
+  if (!contact && !validation.file) return { data: null, error: null };
+
+  let storagePath = null;
+  if (validation.file) {
+    const extension = REQUEST_DOCUMENT_TYPES[validation.file.type];
+    const uniquePart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    storagePath = `${user.id}/${Number(requestId)}/${uniquePart}.${extension}`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from(REQUEST_DOCUMENT_BUCKET)
+      .upload(storagePath, validation.file, { cacheControl: '3600', contentType: validation.file.type, upsert: false });
+    if (uploadError) return { data: null, error: mapError(uploadError, 'Failed to upload the supporting document.') };
+  }
+
+  const supportPayload = {
+    request_id: Number(requestId),
+    facility_contact: contact || null,
+    storage_path: storagePath,
+    file_name: validation.file ? String(validation.file.name || `supporting-document.${REQUEST_DOCUMENT_TYPES[validation.file.type]}`).slice(0, 255) : null,
+    mime_type: validation.file?.type || null,
+    file_size: validation.file ? Number(validation.file.size) : null,
+    created_by: user.id
+  };
+  const { data, error } = await bloodBank()
+    .from('request_verification_support')
+    .insert(supportPayload)
+    .select('*')
+    .single();
+
+  if (error && storagePath) {
+    await supabaseClient.storage.from(REQUEST_DOCUMENT_BUCKET).remove([storagePath]);
+  }
+  return error
+    ? { data: null, error: mapError(error, 'The request was saved, but its private verification support could not be saved.') }
+    : { data, error: null };
+}
+
+async function listRequestVerificationSupport(requestIds) {
+  const ids = [...new Set((requestIds || []).map(Number).filter(Number.isInteger))];
+  if (!ids.length) return { data: [], error: null };
+  const { data, error } = await bloodBank()
+    .from('request_verification_support')
+    .select('request_id, facility_contact, storage_path, file_name, mime_type, file_size, verification_method, verification_note, verified_by, verified_by_email, verified_at, created_at')
+    .in('request_id', ids);
+  return error
+    ? { data: [], error: mapError(error, 'Failed to load private verification support.') }
+    : { data: data || [], error: null };
+}
+
+async function createRequestDocumentSignedUrl(storagePath) {
+  const path = String(storagePath || '').trim();
+  if (!path) return { data: null, error: { message: 'No supporting document is attached.' } };
+  const { data, error } = await supabaseClient.storage
+    .from(REQUEST_DOCUMENT_BUCKET)
+    .createSignedUrl(path, 300);
+  return error
+    ? { data: null, error: mapError(error, 'Unable to open the supporting document.') }
+    : { data, error: null };
+}
+
 const VALID_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const BLOOD_TYPE_ORDER = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
@@ -626,6 +714,16 @@ async function setMyDonorAvailability(isAvailable) {
   return { data, error: null };
 }
 
+function getDonorRequestEligibility(donor) {
+  const status = String(donor?.donor_status || 'registered').toLowerCase();
+  if (!['approved', 'donated'].includes(status)) return {
+    eligible: false, reason: status === 'deferred' ? 'Donation deferred. Staff clearance is required.' : 'Awaiting medical approval.'
+  };
+  if (!isEligibleToCheckIn(donor).eligible) return { eligible: false, reason: 'Your donation waiting period is not complete.' };
+  if (String(donor?.availability_status || '').toLowerCase() !== 'available') return { eligible: false, reason: 'Availability is paused. Turn on Available for donor requests when you are ready.' };
+  return { eligible: true, reason: '' };
+}
+
 async function getMyDonorDashboardData() {
   if (!SUPABASE_CONFIGURED) return configError();
 
@@ -660,7 +758,7 @@ async function getMyDonorDashboardData() {
 
   let matchingResult = await bloodBank().rpc('get_my_matching_requests');
   if (matchingResult.error && isMissingMultiRoleRpc(matchingResult.error)) {
-    matchingResult = { data: [], error: null };
+    matchingResult = { data: null, error: { message: 'Matching requests require a database update. Please contact the coordinator.' } };
   }
 
   if (historyResult.error) {
@@ -1392,6 +1490,19 @@ async function listDonors() {
   }
 }
 
+function getDonorMapVisibilityState(donor) {
+  const status = String(donor?.donor_status || 'registered').toLowerCase();
+  if (!['approved', 'donated'].includes(status)) {
+    return { visible: false, reason: status === 'deferred' ? 'Donation deferred; staff clearance required.' : 'Awaiting medical approval.' };
+  }
+  if (!isEligibleToCheckIn(donor).eligible) return { visible: false, reason: 'Donation waiting period is not complete.' };
+  if (String(donor?.availability_status || '').toLowerCase() !== 'available') return { visible: false, reason: 'Availability is paused.' };
+  if (donor?.show_on_map !== true) return { visible: false, reason: 'Map permission is off.' };
+  if (!String(donor?.map_area || donor?.area || '').trim()) return { visible: false, reason: 'Location missing.' };
+  if (donor?.location_status !== 'verified') return { visible: false, reason: 'Awaiting location verification.' };
+  return { visible: true, reason: 'Your approximate area can appear on the donor map.' };
+}
+
 async function listVisibleDonors() {
   if (!SUPABASE_CONFIGURED) return configError();
 
@@ -1399,6 +1510,7 @@ async function listVisibleDonors() {
     const { data, error } = await bloodBank().rpc('list_visible_donors');
 
     const isScreenedAndEligibleRow = (row) => {
+      if (!getDonorMapVisibilityState(row).visible) return false;
       const status = String(row?.donor_status || '').toLowerCase();
       if (['registered', 'checked_in', 'deferred', 'incomplete'].includes(status)) {
         return false;
@@ -1473,7 +1585,7 @@ async function updateDonorMapSettings(donorId, payload) {
   }
 
   const status = String(payload?.location_status || 'needs_review').trim();
-  const allowedStatuses = ['verified', 'needs_review', 'missing', 'hidden'];
+  const allowedStatuses = ['verified', 'needs_review', 'missing'];
   if (!allowedStatuses.includes(status)) {
     return { data: null, error: { message: 'Invalid location status.' } };
   }
@@ -1485,6 +1597,22 @@ async function updateDonorMapSettings(donorId, payload) {
   };
 
   try {
+    const { data: current, error: readError } = await bloodBank()
+      .from('donor')
+      .select('map_area, location_status')
+      .eq('donor_id', id)
+      .single();
+    if (readError) return { data: null, error: readError };
+    // Location quality and map visibility are independent. A changed area
+    // must be saved for review before it can be verified on a subsequent save.
+    if (!updates.map_area) {
+      updates.location_status = 'missing';
+    } else if (updates.map_area !== String(current.map_area || '').trim()) {
+      updates.location_status = 'needs_review';
+    } else if (updates.location_status === 'missing') {
+      updates.location_status = 'needs_review';
+    }
+
     const { data, error } = await bloodBank()
       .from('donor')
       .update(updates)
@@ -1536,7 +1664,8 @@ async function setMyDonorMapVisibility(showOnMap) {
       .from('donor')
       .update({
         show_on_map: Boolean(showOnMap),
-        location_status: donor.location_status || 'verified'
+        location_status: !String(donor.map_area || '').trim() ? 'missing'
+          : donor.location_status === 'verified' ? 'verified' : 'needs_review'
       })
       .eq('donor_id', donor.donor_id)
       .select('donor_id, show_on_map, location_status, map_area')
@@ -1633,6 +1762,26 @@ async function updateDonorEligibility(payload) {
   }
 }
 
+function normalizeCommunityRequestStatus(row) {
+  const storedStatus = String(row?.community_status || '').trim().toLowerCase();
+  const operationalStatus = String(row?.status || '').trim().toLowerCase();
+  const isReplacement = String(row?.request_type || '').trim().toLowerCase() === 'replacement';
+  if (['fulfilled', 'complete', 'completed', 'done', 'closed'].includes(operationalStatus) || storedStatus === 'fulfilled') {
+    return 'fulfilled';
+  }
+  if (['rejected', 'declined', 'cancelled', 'canceled'].includes(operationalStatus)) {
+    return 'expired';
+  }
+
+  const expiresAt = row?.expires_at ? new Date(row.expires_at) : null;
+  const timedOut = !isReplacement && expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now();
+  if (storedStatus === 'expired' || timedOut) {
+    return 'expired';
+  }
+
+  return storedStatus === 'covered' ? 'covered' : 'active';
+}
+
 async function listMyBloodRequests() {
   if (!SUPABASE_CONFIGURED) return configError();
   const {
@@ -1654,7 +1803,7 @@ async function listMyBloodRequests() {
 
   const { data, error } = await bloodBank()
     .from('blood_request')
-    .select('*')
+    .select('*, replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
     .eq('patient_id', patientResult.profile.patient_id)
     .order('request_date', { ascending: false });
 
@@ -1688,7 +1837,9 @@ async function listMyBloodRequests() {
       normalizedStatus = 'approved';
     } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
       normalizedStatus = 'needs_clarification';
-    } else if (['cancelled', 'canceled', 'rejected', 'declined'].includes(rawStatus)) {
+    } else if (['cancelled', 'canceled'].includes(rawStatus)) {
+      normalizedStatus = 'cancelled';
+    } else if (['rejected', 'declined'].includes(rawStatus)) {
       normalizedStatus = 'rejected';
     }
 
@@ -1704,21 +1855,37 @@ async function listMyBloodRequests() {
       .replace(/\[NeededTime:[^\]]+\]/g, '')
       .trim();
 
+    const communityStatus = normalizeCommunityRequestStatus(row);
+
     return {
       id: row.request_id,
       blood_type: normalizeBloodType(row.blood_type_needed),
       units_needed: Number(row.quantity || 1),
       urgency: row.urgency_level || 'normal',
-      status: normalizedStatus,
+      status: communityStatus,
+      community_status: communityStatus,
+      operational_status: normalizedStatus,
       status_raw: row.status || 'pending',
+      expires_at: row.expires_at || null,
       created_at: row.request_date || row.created_at || null,
       needed_time: parsedNeededTime,
       hospital: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
       donation_point: parsedHospital || row.hospital_name || row.hospital || 'Blood Bank',
       notes: cleanNote,
       raw_note: rawNoteStr,
-      admin_note: row.admin_note || row.admin_message || row.admin_comment || ''
+      admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
+      request_type: row.request_type || 'unsure',
+      verification_status: row.verification_status || 'pending',
+      hospital_reference: row.hospital_reference || '',
+      recipient_received_at: row.recipient_received_at || null,
+      replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
     };
+  });
+
+  const supportResult = await listRequestVerificationSupport(normalized.map((request) => request.id));
+  const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
+  normalized.forEach((request) => {
+    request.verification_support = supportByRequest.get(Number(request.id)) || null;
   });
 
   return { data: normalized, error: null };
@@ -1736,12 +1903,19 @@ async function updateMyBloodRequest(requestId, payload) {
   const rawNote = String(payload.notes || '').trim();
   const note = [hospitalTag, timeTag, rawNote].filter(Boolean).join(' ') || null;
 
+  const isReplacement = String(payload.request_type || '') === 'replacement';
   const updates = {
-    blood_type_needed: normalizeBloodType(payload.blood_type),
     quantity: Number(payload.units_needed) || 1,
-    urgency_level: payload.urgency || 'normal',
     note
   };
+  if (!isReplacement) {
+    const bloodType = normalizeBloodType(payload.blood_type);
+    if (!isValidBloodType(bloodType)) {
+      return { data: null, error: { message: 'Please select a valid blood type.' } };
+    }
+    updates.blood_type_needed = bloodType;
+    updates.urgency_level = payload.urgency || 'normal';
+  }
 
   const { data, error } = await bloodBank()
     .from('blood_request')
@@ -1761,40 +1935,61 @@ async function deleteMyBloodRequest(requestId) {
 
   const numId = Number(requestId);
   const targetId = !isNaN(numId) ? numId : requestId;
+  const supportResult = await listRequestVerificationSupport([targetId]);
+  const support = supportResult.data?.[0] || null;
 
-  // Best-effort cleanup of child rows in case foreign keys aren't set with ON DELETE CASCADE
-  try {
-    await bloodBank().from('blood_request_status_log').delete().eq('request_id', targetId);
-  } catch (_) { }
-
-  const { error } = await bloodBank()
-    .from('blood_request')
-    .delete()
-    .eq('request_id', targetId);
-
-  if (error) {
-    const fallback = await bloodBank()
-      .from('blood_request')
-      .update({ note: '[DELETED]' })
-      .eq('request_id', targetId);
-    if (fallback.error) {
-      return { error: mapError(fallback.error, 'Failed to delete request.') };
-    }
+  const { data, error } = await bloodBank().rpc('manage_my_blood_request', {
+    p_request_id: targetId,
+    p_action: 'delete'
+  });
+  if (error) return { data: null, error: mapError(error, 'Failed to delete request.') };
+  if (String(data?.action || '') !== 'deleted') {
+    return { data: null, error: { message: 'The database did not confirm that the request was deleted.' } };
   }
 
-  return { error: null };
+  const storagePath = data?.storage_path || support?.storage_path;
+  let warning = '';
+  if (storagePath) {
+    const { error: storageError } = await supabaseClient.storage
+      .from(REQUEST_DOCUMENT_BUCKET)
+      .remove([storagePath]);
+    if (storageError) warning = 'The request was deleted, but its uploaded document could not be removed automatically.';
+  }
+
+  return { data, error: null, warning };
+}
+
+async function cancelMyBloodRequest(requestId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const targetId = Number(requestId);
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    return { data: null, error: { message: 'Invalid blood request.' } };
+  }
+
+  const { data, error } = await bloodBank().rpc('manage_my_blood_request', {
+    p_request_id: targetId,
+    p_action: 'cancel'
+  });
+  if (error) return { data: null, error: mapError(error, 'Failed to cancel request.') };
+  if (String(data?.action || '') !== 'cancelled') {
+    return { data: null, error: { message: 'The database did not confirm that the request was cancelled.' } };
+  }
+  return { data, error: null };
 }
 
 async function listCommunityBloodRequests() {
   if (!SUPABASE_CONFIGURED) return configError();
 
   try {
+    // Refreshing here makes expiration effective even without a background scheduler.
+    await bloodBank().rpc('refresh_community_request_lifecycle');
+
     let requestsData = [];
 
     // First try query with patient foreign key join
     const { data, error } = await bloodBank()
       .from('blood_request')
-      .select('*, patient(first_name, middle_name, last_name, hospital_name, address, blood_type_needed, contact_number)')
+      .select('*, patient(first_name, middle_name, last_name, hospital_name, address, blood_type_needed, contact_number), replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
       .order('request_date', { ascending: false })
       .limit(50);
 
@@ -1826,7 +2021,9 @@ async function listCommunityBloodRequests() {
         normalizedStatus = 'approved';
       } else if (['needs_clarification', 'needs clarification'].includes(rawStatus)) {
         normalizedStatus = 'needs_clarification';
-      } else if (['cancelled', 'canceled', 'rejected', 'declined'].includes(rawStatus)) {
+      } else if (['cancelled', 'canceled'].includes(rawStatus)) {
+        normalizedStatus = 'cancelled';
+      } else if (['rejected', 'declined'].includes(rawStatus)) {
         normalizedStatus = 'rejected';
       } else {
         normalizedStatus = 'pending';
@@ -1852,6 +2049,7 @@ async function listCommunityBloodRequests() {
       const hospital = parsedHospital || row.hospital_name || patient.hospital_name || patient.address || 'Metro Health Center';
       const urgency = String(row.urgency_level || row.urgency || 'normal').toLowerCase();
       const rawDate = row.request_date || row.created_at || new Date().toISOString();
+      const communityStatus = normalizeCommunityRequestStatus(row);
 
       return {
         id: row.request_id || row.id || idx + 1,
@@ -1861,14 +2059,22 @@ async function listCommunityBloodRequests() {
         blood_type: normalizeBloodType(row.blood_type_needed || row.blood_type || 'O+'),
         units_needed: Number(row.quantity || row.units_needed || 1),
         urgency: urgency,
-        status: normalizedStatus,
+        status: communityStatus,
+        community_status: communityStatus,
+        operational_status: normalizedStatus,
         status_raw: row.status || 'pending',
+        expires_at: row.expires_at || null,
         created_at: rawDate,
         needed_time: parsedNeededTime,
         hospital: hospital,
         donation_point: hospital,
         notes: cleanNote,
-        admin_note: row.admin_note || row.admin_message || row.admin_comment || ''
+        admin_note: row.admin_note || row.admin_message || row.admin_comment || '',
+        request_type: row.request_type || 'unsure',
+        verification_status: row.verification_status || 'pending',
+        hospital_reference: row.hospital_reference || '',
+        recipient_received_at: row.recipient_received_at || null,
+        replacement_campaign: Array.isArray(row.replacement_campaign) ? row.replacement_campaign[0] : (row.replacement_campaign || null)
       };
     });
 
@@ -1877,6 +2083,66 @@ async function listCommunityBloodRequests() {
     console.warn('Community requests fetch error:', err);
     return { data: [], error: err };
   }
+}
+
+async function createDonorPledge(payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+
+  const requestId = Number(payload?.request_id);
+  if (!Number.isInteger(requestId) || requestId <= 0) {
+    return { data: null, error: { message: 'A valid blood request is required.' } };
+  }
+
+  const { data, error } = await bloodBank().rpc('pledge_to_blood_request', {
+    p_request_id: requestId,
+    p_units: Math.max(1, Number(payload?.units_pledged) || 1),
+    p_pass_reference: String(payload?.pass_reference || '').trim() || null,
+    p_preferred_date: payload?.preferred_date || null,
+    p_preferred_time: String(payload?.preferred_time || '').trim() || null,
+    p_donor_phone: String(payload?.donor_phone || '').trim() || null,
+    p_notes: String(payload?.notes || '').trim() || null
+  });
+
+  if (error) {
+    const missingMigration = isMissingMultiRoleRpc(error);
+    return {
+      data: null,
+      error: {
+        message: missingMigration
+          ? 'Database update required: apply migration 202609110001_community_request_lifecycle.sql.'
+          : (error.message || 'Unable to record your donor response.')
+      }
+    };
+  }
+
+  return { data, error: null };
+}
+
+async function completeMyBloodRequest(requestId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+
+  const id = Number(requestId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return { data: null, error: { message: 'A valid blood request is required.' } };
+  }
+
+  const { data, error } = await bloodBank().rpc('complete_my_blood_request', {
+    p_request_id: id
+  });
+
+  if (error) {
+    const missingMigration = isMissingMultiRoleRpc(error);
+    return {
+      data: null,
+      error: {
+        message: missingMigration
+          ? 'Database update required: apply migration 202609110001_community_request_lifecycle.sql.'
+          : (error.message || 'Unable to complete this request.')
+      }
+    };
+  }
+
+  return { data, error: null };
 }
 
 async function createBloodRequest(payload) {
@@ -1919,11 +2185,19 @@ async function createBloodRequest(payload) {
     };
   }
 
-  const requestedBloodType = normalizeBloodType(payload.blood_type || patientResult.profile.blood_type_needed);
+  const requestType = ['replacement', 'emergency_donor'].includes(payload.request_type)
+    ? payload.request_type
+    : 'emergency_donor';
+  const isReplacementRequest = requestType === 'replacement';
+  const requestedBloodType = normalizeBloodType(
+    isReplacementRequest
+      ? (patientResult.profile.blood_type_needed || patientResult.profile.blood_type || user.user_metadata?.blood_type || 'O+')
+      : payload.blood_type
+  );
   if (!requestedBloodType) {
     return {
       data: null,
-      error: { message: 'Blood type is required to find available inventory.' }
+      error: { message: isReplacementRequest ? 'Your recipient profile needs a valid blood type record.' : 'Blood type is required for emergency donor matching.' }
     };
   }
   if (!isValidBloodType(requestedBloodType)) {
@@ -1933,57 +2207,16 @@ async function createBloodRequest(payload) {
     };
   }
 
-  let inventoryId = Number(payload.inventory_id);
-  let isCrowdsourced = false;
-
-  // 1. Fetch available inventory records to check for physical stock
-  const { data: allInventory, error: inventoryError } = await bloodBank()
-    .from('blood_inventory')
-    .select('inventory_id, units_available, status, blood_type')
-    .order('last_updated', { ascending: false })
-    .limit(100);
-
-  if (inventoryError && !isStackDepthError(inventoryError)) {
-    console.warn('Inventory lookup warning in createBloodRequest:', inventoryError);
+  const supportingDocument = payload.supporting_document;
+  const documentValidation = validateRequestSupportingDocument(supportingDocument);
+  if (!documentValidation.ok) {
+    return { data: null, error: { message: documentValidation.message } };
   }
 
-  const inventoryList = Array.isArray(allInventory) ? allInventory : [];
-
-  // Find positive stock row with matching blood type
-  const matchingPositiveInventory = inventoryList.find((row) => {
-    const status = String(row.status || '').toLowerCase();
-    const units = Number(row.units_available || 0);
-    return normalizeBloodType(row.blood_type) === requestedBloodType &&
-      units > 0 &&
-      !['expired', 'quarantined'].includes(status);
-  });
-
-  if (Number.isInteger(inventoryId) && inventoryId > 0) {
-    const exists = inventoryList.some((r) => Number(r.inventory_id) === inventoryId);
-    if (!exists) {
-      inventoryId = matchingPositiveInventory?.inventory_id ? Number(matchingPositiveInventory.inventory_id) : null;
-    }
-  } else if (matchingPositiveInventory?.inventory_id) {
-    inventoryId = Number(matchingPositiveInventory.inventory_id);
-  } else {
-    // Path B: Zero physical inventory -> Route to Community Crowdsourcing
-    isCrowdsourced = true;
-    // Still need a valid inventory_id due to NOT NULL constraint —
-    // find any inventory row for the blood type, or any row at all
-    const anyMatchingInv = inventoryList.find((r) => normalizeBloodType(r.blood_type) === requestedBloodType);
-    const anyInv = anyMatchingInv || inventoryList[0];
-    if (anyInv?.inventory_id) {
-      inventoryId = Number(anyInv.inventory_id);
-    } else {
-      // Last resort: fetch directly from DB
-      const { data: fallbackRow } = await bloodBank()
-        .from('blood_inventory')
-        .select('inventory_id')
-        .limit(1)
-        .maybeSingle();
-      inventoryId = fallbackRow?.inventory_id ? Number(fallbackRow.inventory_id) : null;
-    }
-  }
+  // Blood donation coordinators do not own or dispatch a treating hospital's inventory.
+  // The request remains unallocated while the coordinator verifies and mobilizes donors.
+  const inventoryId = null;
+  const isCrowdsourced = true;
 
   const rawNote = String(payload.notes || payload.note || payload.description || '').trim();
   const hospitalName = String(payload.hospital || payload.donation_point || '').trim();
@@ -1998,9 +2231,12 @@ async function createBloodRequest(payload) {
     patient_id: effectivePatientId,
     blood_type_needed: requestedBloodType,
     quantity: Number(payload.quantity || payload.units_needed) || 1,
-    urgency_level: payload.urgency_level || payload.urgency || 'normal',
+    urgency_level: isReplacementRequest ? 'normal' : (payload.urgency_level || payload.urgency || 'normal'),
     status: payload.status || 'pending',
-    note: requestNote
+    note: requestNote,
+    request_type: requestType,
+    verification_status: 'pending',
+    hospital_reference: String(payload.hospital_reference || '').trim() || null
   };
 
   if (inventoryId && Number.isInteger(inventoryId) && inventoryId > 0) {
@@ -2013,51 +2249,6 @@ async function createBloodRequest(payload) {
     .select('*')
     .single();
 
-  // If insert failed due to foreign key or not-null constraint on inventory_id, attempt automatic fallbacks
-  if (error) {
-    const errMsg = String(error.message || error.details || '').toLowerCase();
-
-    // If FK violation on inventory_id: try omitting inventory_id first (for nullable schema)
-    if (errMsg.includes('foreign key') || errMsg.includes('blood_request_inventory_id_fkey')) {
-      delete requestPayload.inventory_id;
-      let retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
-      if (!retry.error) {
-        data = retry.data;
-        error = null;
-      } else {
-        // If omitting caused not-null constraint, link to any valid inventory row in DB
-        const fallbackInv = inventoryList[0]?.inventory_id || (await bloodBank().from('blood_inventory').select('inventory_id').limit(1).maybeSingle()).data?.inventory_id;
-        if (fallbackInv) {
-          requestPayload.inventory_id = Number(fallbackInv);
-          retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
-          data = retry.data;
-          error = retry.error;
-        }
-      }
-    } else if (errMsg.includes('not-null') || errMsg.includes('null value') || errMsg.includes('inventory_id')) {
-      // NOT NULL constraint: link to any available inventory row
-      const fallbackInv = inventoryList.find((r) => normalizeBloodType(r.blood_type) === requestedBloodType)?.inventory_id
-        || inventoryList[0]?.inventory_id
-        || (await bloodBank().from('blood_inventory').select('inventory_id').limit(1).maybeSingle()).data?.inventory_id;
-
-      if (fallbackInv) {
-        requestPayload.inventory_id = Number(fallbackInv);
-        const retry = await bloodBank().from('blood_request').insert(requestPayload).select('*').single();
-        data = retry.data;
-        error = retry.error;
-      } else {
-        // inventory_id is NOT NULL in schema and blood_inventory table is empty or inaccessible.
-        // The admin must run fix-blood-request-inventory-nullable.sql in Supabase SQL Editor.
-        return {
-          data: null,
-          error: {
-            message: 'Cannot submit request: the database requires inventory_id to be set, but no inventory records exist. Ask the admin to run fix-blood-request-inventory-nullable.sql in the Supabase SQL Editor to allow requests without inventory.'
-          }
-        };
-      }
-    }
-  }
-
   if (error && isStackDepthError(error)) {
     return {
       data: null,
@@ -2068,7 +2259,40 @@ async function createBloodRequest(payload) {
     };
   }
 
+  if (!error && data?.request_id) {
+    const supportResult = await saveRequestVerificationSupport(
+      data.request_id,
+      payload.facility_contact,
+      documentValidation.file
+    );
+    if (supportResult.error) {
+      return { data, error: null, warning: supportResult.error.message };
+    }
+    if (supportResult.data) data.verification_support = supportResult.data;
+  }
+
   return { data, error };
+}
+
+async function recordReplacementDonation(payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data, error } = await bloodBank().rpc('record_replacement_donation', {
+    p_request_id: Number(payload.request_id),
+    p_units: Number(payload.units),
+    p_donation_date: payload.donation_date,
+    p_receiving_facility: String(payload.receiving_facility || '').trim(),
+    p_confirmation_reference: String(payload.confirmation_reference || '').trim(),
+    p_donor_source: payload.donor_source,
+    p_donor_id: payload.donor_source === 'app' ? Number(payload.donor_id) : null,
+    p_note: String(payload.note || '').trim() || null
+  });
+  return error ? { data: null, error: mapError(error, 'Failed to record replacement donation.') } : { data, error: null };
+}
+
+async function listReplacementDonations(requestId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data, error } = await bloodBank().rpc('list_replacement_donations', { p_request_id: Number(requestId) });
+  return error ? { data: null, error: mapError(error, 'Failed to load replacement confirmations.') } : { data: data || [], error: null };
 }
 
 async function updateMyPatientProfile(payload) {
@@ -2519,6 +2743,37 @@ function subscribeToPatientDashboard(options, onChange) {
   };
 }
 
+async function listMyNotifications(limit = 20) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .select('notification_id, request_id, notification_type, title, message, read_at, created_at')
+    .eq('recipient_user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(Math.max(1, Math.min(Number(limit) || 20, 50)));
+
+  return error
+    ? { data: null, error: mapError(error, 'Failed to load notifications.') }
+    : { data: data || [], error: null };
+}
+
+async function markMyNotificationRead(notificationId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const id = Number(notificationId);
+  if (!Number.isInteger(id) || id <= 0) return { data: null, error: { message: 'Invalid notification.' } };
+  const { data, error } = await bloodBank()
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('notification_id', id)
+    .select('notification_id, read_at')
+    .maybeSingle();
+  return error
+    ? { data: null, error: mapError(error, 'Failed to update notification.') }
+    : { data, error: null };
+}
 function subscribeToNotifications(userId, onChange) {
   if (!SUPABASE_CONFIGURED || !userId) {
     return { unsubscribe() { } };
@@ -2779,7 +3034,7 @@ async function getOverviewRecentRequests(limit = 100) {
     // 1. Direct PostgREST query with patient relation join
     const { data, error } = await bloodBank()
       .from('blood_request')
-      .select('*, patient(first_name, middle_name, last_name, hospital_name, contact_number, address)')
+      .select('*, patient(first_name, middle_name, last_name, hospital_name, contact_number, address), replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
       .order('request_date', { ascending: false })
       .limit(limit);
 
@@ -2833,6 +3088,12 @@ async function getOverviewRecentRequests(limit = 100) {
           needed_time: timeMatch ? timeMatch[1].trim() : (row.needed_time || row.needed_date || '')
         };
       });
+
+    const supportResult = await listRequestVerificationSupport(normalized.map((request) => request.request_id || request.id));
+    const supportByRequest = new Map((supportResult.data || []).map((item) => [Number(item.request_id), item]));
+    normalized.forEach((request) => {
+      request.verification_support = supportByRequest.get(Number(request.request_id || request.id)) || null;
+    });
 
     return { data: normalized, error: null };
   } catch (err) {
@@ -3268,4 +3529,3 @@ async function getDonorLifecycleHistory(donor_id) {
     return { data: null, error: { message: 'Network error while loading lifecycle history.' } };
   }
 }
-

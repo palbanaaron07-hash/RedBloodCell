@@ -209,6 +209,7 @@ button {
 
 .search-filter-subrow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -1407,4 +1408,17 @@ button {
     bottom: calc(20px + 82px);
     right: 20px;
   }
+}
+
+#btnClearFilters {
+  color: #800000;
+  background: #fbf2f3;
+  border-color: #e8cdd1;
+  white-space: nowrap;
+  min-height: 36px;
+}
+
+#btnClearFilters:focus-visible {
+  outline: 2px solid #800000;
+  outline-offset: 2px;
 }

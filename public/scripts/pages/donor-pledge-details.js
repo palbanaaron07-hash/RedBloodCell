@@ -113,7 +113,7 @@ function renderRequestDetails(req) {
   if (bloodType) bloodType.textContent = req.blood_type || 'O+';
   
   const units = Number(req.units_needed || 1);
-  if (unitsNeeded) unitsNeeded.textContent = `${units} Bag${units > 1 ? 's' : ''}`;
+  if (unitsNeeded) unitsNeeded.textContent = `${units} Unit${units !== 1 ? 's' : ''}`;
   
   if (recipientName) recipientName.textContent = req.requester_name || 'Community Recipient';
   
@@ -244,7 +244,7 @@ function updatePassPerksList() {
 /**
  * Handle Confirmation Form Submission (Step 2 -> Step 3)
  */
-function handleConfirmPledge(event) {
+async function handleConfirmPledge(event) {
   event.preventDefault();
 
   // 1. Verify eligibility checkboxes
@@ -272,6 +272,39 @@ function handleConfirmPledge(event) {
   const randomSuffix = Math.floor(10000 + Math.random() * 90000);
   const passId = `VD-PLG-${randomSuffix}`;
 
+  // Persist the response before showing a confirmed donation pass.
+  const submitButton = document.getElementById('btnSubmitPledge');
+  const originalButtonHtml = submitButton?.innerHTML || '';
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Confirming response...</span>';
+  }
+
+  try {
+    if (typeof createDonorPledge !== 'function') {
+      throw new Error('The donor response service is unavailable. Please refresh and try again.');
+    }
+
+    const { error } = await createDonorPledge({
+      request_id: currentRequest?.id || currentRequest?.request_id,
+      units_pledged: 1,
+      pass_reference: passId,
+      preferred_date: donorDate,
+      preferred_time: donorTime,
+      donor_phone: donorPhone,
+      notes: donorNotes
+    });
+
+    if (error) throw error;
+  } catch (error) {
+    showToast(error?.message || 'Unable to confirm your response. Please try again.');
+    return;
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonHtml;
+    }
+  }
   // 4. Populate Donation Pass on Step 3
   const passRefEl = document.getElementById('passRefId');
   const passRecipEl = document.getElementById('passRecipientName');

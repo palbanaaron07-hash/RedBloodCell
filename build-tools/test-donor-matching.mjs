@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const client = fs.readFileSync(new URL('../public/supabase-client.js', import.meta.url), 'utf8');
+const extract = (source, name) => {
+  const start = source.indexOf(`function ${name}(`);
+  return source.slice(start, source.indexOf('\n}', start) + 2);
+};
+const context = vm.createContext({});
+vm.runInContext(['isEligibleToCheckIn', 'getDonorRequestEligibility'].map(name => extract(client, name)).join('\n'), context);
+const donor = { donor_status: 'approved', availability_status: 'available' };
+assert.equal(context.getDonorRequestEligibility(donor).eligible, true);
+for (const status of ['registered', 'checked_in', 'deferred', 'incomplete']) assert.equal(context.getDonorRequestEligibility({ ...donor, donor_status: status }).eligible, false);
+assert.equal(context.getDonorRequestEligibility({ ...donor, availability_status: 'unavailable' }).eligible, false);
+assert.equal(context.getDonorRequestEligibility({ ...donor, last_donation_date: new Date().toISOString().slice(0, 10) }).eligible, false);
+const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+assert.match(source, /onclick="viewMatchingRequest\(/);
+assert.match(source, /No open, verified requests you can help with right now/);
+assert.match(source, /request_type === 'replacement'/);
+const sql = fs.readFileSync(new URL('../supabase/migrations/202609130002_align_donor_request_matching.sql', import.meta.url), 'utf8');
+for (const rule of ["br.status = 'approved'", "br.verification_status = 'verified'", "br.community_status = 'active'", 'br.expires_at > now()', "dp.status = 'pledged'", 'p.auth_user_id = auth.uid()', 'upper(trim(br.blood_type_needed)) = upper(trim(d.blood_type))']) assert.ok(sql.includes(rule));
+const replacementSql = fs.readFileSync(new URL('../supabase/migrations/202609140001_replacement_any_blood_type.sql', import.meta.url), 'utf8');
+assert.match(replacementSql, /br\.request_type = 'replacement'[\s\S]*upper\(trim\(br\.blood_type_needed\)\) = upper\(trim\(d\.blood_type\)\)/);
+console.log('Donor matching regression checks passed.');

@@ -122,7 +122,7 @@ function detectRecipientArea(prof) {
 
 function getSelectedBloodTypes() {
   const select = document.getElementById('filterBloodType');
-  const val = (select?.value || 'compatible').trim();
+  const val = (select?.value || 'all').trim();
 
   if (val === 'all') {
     return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -169,6 +169,7 @@ function donorZoneIndex(donor) {
 }
 
 function isDonorScreenedAndEligible(donor) {
+  if (!getDonorMapVisibilityState(donor).visible) return false;
   const status = String(donor?.donor_status || '').toLowerCase();
   const showOnMap = donor?.show_on_map === true;
   const locationStatus = String(donor?.location_status || 'needs_review').toLowerCase();
@@ -271,7 +272,7 @@ function renderDonorPinPopup(donor, zone) {
           ${escapeHtml(location)}, Bohol
         </span>
         <span style="color:#059669;font-weight:600;font-size:0.78rem;">
-          <i class="fa-solid fa-shield-check"></i> Coordinated via Blood Bank
+          <i class="fa-solid fa-shield-check"></i> Coordinated through the donation coordinator
         </span>
       </div>
     </div>
@@ -495,10 +496,10 @@ function closeAllFilterModals() {
 }
 
 function updateFilterPickerDisplays() {
-  const typeVal = (document.getElementById('filterBloodType')?.value || 'compatible').trim();
+  const typeVal = (document.getElementById('filterBloodType')?.value || 'all').trim();
 
   const typeLabels = {
-    compatible: 'Compatible (Auto)',
+    compatible: 'Compatible with me',
     all: 'All Blood Types',
     'A+': 'A+', 'A-': 'A-', 'B+': 'B+', 'B-': 'B-',
     'AB+': 'AB+', 'AB-': 'AB-', 'O+': 'O+', 'O-': 'O-'
@@ -532,15 +533,11 @@ function clearAllFilters() {
 
   if (searchInput) searchInput.value = '';
   if (clearBtn) clearBtn.style.display = 'none';
-  if (typeSelect) typeSelect.value = 'compatible';
+  if (typeSelect) typeSelect.value = 'all';
   if (locSelect) locSelect.value = 'all';
 
-  // Restore recipient area auto-filter if available
-  if (recipientArea) {
-    const locEl = document.getElementById('filterLocation');
-    if (locEl) locEl.value = recipientArea;
-    showAreaChip(recipientArea);
-  }
+  showAreaChip(null);
+  if (map) map.setView(BOHOL_CENTER, 10);
 
   updateFilterPickerDisplays();
   searchDonors(true);
@@ -627,12 +624,9 @@ btnClearSearchText?.addEventListener('click', () => {
   if (btnClearSearchText) {
     btnClearSearchText.style.display = 'none';
   }
-  // Restore area chip
-  if (recipientArea) {
-    showAreaChip(recipientArea);
-    const locEl = document.getElementById('filterLocation');
-    if (locEl) locEl.value = recipientArea;
-  }
+  showAreaChip(null);
+  const locEl = document.getElementById('filterLocation');
+  if (locEl) locEl.value = 'all';
   window.clearTimeout(searchDebounceTimer);
   searchDonors();
 });
@@ -693,26 +687,12 @@ if (logoutBtn) {
   // ── Auto-detect recipient's municipality from profile ──
   recipientArea = detectRecipientArea(profile);
 
-  // Pre-select compatible blood type filter
+  // Start without blood-type or location restrictions.
   const typeSelect = document.getElementById('filterBloodType');
-  if (typeSelect && profile?.blood_type) {
-    typeSelect.value = 'compatible';
-  }
-
-  // Pre-set location filter to recipient's area if detected
-  if (recipientArea) {
-    const locEl = document.getElementById('filterLocation');
-    if (locEl) locEl.value = recipientArea;
-    showAreaChip(recipientArea);
-
-    // Pan map to recipient's area immediately
-    const zone = ZONES.find((z) => z.area === recipientArea);
-    if (zone) {
-      setTimeout(() => {
-        map && map.flyTo([zone.lat, zone.lng], 13, { duration: 0.8 });
-      }, 400);
-    }
-  }
+  if (typeSelect) typeSelect.value = 'all';
+  const locEl = document.getElementById('filterLocation');
+  if (locEl) locEl.value = 'all';
+  showAreaChip(null);
 
   updateFilterPickerDisplays();
   await searchDonors();
@@ -722,7 +702,7 @@ if (typeof attachPageRefreshListeners === 'function') {
   attachPageRefreshListeners({
     onRefresh: async () => {
       try {
-        if (typeof searchDonors === 'function') await searchDonors();
+        if (typeof searchDonors === 'function') await searchDonors(true);
       } catch (_) { }
     },
     debounceMs: 2500

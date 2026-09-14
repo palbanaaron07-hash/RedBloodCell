@@ -1,0 +1,30 @@
+/* Shared mobile layout for My Requests and Community Requests. */
+.request-card-heading { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
+.request-progress-summary { display: grid; gap: 5px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #efdee1; color: #800000; font-size: .82rem; line-height: 1.5; }
+@media (max-width: 640px) {
+  :is([id^="myReqCard-"], [id^="feedCard-"]) { padding: 16px; border-radius: 18px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-card-header { gap: 8px; margin-bottom: 16px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-requester-info { flex: 1; min-width: 0; gap: 10px; align-items: flex-start; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-requester-avatar { width: 34px; height: 34px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .request-card-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-status-pill { font-size: .72rem; padding: 5px 8px; line-height: 1.3; white-space: normal; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .request-arrangement-text { margin-top: 7px; font-size: .78rem; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-post-time { display: block; margin-top: 5px; font-size: .72rem; line-height: 1.5; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-options-btn { width: 44px; height: 44px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-inner-box { padding: 14px; margin-bottom: 16px; border-radius: 12px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-requirement-row { gap: 10px; flex-wrap: wrap; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-blood-badge-wrap { min-width: 0; gap: 10px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-blood-title { font-size: 1.05rem; line-height: 1.4; overflow-wrap: anywhere; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-grid { gap: 14px; padding: 14px 0; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-col { min-width: 0; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-label, :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-desc-label { font-size: .75rem; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-val { font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-desc-text { font-size: .88rem; line-height: 1.6; overflow-wrap: anywhere; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-actions-row { display: flex; flex-direction: column; gap: 10px; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-actions-row button { width: 100%; min-height: 48px; height: auto; padding: 12px; border-radius: 12px; font-size: .9rem; line-height: 1.4; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .btn-feed-details { order: -1; }
+  :is([id^="myReqCard-"], [id^="feedCard-"]) button:focus-visible { outline: 2px solid #800000; outline-offset: 3px; }
+}
+@media (max-width: 360px) {
+  :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-grid { grid-template-columns: 1fr; }
+}

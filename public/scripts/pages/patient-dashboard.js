@@ -1,3 +1,4 @@
+let requestSubmissionPending = false;
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('sidebarOverlay');
 const toggle = document.getElementById('menuToggle');
@@ -47,6 +48,31 @@ function syncNotificationPreview() {
 }
 
 syncNotificationPreview();
+async function loadInAppNotifications() {
+  const list = notificationPanel?.querySelector('.notification-list');
+  if (!list || typeof listMyNotifications !== 'function') return;
+  const { data, error } = await listMyNotifications(20);
+  if (error) {
+    console.warn('Unable to load in-app notifications:', error);
+    return;
+  }
+
+  list.querySelectorAll('[data-dynamic-notification]').forEach((item) => item.remove());
+  const notifications = Array.isArray(data) ? data : [];
+  [...notifications].reverse().forEach((notification) => {
+    const item = document.createElement('a');
+    item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
+    item.dataset.notificationId = `db-${notification.notification_id}`;
+    item.dataset.dynamicNotification = 'true';
+    item.href = 'patient_dashboard.html#section-requests';
+    item.innerHTML = `<i class="fa-solid fa-bell"></i><div><strong>${escapeHtml(notification.title || 'Coordinator donor appeal')}</strong><p>${escapeHtml(notification.message || '')}</p></div>`;
+    item.addEventListener('click', () => {
+      if (typeof markMyNotificationRead === 'function') markMyNotificationRead(notification.notification_id);
+    });
+    list.insertBefore(item, list.firstChild);
+  });
+  syncNotificationPreview();
+}
 
 function isMobileHeader() {
   return window.matchMedia('(max-width: 640px)').matches;
@@ -254,7 +280,7 @@ overlay.addEventListener('click', () => {
 
 // ---- Section-based Navigation ----
 const sectionTitles = {
-  dashboard: { title: 'Donor Center' },
+  dashboard: { title: 'Recipient Overview' },
   donor: { title: 'Donor Center' },
   requests: { title: 'Blood Requests' },
   drives: { title: 'Blood Drives' },
@@ -367,9 +393,9 @@ const linkedSection = window.location.hash.replace('#section-', '');
 if (Object.prototype.hasOwnProperty.call(sectionTitles, linkedSection)) {
   activateSectionView(linkedSection);
   delete document.documentElement.dataset.initialSection;
-  // Prevent the browser's native anchor jump from placing an SPA section
-  // underneath the fixed mobile/PWA header. navigateToSection restores it.
-  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  // Section IDs differ from the route hash, so native anchor scrolling is unnecessary.
+
+  // Keep the section hash intact, including while authentication is loading.
 }
 
 window.addEventListener('hashchange', () => {
@@ -942,7 +968,7 @@ function initRequestsRealtime() {
       } else if (change.type === 'blood_inventory') {
         if (currentProfile?.has_patient_profile) loadRequests();
       } else if (change.type === 'notifications') {
-        if (typeof updateUnreadBadge === 'function') updateUnreadBadge();
+        loadInAppNotifications();
       }
     });
   } else if (typeof subscribeToRequestChanges === 'function' && patientId) {
@@ -1010,6 +1036,16 @@ function renderAccountRoleControls(profile) {
   if (portalRoleLabel) portalRoleLabel.textContent = `${label} Portal`;
   if (donorViewText) donorViewText.textContent = hasDonor ? 'Donor View' : 'Become a Donor';
 
+  const overviewLoading = document.getElementById('accountOverviewLoading');
+  if (overviewLoading) overviewLoading.hidden = true;
+  const recipientOverview = document.getElementById('recipientOverviewState');
+  if (recipientOverview) recipientOverview.hidden = hasDonor;
+  sectionTitles.dashboard.title = hasDonor ? 'Donor Center' : 'Recipient Overview';
+  const homeSection = document.getElementById('section-dashboard');
+  const headerTitle = document.querySelector('.header-title h1');
+  if (homeSection?.classList.contains('active') && headerTitle) {
+    headerTitle.textContent = sectionTitles.dashboard.title;
+  }
   if (donorEnrollment) donorEnrollment.hidden = hasDonor;
   if (donorDashboard) donorDashboard.hidden = !hasDonor;
   if (donorSetupMessage) {
@@ -1203,9 +1239,15 @@ function renderDonorDashboard(data) {
   if (avHelp) {
     avHelp.textContent = medicallyDeferred
       ? 'Availability is locked until staff clears the deferral.'
-      : (!eligible && !availability === 'available'
+      : (!eligible && availability !== 'available'
         ? 'Availability unlocks after the 56-day waiting period.'
-        : 'Pause this when you cannot donate.');
+        : (['registered', 'checked_in', 'incomplete'].includes(status)
+          ? 'Awaiting medical approval. On records your willingness, not eligibility.'
+          : 'Receive donor appeals when you meet eligibility requirements.'));
+  }
+  const mapHelp = document.getElementById('donorMapPrivacyHelp');
+  if (mapHelp) {
+    mapHelp.textContent = getDonorMapVisibilityState(donor).reason + ' Permission alone does not make you visible.';
   }
 
   // 7. Render Rich Donation History List
@@ -1215,8 +1257,8 @@ function renderDonorDashboard(data) {
       historyElement.innerHTML = `
         <div class="donor-empty-state">
           <i class="fa-solid fa-hand-holding-heart"></i>
-          <p>No donation records found yet.</p>
-          <small>Your donation history and status tracking will appear here after your first donation at a community drive or blood bank.</small>
+          <p>No donations recorded yet.</p>
+          <small>Your history will appear after staff records your donation.</small>
         </div>`;
     } else {
       historyElement.innerHTML = history.map((item) => {
@@ -1253,30 +1295,60 @@ function renderDonorDashboard(data) {
   }
 
   // 8. Render Matching Requests
-  const matches = Array.isArray(data.matching_requests) ? data.matching_requests : [];
+  const requestEligibility = getDonorRequestEligibility(donor);
+  const matches = requestEligibility.eligible && Array.isArray(data.matching_requests) ? data.matching_requests : [];
   const matchCount = document.getElementById('donorMatchCount');
   if (matchCount) matchCount.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'}`;
 
   const matchElement = document.getElementById('donorMatchingRequests');
   if (matchElement) {
     matchElement.innerHTML = matches.length ? matches.map((request) => {
+      const isReplacement = request.request_type === 'replacement';
       const urgency = String(request.urgency_level || 'normal').toLowerCase();
       return `<article class="request-card">
-            <div class="request-type">${escapeHtml(request.blood_type_needed || '--')}</div>
+            <div class="request-type">${isReplacement ? '<i class="fa-solid fa-rotate" aria-hidden="true"></i>' : escapeHtml(request.blood_type_needed || '--')}</div>
             <div class="request-info">
-              <strong>Approved compatible request</strong>
-              <span>${formatNumber(request.quantity || 0)} unit(s) requested</span>
+              <strong>Request #${Number(request.request_id)}</strong>
+              <span>${isReplacement
+                ? `${formatNumber(request.quantity || 0)} replacement donor(s) · Any eligible blood type`
+                : `${formatNumber(request.quantity || 0)} unit(s) of ${escapeHtml(request.blood_type_needed || '--')}`}</span>
             </div>
             <div class="request-meta">
-              <span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>
+              ${isReplacement
+                ? '<span class="badge approved">Replacement</span>'
+                : `<span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>`}
               <small>${formatDateShort(request.request_date)}</small>
+              <button type="button" class="btn-feed-details" onclick="viewMatchingRequest(${Number(request.request_id)}, this)">View Request</button>
             </div>
           </article>`;
-    }).join('') : '<p class="donor-empty-state">There are no approved requests compatible with your blood type right now.</p>';
+    }).join('') : `<p class="donor-empty-state">${escapeHtml(requestEligibility.eligible ? 'No open, verified requests you can help with right now.' : requestEligibility.reason)}</p>`;
   }
 }
 
+async function viewMatchingRequest(requestId, button) {
+  if (button) button.disabled = true;
+  const message = document.getElementById('donorDashboardMessage');
+  try {
+    const eligibility = getDonorRequestEligibility(donorDashboardData?.donor);
+    if (!eligibility.eligible) throw new Error(eligibility.reason);
+    const { data, error } = await listCommunityBloodRequests();
+    if (error) throw error;
+    const request = (data || []).find(item => Number(item.id) === Number(requestId));
+    if (!request || request.verification_status !== 'verified' || getCommunityLifecycle(request).status !== 'active' || isMyOwnRequest(request)) {
+      throw new Error('This request is no longer accepting responses. Refresh your donor requests.');
+    }
+    allCommunityRequests = (data || []).filter(item => item.verification_status === 'verified' && !isMyOwnRequest(item));
+    openCommunityRequestDetails(request.id);
+  } catch (error) {
+    if (message) { message.textContent = error?.message || 'Unable to load request details.'; message.className = 'form-msg error'; }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+window.viewMatchingRequest = viewMatchingRequest;
+
 async function loadDonorDashboard(force = false) {
+  if (!currentProfile) return;
   const enrollment = document.getElementById('donorEnrollmentState');
   const dashboard = document.getElementById('donorDashboardState');
   if (!currentProfile?.has_donor_profile) {
@@ -1355,7 +1427,7 @@ async function toggleMyDonorAvailability() {
     if (currentProfile) currentProfile.donor_profile = data;
     if (message) {
       message.textContent = nextAvailable
-        ? 'You are now available for compatible donor matching.'
+        ? 'Availability preference saved. Donor appeals still depend on eligibility checks.'
         : 'Your donor availability is paused.';
       message.className = 'form-msg success';
     }
@@ -1365,7 +1437,8 @@ async function toggleMyDonorAvailability() {
       message.className = 'form-msg error';
     }
   } finally {
-    button.disabled = false;
+    if (donorDashboardData?.donor) renderDonorDashboard(donorDashboardData);
+    else button.disabled = false;
   }
 }
 
@@ -1383,13 +1456,13 @@ async function toggleMyDonorMapVisibility() {
     const { data, error } = await setMyDonorMapVisibility(nextVisible);
     if (error) throw error;
     if (donorDashboardData?.donor) {
-      donorDashboardData.donor = { ...donorDashboardData.donor, show_on_map: nextVisible };
+      donorDashboardData.donor = { ...donorDashboardData.donor, ...data };
     }
     renderDonorDashboard(donorDashboardData);
-    if (currentProfile?.donor_profile) currentProfile.donor_profile.show_on_map = nextVisible;
+    if (currentProfile?.donor_profile) Object.assign(currentProfile.donor_profile, data);
     if (message) {
       message.textContent = nextVisible
-        ? 'Your approximate municipality will now appear on the Find Blood map when available.'
+        ? 'Map permission saved. ' + getDonorMapVisibilityState(donorDashboardData?.donor).reason
         : 'Your profile is now hidden from the Find Blood map.';
       message.className = 'form-msg success';
     }
@@ -1563,6 +1636,7 @@ function applyProfileToUI(profile) {
   const { profile } = result;
   applyProfileToUI(profile);
   renderDonorTypeFilters();
+  loadInAppNotifications();
 
   if (profile.has_patient_profile) {
     // Load requests and keep existing realtime status behavior for patients.
@@ -1580,8 +1654,9 @@ function applyProfileToUI(profile) {
   // Load blood drives
   renderBloodDrives();
 
-  if (Object.prototype.hasOwnProperty.call(sectionTitles, linkedSection)) {
-    navigateToSection(linkedSection);
+  const currentSection = window.location.hash.replace('#section-', '');
+  if (Object.prototype.hasOwnProperty.call(sectionTitles, currentSection)) {
+    navigateToSection(currentSection);
   } else {
     navigateToSection('dashboard');
   }
@@ -1781,15 +1856,61 @@ try {
   ignoredCommunityIds = new Set(JSON.parse(sessionStorage.getItem('veindrop_ignored_requests') || '[]'));
 } catch (_) { }
 
+function syncRequestTypeFields() {
+  const requestType = document.getElementById('requestType')?.value || '';
+  const isReplacement = requestType === 'replacement';
+  const bloodTypeGroup = document.getElementById('requestBloodTypeGroup');
+  const bloodType = document.getElementById('requestBloodType');
+  const urgencyGroup = document.getElementById('requestUrgencyGroup');
+  const urgency = document.getElementById('requestUrgency');
+  const requirementsNote = document.getElementById('replacementRequirementsNote');
+  const requirementsLegend = document.getElementById('requestRequirementsLegend');
+  const unitsLabel = document.getElementById('requestUnitsLabel');
+
+  if (bloodTypeGroup) bloodTypeGroup.hidden = isReplacement;
+  if (bloodType) { bloodType.disabled = isReplacement; bloodType.required = !isReplacement; }
+  if (urgencyGroup) urgencyGroup.hidden = isReplacement;
+  if (urgency) { urgency.disabled = isReplacement; urgency.required = !isReplacement; if (isReplacement) urgency.value = 'normal'; }
+  if (requirementsNote) requirementsNote.hidden = !isReplacement;
+  if (requirementsLegend) requirementsLegend.textContent = isReplacement ? '2. Replacement details' : '2. Blood requirements';
+  if (unitsLabel) unitsLabel.textContent = isReplacement ? 'Replacement units needed' : 'Units needed';
+  document.getElementById('requestBloodRequirementsRow')?.classList.toggle('request-single-field', isReplacement);
+  document.getElementById('requestTimingRow')?.classList.toggle('request-single-field', isReplacement);
+}
+
+document.getElementById('requestType')?.addEventListener('change', syncRequestTypeFields);
+
 function openRequestModal() {
+  if (!requestSubmissionPending) {
+    const form = document.getElementById('requestForm');
+    delete form.dataset.requestSaved;
+    const button = form.querySelector('button[type="submit"]');
+    if (button) { button.disabled = false; button.textContent = 'Submit Request'; }
+  }
+  if (typeof syncRequestTypeFields === 'function') syncRequestTypeFields();
   document.getElementById('requestModal').classList.add('active');
 }
 function closeRequestModal() {
   document.getElementById('requestModal').classList.remove('active');
   document.getElementById('requestForm').reset();
+  if (typeof syncRequestTypeFields === 'function') syncRequestTypeFields();
+  syncRequestDocumentLabel();
   document.getElementById('requestMsg').textContent = '';
   document.getElementById('requestMsg').className = 'form-msg';
 }
+
+function syncRequestDocumentLabel() {
+  const input = document.getElementById('requestSupportingDocument');
+  const name = document.getElementById('requestDocumentName');
+  const picker = document.getElementById('requestDocumentPicker');
+  if (!input || !name || !picker) return;
+
+  const selectedFile = input.files?.[0];
+  name.textContent = selectedFile?.name || 'No document attached';
+  picker.classList.toggle('has-file', Boolean(selectedFile));
+}
+
+document.getElementById('requestSupportingDocument')?.addEventListener('change', syncRequestDocumentLabel);
 
 
 function switchRequestsTab(tab) {
@@ -1827,8 +1948,20 @@ function formatTimeAgo(isoString) {
   return `${timeStr}, ${dateStr}`;
 }
 
+function getCommunityLifecycle(r) {
+  const status = String(r?.community_status || r?.status || 'active').toLowerCase();
+  const states = {
+    active: { status: 'active', label: 'Active' },
+    covered: { status: 'covered', label: 'Pledged / Covered' },
+    fulfilled: { status: 'fulfilled', label: 'Completed / Fulfilled' },
+    expired: { status: 'expired', label: 'Expired' }
+  };
+  return states[status] || states.active;
+}
+
 function renderCommunityCard(r) {
-  const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
+  const isReplacement = r.request_type === 'replacement';
+  const isUrgent = !isReplacement && (String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical');
   const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
   const units = Number(r.units_needed || 1);
   const donationPoint = escapeHtml(r.donation_point || r.hospital || 'General Hospital Blood Bank');
@@ -1836,6 +1969,17 @@ function renderCommunityCard(r) {
   const description = escapeHtml(r.notes || 'Patient requires urgent blood transfusion support.');
   const reqId = r.id;
   const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
+  const lifecycle = getCommunityLifecycle(r);
+  const communityStateBadge = '<span class="feed-status-pill ' + lifecycle.status + '" style="margin-left:0;">' + lifecycle.label + '</span>';
+  const requestTypeBadge = r.request_type === 'replacement'
+    ? '<span class="request-arrangement-text">Blood Replacement</span>'
+    : (r.request_type === 'emergency_donor'
+      ? '<span class="request-arrangement-text">Emergency Donor Assistance</span>'
+      : '');
+  const campaign = r.replacement_campaign || {};
+  const progressText = isReplacement
+    ? `${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)} donors pledged · ${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)} units confirmed`
+    : '';
 
   return `
         <article class="feed-request-card" id="feedCard-${reqId}" data-request-id="${reqId}">
@@ -1845,9 +1989,13 @@ function renderCommunityCard(r) {
                 <i class="fa-solid fa-droplet" aria-hidden="true"></i>
               </div>
               <div style="flex:1; min-width:0;">
+                <div class="request-card-heading">
                 <h4 class="feed-requester-name" style="font-size:1.02rem; font-weight:700; color:#1e293b; margin:0 0 2px;">
                   Request #${reqId}
                 </h4>
+                ${communityStateBadge}
+                </div>
+                ${requestTypeBadge}
                 <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Posted on ${postedTime}</span>
               </div>
             </div>
@@ -1860,8 +2008,10 @@ function renderCommunityCard(r) {
                   <i class="fa-solid fa-droplet"></i>
                 </div>
                 <div>
-                  <span class="feed-looking-label">LOOKING FOR</span>
-                  <h3 class="feed-blood-title">${units} bag${units > 1 ? 's' : ''} ${bloodTypeStr} blood</h3>
+                  <span class="feed-looking-label">${isReplacement ? 'REPLACEMENT DONORS NEEDED' : 'LOOKING FOR'}</span>
+                  <h3 class="feed-blood-title">${isReplacement
+                    ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
+                    : `${units} unit${units !== 1 ? 's' : ''} of ${bloodTypeStr} blood`}</h3>
                 </div>
               </div>
               ${isUrgent ? `<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>` : ''}
@@ -1873,14 +2023,15 @@ function renderCommunityCard(r) {
                 <p class="feed-info-val">${donationPoint}</p>
               </div>
               <div class="feed-info-col">
-                <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date</span>
+                <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Needed by</span>
                 <p class="feed-info-val">${timeDateDisplay}</p>
               </div>
             </div>
 
             <div class="feed-desc-section">
-              <span class="feed-desc-label">Short Description of the Problem</span>
+              <span class="feed-desc-label">Reason for request</span>
               <p class="feed-desc-text">${description}</p>
+              ${isReplacement ? `<div class="request-progress-summary"><span><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span><span><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span></div>` : ''}
             </div>
           </div>
 
@@ -1889,7 +2040,7 @@ function renderCommunityCard(r) {
       ? `<button type="button" class="btn-feed-ignore" onclick="unhideFeedCard('${reqId}')"><i class="fa-solid fa-eye"></i> Unhide</button>`
       : `<button type="button" class="btn-feed-ignore" onclick="hideFeedCard('${reqId}')">Hide</button>`
     }
-            <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">Details</button>
+            <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">View Details</button>
           </div>
         </article>
       `;
@@ -1937,19 +2088,73 @@ window.unhideFeedCard = unhideFeedCard;
 
 function openCommunityRequestDetails(reqId) {
   const req = allCommunityRequests.find(r => String(r.id) === String(reqId)) ||
-    (Array.isArray(allPatientRequests) ? allPatientRequests.find(r => String(r.id || r.request_id) === String(reqId)) : null);
+    (Array.isArray(allRequests) ? allRequests.find(r => String(r.id || r.request_id) === String(reqId)) : null);
   if (!req) return;
   selectedCommunityRequest = req;
 
   const modal = document.getElementById('communityRequestDetailModal');
   const body = document.getElementById('communityRequestDetailBody');
-  const isUrgent = String(req.urgency || '').toLowerCase() === 'urgent' || String(req.urgency || '').toLowerCase() === 'critical';
+  const isReplacement = req.request_type === 'replacement';
+  const isUrgent = !isReplacement && (String(req.urgency || '').toLowerCase() === 'urgent' || String(req.urgency || '').toLowerCase() === 'critical');
   const bloodType = escapeHtml(req.blood_type || req.blood_type_needed || 'O+');
   const units = Number(req.units_needed || req.quantity || 1);
   const hospital = escapeHtml(req.donation_point || req.hospital || req.hospital_name || 'Blood Bank Center');
   const description = escapeHtml(req.notes || req.note || 'Emergency blood transfusion required.');
   const contact = escapeHtml(req.patient_phone || 'Available via Hospital Blood Coordinator');
   const timeDateDisplay = escapeHtml(req.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
+  const lifecycle = getCommunityLifecycle(req);
+  const ownRequest = isMyOwnRequest(req);
+  const campaign = req.replacement_campaign || {};
+  const targetUnits = Number(campaign.target_units || units);
+  const pledgedUnits = Number(campaign.pledged_units || 0);
+  const confirmedUnits = Number(campaign.confirmed_units || 0);
+  const guidanceByStatus = {
+    active: ownRequest
+      ? (isReplacement
+        ? 'Your request stays active and accepts donor pledges until all required replacement units are confirmed, or you cancel it. The Blood Donation Coordinator records verified donations.'
+        : 'Your request is live on the community feed and accepting donor responses. You cannot respond to your own request.')
+      : (isReplacement
+        ? 'This replacement campaign stays active until the required units are confirmed. Tap respond below if you can help replace blood used for the patient.'
+        : 'As a registered blood donor, your donation can directly save this recipient. Tap respond below to pledge your support.'),
+    covered: isReplacement
+      ? 'The pledge target has been reached, so new responses are paused. The request remains open until the Blood Donation Coordinator confirms all replacement units.'
+      : 'Enough donors have pledged to help. This request is no longer accepting responses.',
+    fulfilled: isReplacement
+      ? 'The Blood Donation Coordinator confirmed all required replacement units. This campaign is complete.'
+      : 'The recipient confirmed that blood was received. This request is closed.',
+    expired: 'This request expired and has been archived from the community feed.'
+  };
+  const responseGuidance = guidanceByStatus[lifecycle.status];
+  const progressSummary = isReplacement
+    ? `<div class="community-detail-progress" aria-label="Replacement donation progress">
+        <div>
+          <span>Donor pledges</span>
+          <strong>${pledgedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} pledged</strong>
+        </div>
+        <div>
+          <span>Facility-confirmed donations</span>
+          <strong>${confirmedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} confirmed</strong>
+        </div>
+      </div>`
+    : '';
+  const verificationSupport = ownRequest ? req.verification_support : null;
+  const requesterVerificationLabels = {
+    uploaded_document: 'Supporting document reviewed',
+    physical_document: 'Physical document reviewed in person',
+    facility_confirmation: 'Confirmed with facility representative',
+    other: 'Other documented verification'
+  };
+  const privateSupportSummary = verificationSupport
+    ? `<section class="patient-private-support">
+        <strong><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</strong>
+        ${verificationSupport.facility_contact ? `<span>Facility contact: ${escapeHtml(verificationSupport.facility_contact)}</span>` : '<span>No facility contact provided.</span>'}
+        ${verificationSupport.verification_method ? `<span>Coordinator verification: ${escapeHtml(requesterVerificationLabels[verificationSupport.verification_method] || 'Verified')}</span>` : '<span>Coordinator verification is pending.</span>'}
+        ${verificationSupport.verification_note ? `<span>Verification note: ${escapeHtml(verificationSupport.verification_note)}</span>` : ''}
+        ${verificationSupport.storage_path
+          ? `<a id="patientRequestDocumentLink" href="#" aria-disabled="true"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> Preparing ${escapeHtml(verificationSupport.file_name || 'supporting document')}...</a>`
+          : '<span>No supporting document attached.</span>'}
+      </section>`
+    : '';
 
   body.innerHTML = `
         <div class="community-detail-info-card">
@@ -1958,13 +2163,15 @@ function openCommunityRequestDetails(reqId) {
             <span class="val" style="font-weight:700;">Request #${req.id || req.request_id}</span>
           </div>
           <div class="community-detail-item">
-            <span class="label"><i class="fa-solid fa-droplet"></i> Blood Needed</span>
-            <span class="val" style="color:var(--accent); font-size:1.1rem;">${units} Bag${units > 1 ? 's' : ''} (${bloodType})</span>
+            <span class="label"><i class="fa-solid ${isReplacement ? 'fa-rotate' : 'fa-droplet'}"></i> ${isReplacement ? 'Replacement Needed' : 'Blood Needed'}</span>
+            <span class="val" style="color:var(--accent); font-size:1.1rem;">${isReplacement
+              ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
+              : `${units} Unit${units !== 1 ? 's' : ''} (${bloodType})`}</span>
           </div>
-          <div class="community-detail-item">
+          ${isReplacement ? '' : `<div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-shield-heart"></i> Urgency</span>
             <span class="val">${isUrgent ? '<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>' : 'Standard Routine'}</span>
-          </div>
+          </div>`}
           <div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-hospital"></i> Donation Point</span>
             <span class="val">${hospital}</span>
@@ -1984,13 +2191,41 @@ function openCommunityRequestDetails(reqId) {
             ${description}
           </p>
         </div>
-        <div style="margin-top: 14px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; color: #166534; font-size: 0.86rem; display: flex; gap: 8px; align-items: flex-start;">
+        ${progressSummary}
+        ${privateSupportSummary}
+        <div class="community-response-guidance community-response-guidance--${lifecycle.status}">
           <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
-          <span>As a registered blood donor, your donation can directly save this recipient's life. Click respond below to pledge your support.</span>
+          <span>${responseGuidance}</span>
         </div>
       `;
 
+  const pledgeButton = document.getElementById('btnPledgeHelp');
+  const canRespond = !ownRequest && lifecycle.status === 'active';
+  if (pledgeButton) {
+    pledgeButton.hidden = !canRespond;
+    pledgeButton.style.display = canRespond ? '' : 'none';
+    pledgeButton.disabled = !canRespond;
+    pledgeButton.innerHTML = '<i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation';
+  }
   modal?.classList.add('active');
+  if (verificationSupport?.storage_path) preparePatientRequestDocument(verificationSupport);
+}
+
+async function preparePatientRequestDocument(support) {
+  const link = document.getElementById('patientRequestDocumentLink');
+  if (!link || typeof createRequestDocumentSignedUrl !== 'function') return;
+  const { data, error } = await createRequestDocumentSignedUrl(support.storage_path);
+  if (!document.body.contains(link)) return;
+  if (error || !data?.signedUrl) {
+    link.textContent = 'Document temporarily unavailable';
+    link.setAttribute('aria-disabled', 'true');
+    return;
+  }
+  link.href = data.signedUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.removeAttribute('aria-disabled');
+  link.innerHTML = `<i class="fa-solid fa-paperclip" aria-hidden="true"></i> View ${escapeHtml(support.file_name || 'supporting document')}`;
 }
 
 function closeCommunityRequestDetailModal() {
@@ -2001,6 +2236,14 @@ function closeCommunityRequestDetailModal() {
 function handlePledgeHelp() {
   if (!selectedCommunityRequest) return;
   const req = selectedCommunityRequest;
+  if (isMyOwnRequest(req)) {
+    showToast('You cannot respond to your own blood request.');
+    return;
+  }
+  if (getCommunityLifecycle(req).status !== 'active') {
+    showToast('This request is no longer accepting donor responses.');
+    return;
+  }
   closeCommunityRequestDetailModal();
 
   try {
@@ -2041,7 +2284,8 @@ function applyCommunityFilter() {
   if (hiddenCountEl) hiddenCountEl.textContent = ignoredCommunityIds.size;
 
   // Filter out own requests from the public community feed
-  const othersRequests = allCommunityRequests.filter(r => !isMyOwnRequest(r));
+  const liveRequests = allCommunityRequests.filter(r => ['active', 'covered'].includes(getCommunityLifecycle(r).status));
+  const othersRequests = liveRequests.filter(r => !isMyOwnRequest(r));
 
   if (activeCommunityFilter === 'hidden') {
     const hiddenList = othersRequests.filter(r => ignoredCommunityIds.has(String(r.id)));
@@ -2069,7 +2313,8 @@ function applyCommunityFilter() {
       return String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
     }
     if (activeCommunityFilter !== 'all') {
-      return normalizeBloodType(r.blood_type) === normalizeBloodType(activeCommunityFilter);
+      return r.request_type === 'replacement'
+        || normalizeBloodType(r.blood_type) === normalizeBloodType(activeCommunityFilter);
     }
     return true;
   });
@@ -2097,7 +2342,7 @@ async function loadCommunityRequests() {
       const { data } = await listCommunityBloodRequests();
       const rawList = Array.isArray(data) ? data : [];
       // Exclude user's own requests from the Community feed
-      allCommunityRequests = rawList.filter(r => !isMyOwnRequest(r));
+      allCommunityRequests = rawList.filter(r => r.verification_status === 'verified' && !isMyOwnRequest(r));
     }
   } catch (err) {
     console.warn('Failed to load community requests:', err);
@@ -2105,17 +2350,61 @@ async function loadCommunityRequests() {
   applyCommunityFilter();
 }
 
+function getRequestHeaderStatus(request, lifecycle) {
+  const operational = String(request.operational_status || request.status_raw || '').toLowerCase();
+  if (['cancelled', 'canceled'].includes(operational)) {
+    return { label: 'Cancelled', tone: 'rejected' };
+  }
+  if (['expired', 'fulfilled'].includes(lifecycle.status)) {
+    return { label: lifecycle.label, tone: lifecycle.status };
+  }
+  const verification = String(request.verification_status || 'pending').toLowerCase();
+  if (verification === 'rejected' || operational === 'rejected') {
+    return { label: 'Not approved', tone: 'rejected' };
+  }
+  if (verification === 'needs_clarification' || operational === 'needs_clarification') {
+    return { label: 'Needs clarification', tone: 'pending' };
+  }
+  if (verification !== 'verified' || operational === 'pending') {
+    return { label: 'Pending verification', tone: 'pending' };
+  }
+  return { label: lifecycle.label, tone: lifecycle.status };
+}
+
 function renderRequestCard(r) {
   const reqId = r.id;
   const bloodTypeStr = escapeHtml(r.blood_type || 'O+');
   const units = Number(r.units_needed || 1);
-  const isUrgent = String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical';
+  const isReplacement = r.request_type === 'replacement';
+  const isUrgent = !isReplacement && (String(r.urgency || '').toLowerCase() === 'urgent' || String(r.urgency || '').toLowerCase() === 'critical');
   const donationPoint = escapeHtml(r.donation_point || r.hospital || 'Blood Bank');
   const description = escapeHtml(r.notes || 'Blood transfusion support requested.');
   const postedTime = formatTimeAgo(r.created_at);
-  const status = String(r.status || 'pending');
-  const statusLabel = status === 'needs_clarification' ? 'Needs Clarification' : (status.charAt(0).toUpperCase() + status.slice(1));
-  const canEdit = status === 'pending';
+  const lifecycle = getCommunityLifecycle(r);
+  const status = lifecycle.status;
+  const headerStatus = getRequestHeaderStatus(r, lifecycle);
+  const arrangementLabel = isReplacement ? 'Blood Replacement' : (r.request_type === 'emergency_donor' ? 'Emergency Donor Assistance' : '');
+
+  const campaign = r.replacement_campaign || {};
+  const progressText = isReplacement
+    ? `${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)} donors pledged · ${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)} units confirmed`
+    : '';
+  const operationalStatus = String(r.operational_status || r.status_raw || '').toLowerCase();
+  const verificationStatus = String(r.verification_status || 'pending').toLowerCase();
+  const isClosedHistory = ['fulfilled', 'expired'].includes(status)
+    || ['cancelled', 'canceled', 'rejected', 'fulfilled'].includes(operationalStatus);
+  const canEdit = status === 'active' && r.verification_status !== 'verified';
+  const canDelete = !isClosedHistory
+    && ['pending', 'needs_clarification'].includes(operationalStatus)
+    && verificationStatus !== 'verified';
+  const canCancel = !isClosedHistory && !canDelete
+    && (operationalStatus === 'approved' || verificationStatus === 'verified')
+    && ['active', 'covered'].includes(status);
+  const hasRequestMenu = canEdit || canDelete || canCancel;
+  const canComplete = !isReplacement && (status === 'active' || status === 'covered') && !r.recipient_received_at;
+  const completionAction = canComplete
+    ? '<button type="button" class="btn-feed-received" onclick="markBloodReceived(' + Number(reqId) + ')"><i class="fa-solid fa-heart-circle-check"></i> Mark Blood Received</button>'
+    : '';
   const menuId = `myReqMenu-${reqId}`;
   const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
@@ -2127,24 +2416,26 @@ function renderRequestCard(r) {
             <i class="fa-solid fa-droplet" aria-hidden="true"></i>
           </div>
           <div style="flex:1; min-width:0;">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;">
+            <div class="request-card-heading">
               <h4 class="feed-requester-name" style="margin:0; font-size:1.02rem; font-weight:700; color:#1e293b;">
                 Request #${reqId}
               </h4>
-              <span class="feed-status-pill ${status}">${statusLabel}</span>
+              <span class="feed-status-pill ${headerStatus.tone}">${headerStatus.label}</span>
             </div>
-            <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Posted on ${postedTime}</span>
+            ${arrangementLabel ? `<span class="request-arrangement-text">${arrangementLabel}</span>` : ''}
+            <span class="feed-post-time"><i class="fa-regular fa-clock"></i> Submitted ${postedTime}</span>
           </div>
         </div>
-        <div class="my-req-menu-wrap" style="position:relative;">
+        ${hasRequestMenu ? `<div class="my-req-menu-wrap" style="position:relative;">
           <button type="button" class="feed-options-btn" onclick="toggleMyReqMenu('${reqId}')" aria-label="Options" title="Options">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
           <div class="my-req-dropdown" id="${menuId}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:140px;z-index:200;overflow:hidden;">
             ${canEdit ? `<button type="button" class="my-req-menu-item" onclick="openEditRequestModal(${reqId})" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:#1e293b;"><i class="fa-solid fa-pen-to-square" style="color:var(--accent);"></i> Edit Request</button>` : ''}
-            <button type="button" class="my-req-menu-item" onclick="openDeleteRequestModal(${reqId})" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:var(--accent, #800000);"><i class="fa-solid fa-trash"></i> Delete Request</button>
+            ${canDelete ? `<button type="button" class="my-req-menu-item" onclick="openRequestActionModal(${reqId}, 'delete')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:var(--accent, #800000);"><i class="fa-solid fa-trash"></i> Delete Request</button>` : ''}
+            ${canCancel ? `<button type="button" class="my-req-menu-item" onclick="openRequestActionModal(${reqId}, 'cancel')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 16px;background:none;border:none;cursor:pointer;font-size:0.875rem;color:var(--accent, #800000);"><i class="fa-solid fa-ban"></i> Cancel Request</button>` : ''}
           </div>
-        </div>
+        </div>` : ''}
       </div>
 
       <div class="feed-inner-box">
@@ -2154,8 +2445,10 @@ function renderRequestCard(r) {
               <i class="fa-solid fa-droplet"></i>
             </div>
             <div>
-              <span class="feed-looking-label">LOOKING FOR</span>
-              <h3 class="feed-blood-title">${units} bag${units > 1 ? 's' : ''} ${bloodTypeStr} blood</h3>
+              <span class="feed-looking-label">${isReplacement ? 'REPLACEMENT DONORS NEEDED' : 'LOOKING FOR'}</span>
+              <h3 class="feed-blood-title">${isReplacement
+                ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
+                : `${units} unit${units !== 1 ? 's' : ''} of ${bloodTypeStr} blood`}</h3>
             </div>
           </div>
           ${isUrgent ? `<span class="feed-urgent-badge"><i class="fa-solid fa-triangle-exclamation"></i> URGENT</span>` : ''}
@@ -2167,24 +2460,101 @@ function renderRequestCard(r) {
             <p class="feed-info-val">${donationPoint}</p>
           </div>
           <div class="feed-info-col">
-            <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Time &amp; Date</span>
+            <span class="feed-info-label"><i class="fa-regular fa-calendar-days"></i> Needed by</span>
             <p class="feed-info-val">${timeDateDisplay}</p>
           </div>
         </div>
 
         <div class="feed-desc-section">
-          <span class="feed-desc-label">Short Description of the Problem</span>
+          <span class="feed-desc-label">Reason for request</span>
           <p class="feed-desc-text">${description || 'No description provided.'}</p>
+          ${isReplacement ? `<div class="request-progress-summary"><span><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span><span><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span></div>` : ''}
         </div>
       </div>
 
       <div class="feed-actions-row">
-        <button type="button" class="btn-feed-ignore" onclick="hideFeedCard('${reqId}')">Hide</button>
-        <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">Details</button>
+        ${completionAction}
+        <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">View Details</button>
       </div>
     </article>
   `;
 }
+
+let pendingBloodReceipt = null;
+let bloodReceiptSaving = false;
+let bloodReceiptReturnFocus = null;
+
+function markBloodReceived(reqId) {
+  if (bloodReceiptSaving) return;
+  const request = (allRequests || []).find(r => String(r.id) === String(reqId));
+  if (!request) { showToast('Request not found. Refresh My Requests and try again.'); return; }
+  if (request.request_type === 'replacement') {
+    showToast('Replacement donations are confirmed by the coordinator using facility records.');
+    return;
+  }
+  if (request.recipient_received_at || !['active', 'covered'].includes(getCommunityLifecycle(request).status)) {
+    showToast('This request no longer accepts blood receipt confirmation.');
+    return;
+  }
+  pendingBloodReceipt = request;
+  bloodReceiptReturnFocus = document.activeElement;
+  document.getElementById('bloodReceivedRequestLabel').textContent = 'Request #' + request.id;
+  document.getElementById('bloodReceivedGuidance').textContent = request.request_type === 'replacement'
+    ? 'Your replacement request will remain open until the coordinator confirms the required replacement donations.'
+    : 'Confirming will close this community request. This cannot be undone here.';
+  document.getElementById('bloodReceivedMessage').textContent = '';
+  const dialog = document.getElementById('bloodReceivedDialog');
+  if (!dialog.open) dialog.showModal();
+  document.getElementById('cancelBloodReceived').focus();
+}
+
+function closeBloodReceivedDialog() {
+  if (bloodReceiptSaving) return;
+  document.getElementById('bloodReceivedDialog').close();
+  pendingBloodReceipt = null;
+  if (bloodReceiptReturnFocus?.isConnected) bloodReceiptReturnFocus.focus();
+}
+
+async function confirmBloodReceipt() {
+  if (bloodReceiptSaving || !pendingBloodReceipt) return;
+  const request = pendingBloodReceipt;
+  const confirm = document.getElementById('confirmBloodReceived');
+  const cancel = document.getElementById('cancelBloodReceived');
+  const message = document.getElementById('bloodReceivedMessage');
+  bloodReceiptSaving = true;
+  confirm.disabled = true;
+  cancel.disabled = true;
+  confirm.textContent = 'Savingâ€¦';
+  message.textContent = '';
+  let saved = false;
+  try {
+    const { error } = await completeMyBloodRequest(request.id);
+    if (error) throw error;
+    saved = true;
+    request.recipient_received_at = new Date().toISOString();
+    showToast(request.request_type === 'replacement'
+      ? 'Blood receipt recorded. Replacement coordination remains active.'
+      : 'Blood received â€” thank you! The community request is now closed.');
+  } catch (error) {
+    message.textContent = error?.message || 'Unable to confirm blood receipt. Please try again.';
+  } finally {
+    bloodReceiptSaving = false;
+    confirm.disabled = false;
+    cancel.disabled = false;
+    confirm.textContent = 'Confirm Blood Received';
+  }
+  if (saved) {
+    closeBloodReceivedDialog();
+    // A list refresh failure must not allow another receipt submission.
+    try { await loadRequests(); } catch (_) { showToast('Blood receipt saved. Refresh My Requests to see the update.'); }
+  }
+}
+document.getElementById('confirmBloodReceived')?.addEventListener('click', confirmBloodReceipt);
+document.getElementById('cancelBloodReceived')?.addEventListener('click', closeBloodReceivedDialog);
+document.getElementById('bloodReceivedDialog')?.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeBloodReceivedDialog();
+});
 
 function toggleMyReqMenu(reqId) {
   const menuId = `myReqMenu-${reqId}`;
@@ -2204,13 +2574,19 @@ document.addEventListener('click', (e) => {
 function openEditRequestModal(reqId) {
   const r = (allRequests || []).find(x => String(x.id) === String(reqId));
   if (!r) return;
+  const isReplacement = r.request_type === 'replacement';
   document.getElementById('editReqId').value = reqId;
+  document.getElementById('editReqType').value = r.request_type || 'emergency_donor';
   const btSel = document.getElementById('editReqBloodType');
-  if (btSel) btSel.value = r.blood_type || '';
+  if (btSel) { btSel.value = r.blood_type || ''; btSel.disabled = isReplacement; btSel.required = !isReplacement; }
+  const bloodTypeGroup = document.getElementById('editReqBloodTypeGroup');
+  if (bloodTypeGroup) bloodTypeGroup.hidden = isReplacement;
   const unitIn = document.getElementById('editReqUnits');
   if (unitIn) unitIn.value = r.units_needed || 1;
   const urgSel = document.getElementById('editReqUrgency');
-  if (urgSel) urgSel.value = r.urgency || 'normal';
+  if (urgSel) { urgSel.value = isReplacement ? 'normal' : (r.urgency || 'normal'); urgSel.disabled = isReplacement; urgSel.required = !isReplacement; }
+  const urgencyGroup = document.getElementById('editReqUrgencyGroup');
+  if (urgencyGroup) urgencyGroup.hidden = isReplacement;
   const hospIn = document.getElementById('editReqHospital');
   if (hospIn) hospIn.value = r.donation_point || r.hospital || '';
   const timeIn = document.getElementById('editReqNeededTime');
@@ -2226,17 +2602,31 @@ function closeEditRequestModal() {
   document.getElementById('editRequestModal').classList.remove('active');
 }
 
-let pendingDeleteRequestId = null;
+let pendingRequestAction = null;
 
-function openDeleteRequestModal(reqId) {
-  pendingDeleteRequestId = reqId;
+function openRequestActionModal(reqId, action) {
+  const normalizedAction = action === 'cancel' ? 'cancel' : 'delete';
+  pendingRequestAction = { requestId: reqId, action: normalizedAction };
   document.querySelectorAll('.my-req-dropdown').forEach(m => m.style.display = 'none');
+  const isCancellation = normalizedAction === 'cancel';
+  const titleIcon = document.getElementById('requestActionTitleIcon');
+  if (titleIcon) titleIcon.className = `fa-solid ${isCancellation ? 'fa-ban' : 'fa-trash'}`;
+  const title = document.getElementById('requestActionTitle');
+  if (title) title.textContent = isCancellation ? 'Cancel Blood Request' : 'Delete Blood Request';
+  const heading = document.getElementById('requestActionHeading');
+  if (heading) heading.textContent = isCancellation ? 'Cancel this request?' : 'Delete this request?';
+  const message = document.getElementById('requestActionMessage');
+  if (message) message.textContent = isCancellation
+    ? 'This stops further community responses and keeps the request in your history.'
+    : 'This permanently removes the request and cannot be undone.';
+  const confirmButton = document.getElementById('confirmDeleteReqBtn');
+  if (confirmButton) confirmButton.textContent = isCancellation ? 'Yes, cancel request' : 'Yes, delete';
   const modal = document.getElementById('deleteRequestModal');
   if (modal) modal.classList.add('active');
 }
 
 function closeDeleteRequestModal() {
-  pendingDeleteRequestId = null;
+  pendingRequestAction = null;
   const modal = document.getElementById('deleteRequestModal');
   if (modal) modal.classList.remove('active');
 }
@@ -2319,30 +2709,37 @@ function showToastWithAction(message, actionText, actionCallback) {
 const confirmDeleteReqBtn = document.getElementById('confirmDeleteReqBtn');
 if (confirmDeleteReqBtn) {
   confirmDeleteReqBtn.addEventListener('click', async () => {
-    if (!pendingDeleteRequestId) return;
-    const reqIdToDelete = pendingDeleteRequestId;
+    if (!pendingRequestAction?.requestId) return;
+    const { requestId, action } = pendingRequestAction;
+    const isCancellation = action === 'cancel';
     confirmDeleteReqBtn.disabled = true;
-    confirmDeleteReqBtn.textContent = 'Deleting...';
+    confirmDeleteReqBtn.textContent = isCancellation ? 'Cancelling...' : 'Deleting...';
     try {
-      const { error } = await deleteMyBloodRequest(reqIdToDelete);
+      const result = isCancellation
+        ? await cancelMyBloodRequest(requestId)
+        : await deleteMyBloodRequest(requestId);
+      const { error, warning } = result;
       if (error) {
-        showToast(error.message || 'Failed to delete request.', 'error');
+        showToast(error.message || `Failed to ${action} request.`, 'error');
       } else {
-        // Immediate local removal from cache
-        allRequests = (allRequests || []).filter(r => String(r.id) !== String(reqIdToDelete));
-        const cardEl = document.getElementById(`myReqCard-${reqIdToDelete}`);
-        if (cardEl) cardEl.remove();
-        applyRequestFilter();
+        if (!isCancellation) {
+          allRequests = (allRequests || []).filter(r => String(r.id) !== String(requestId));
+          document.getElementById(`myReqCard-${requestId}`)?.remove();
+          applyRequestFilter();
+        }
         closeDeleteRequestModal();
-        showToast('Blood request deleted successfully.');
+        showToast(isCancellation ? 'Blood request cancelled.' : 'Blood request deleted successfully.');
+        if (warning) showToast(warning, 'error');
         await loadRequests();
       }
     } catch (err) {
-      console.error('Delete request error:', err);
-      showToast('Network error. Failed to delete request.', 'error');
+      console.error('Request action error:', err);
+      showToast(`Network error. Failed to ${action} request.`, 'error');
     } finally {
       confirmDeleteReqBtn.disabled = false;
-      confirmDeleteReqBtn.textContent = 'Yes, delete';
+      if (pendingRequestAction) {
+        confirmDeleteReqBtn.textContent = pendingRequestAction.action === 'cancel' ? 'Yes, cancel request' : 'Yes, delete';
+      }
     }
   });
 }
@@ -2350,29 +2747,25 @@ if (confirmDeleteReqBtn) {
 window.toggleMyReqMenu = toggleMyReqMenu;
 window.openEditRequestModal = openEditRequestModal;
 window.closeEditRequestModal = closeEditRequestModal;
-window.openDeleteRequestModal = openDeleteRequestModal;
+window.openRequestActionModal = openRequestActionModal;
 window.closeDeleteRequestModal = closeDeleteRequestModal;
-window.confirmDeleteRequest = openDeleteRequestModal;
 
 function applyRequestFilter() {
   const fullList = document.getElementById('requestList');
   const emptyMsg = '<p style="text-align:center;color:var(--slate-400);padding:24px 0;">No requests for this filter yet.</p>';
 
   const filtered = (allRequests || []).filter((r) => {
-    if (activeMyFilter === 'pending') {
-      return r.status === 'pending' || r.status === 'processing';
+    if (activeMyFilter === 'active') {
+      return r.status === 'active';
     }
-    if (activeMyFilter === 'approved') {
-      return r.status === 'approved';
-    }
-    if (activeMyFilter === 'needs_clarification') {
-      return r.status === 'needs_clarification';
-    }
-    if (activeMyFilter === 'rejected') {
-      return r.status === 'rejected';
+    if (activeMyFilter === 'covered') {
+      return r.status === 'covered';
     }
     if (activeMyFilter === 'fulfilled') {
       return r.status === 'fulfilled';
+    }
+    if (activeMyFilter === 'expired') {
+      return r.status === 'expired';
     }
     return true;
   });
@@ -2408,10 +2801,7 @@ async function loadRequests() {
     allRequests = requests;
 
     const fulfilled = requests.filter(r => r.status === 'fulfilled').length;
-    const pending = requests.filter(r => r.status === 'pending' || r.status === 'processing').length;
-    const approved = requests.filter(r => r.status === 'approved').length;
-    const clarification = requests.filter(r => r.status === 'needs_clarification').length;
-    const rejected = requests.filter(r => r.status === 'rejected').length;
+    const pending = requests.filter(r => r.status === 'active').length;
 
     // Update stats on dashboard and requests section
     ['statTotalRequests', 'statTotalRequests2'].forEach(id => {
@@ -2441,6 +2831,7 @@ async function loadRequests() {
 
     // Recent 3 on dashboard
     if (dashList) dashList.innerHTML = requests.slice(0, 3).map(renderRequestCard).join('');
+    return true;
   } catch (err) {
     console.error('Failed to load requests:', err);
     const readable = err?.message ? `Failed to load requests: ${err.message}` : 'Failed to load requests. Please try again.';
@@ -2448,6 +2839,7 @@ async function loadRequests() {
     const dashList = document.getElementById('dashboardRequestList');
     if (fullList) fullList.innerHTML = `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
     if (dashList) dashList.innerHTML = `<p style="text-align:center;color:var(--accent);padding:24px 0;">${readable}</p>`;
+    return false;
   }
 }
 
@@ -2526,46 +2918,72 @@ document.querySelectorAll('#myFilterMenu .my-filter-item').forEach((btn) => {
 
 // Expose functions globally for inline HTML handlers
 window.switchRequestsTab = switchRequestsTab;
-window.ignoreFeedCard = ignoreFeedCard;
+// Hide/unhide handlers are exported alongside their definitions.
 window.openCommunityRequestDetails = openCommunityRequestDetails;
 window.closeCommunityRequestDetailModal = closeCommunityRequestDetailModal;
 window.handlePledgeHelp = handlePledgeHelp;
+window.markBloodReceived = markBloodReceived;
 window.openRequestModal = openRequestModal;
 window.closeRequestModal = closeRequestModal;
 
+
 document.getElementById('requestForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (requestSubmissionPending) return;
   const msg = document.getElementById('requestMsg');
   const form = e.target;
-  const formData = new FormData(form);
-  const body = {};
-  formData.forEach((v, k) => body[k] = v);
-
-  msg.textContent = 'Submitting request...';
-  msg.className = 'form-msg info';
-
+  const button = form.querySelector('button[type="submit"]');
+  requestSubmissionPending = true;
+  if (button) button.disabled = true;
+  let saved = form.dataset.requestSaved === 'true';
+  let submissionWarning = '';
+  let refreshTimer;
+  const slowTimer = setTimeout(() => {
+    msg.textContent = 'Still waiting for confirmation. You may close this form and check My Requests. Do not submit again while this request is pending.';
+  }, 20000);
   try {
-    const result = await createBloodRequest(body);
-    const error = result?.error;
-
-    if (error) {
-      msg.textContent = error.message || 'Failed to submit request.';
-      msg.className = 'form-msg error';
-      return;
+    if (!saved) {
+      msg.textContent = 'Submitting request...';
+      msg.className = 'form-msg info';
+      const result = await createBloodRequest(Object.fromEntries(new FormData(form)));
+      if (result?.error) throw new Error(result.error.message || 'Failed to submit request.');
+      if (!result?.data?.request_id) throw new Error('Submission not confirmed. Check My Requests before trying again.');
+      submissionWarning = String(result.warning || '');
+      saved = true;
+      form.dataset.requestSaved = 'true';
     }
-
-    const note = result?.data?.note || '';
-    if (note.includes('[Community Crowdsourced]')) {
-      msg.textContent = 'Request submitted! Nearby donors have been alerted.';
-    } else {
-      msg.textContent = 'Blood request submitted successfully!';
-    }
+    clearTimeout(slowTimer);
+    msg.textContent = 'Request saved for coordinator verification. Refreshing My Requests...';
     msg.className = 'form-msg success';
-    loadRequests();
-    setTimeout(closeRequestModal, 1800);
+    activeMyFilter = 'all';
+    document.querySelectorAll('#myFilterMenu .my-filter-item').forEach(item => {
+      item.classList.toggle('active', item.getAttribute('data-my-filter') === 'all');
+    });
+    const label = document.getElementById('selectedMyFilterText');
+    if (label) label.textContent = 'All Requests';
+    switchRequestsTab('my');
+    const loaded = await Promise.race([
+      loadRequests(),
+      new Promise((_, reject) => {
+        refreshTimer = setTimeout(() => reject(new Error('List refresh timed out.')), 20000);
+      })
+    ]);
+    if (loaded === false) throw new Error('List refresh failed.');
+    closeRequestModal();
+    if (submissionWarning) showToast(submissionWarning);
   } catch (err) {
-    msg.textContent = 'Network error. Please try again.';
+    msg.textContent = saved
+      ? 'Your request was saved, but the list could not refresh. Click Check My Requests below; do not submit a duplicate.'
+      : (err?.message || 'Submission not confirmed. Check My Requests before trying again.');
     msg.className = 'form-msg error';
+  } finally {
+    clearTimeout(slowTimer);
+    clearTimeout(refreshTimer);
+    requestSubmissionPending = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = saved ? 'Check My Requests' : 'Submit Request';
+    }
   }
 });
 
@@ -2574,6 +2992,7 @@ document.getElementById('editRequestForm').addEventListener('submit', async (e) 
   const msg = document.getElementById('editReqMsg');
   const reqId = document.getElementById('editReqId').value;
   const payload = {
+    request_type: document.getElementById('editReqType').value,
     blood_type: document.getElementById('editReqBloodType').value,
     units_needed: document.getElementById('editReqUnits').value,
     urgency: document.getElementById('editReqUrgency').value,

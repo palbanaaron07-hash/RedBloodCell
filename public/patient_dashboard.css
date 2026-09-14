@@ -2304,13 +2304,15 @@ body.desktop-sidebar-open .main {
   transform: translateY(-1.5px);
 }
 
-.feed-status-pill.pending {
+.feed-status-pill.pending,
+.feed-status-pill.active {
   background: #fffbeb;
   color: #b45309;
   border: 1px solid #fde68a;
 }
 
-.feed-status-pill.approved {
+.feed-status-pill.approved,
+.feed-status-pill.covered {
   background: #ecfdf5;
   color: #047857;
   border: 1px solid #a7f3d0;
@@ -2323,7 +2325,8 @@ body.desktop-sidebar-open .main {
 }
 
 .feed-status-pill.rejected,
-.feed-status-pill.cancelled {
+.feed-status-pill.cancelled,
+.feed-status-pill.expired {
   background: #fef2f2;
   color: #b91c1c;
   border: 1px solid #fecaca;
@@ -2431,6 +2434,29 @@ body.desktop-sidebar-open .main {
   filter: brightness(1.06);
 }
 
+.btn-feed-received {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-feed-received:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  transform: translateY(-1px);
+}
+
+.feed-actions-row > :only-child {
+  grid-column: 1 / -1;
+}
+
 /* My Requests Card & Pills */
 .my-requests-card {
   margin-top: 4px;
@@ -2502,6 +2528,88 @@ body.desktop-sidebar-open .main {
 
 .btn-pledge-help {
   background: linear-gradient(135deg, #800000 0%, #5c0000 100%) !important;
+}
+
+.btn-pledge-help[hidden] {
+  display: none !important;
+}
+
+.community-detail-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.community-detail-progress > div {
+  padding: 12px;
+  border: 1px solid #efdadd;
+  border-radius: 10px;
+  background: #fff8f8;
+}
+
+.community-detail-progress span,
+.community-detail-progress strong {
+  display: block;
+}
+
+.community-detail-progress span {
+  margin-bottom: 4px;
+  color: #7d6467;
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.community-detail-progress strong {
+  color: #800000;
+  font-size: .88rem;
+}
+
+.community-response-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: .86rem;
+  line-height: 1.5;
+}
+
+.community-response-guidance--covered {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.community-response-guidance--fulfilled,
+.community-response-guidance--expired {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.patient-private-support {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #efdadd;
+  border-radius: 10px;
+  background: #fffafa;
+  color: #60484c;
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.patient-private-support strong { display: block; margin-bottom: 3px; color: #800000; }
+.patient-private-support a { display: inline-flex; align-items: center; gap: 6px; margin-top: 9px; color: #800000; font-weight: 800; }
+.patient-private-support a[aria-disabled="true"] { color: #9a8588; pointer-events: none; }
+
+@media (max-width: 520px) {
+  .community-detail-progress {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ============================================================

@@ -11,6 +11,8 @@ alter table if exists blood_bank.donation_record add column if not exists reason
 create index if not exists idx_donation_record_status on blood_bank.donation_record(status);
 
 -- Update get_my_donation_history to return status and notes
+-- PostgreSQL cannot replace a function when its OUT-column shape changes.
+drop function if exists blood_bank.get_my_donation_history();
 create or replace function blood_bank.get_my_donation_history()
 returns table (
   donation_id bigint,

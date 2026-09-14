@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
   const { data, error } = await adminClient
     .schema('blood_bank')
     .from('blood_request')
-    .select('request_id, inventory_id, blood_type_needed, quantity, urgency_level, status, request_date, note, admin_note, patient_id, patient(first_name, middle_name, last_name, hospital_name, contact_number)')
+    .select('request_id, inventory_id, blood_type_needed, quantity, urgency_level, status, community_status, expires_at, community_fulfilled_at, request_date, note, admin_note, patient_id, request_type, verification_status, hospital_reference, recipient_received_at, patient(first_name, middle_name, last_name, hospital_name, contact_number), replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
     .order('request_date', { ascending: false })
     .limit(limit);
 

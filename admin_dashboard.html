@@ -4,9 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard - VeinDrop</title>
+  <title>Coordinator Dashboard - VeinDrop</title>
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/admin_dashboard.css?v=20260907fix" />
+  <link rel="stylesheet" href="/admin-request-details.css?v=20260913verification" />
+  <link rel="stylesheet" href="/admin-donor-filters.css?v=20260912a" />
+  <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 
@@ -24,7 +27,7 @@
       </div>
       <div class="sidebar-brand-text">
         <h2>VeinDrop</h2>
-        <small>Admin Panel</small>
+        <small>Blood Donation Coordinator</small>
       </div>
     </div>
 
@@ -77,7 +80,7 @@
       </button>
 
       <div class="header-title">
-        <h1>Admin Dashboard</h1>
+        <h1>Coordinator Dashboard</h1>
       </div>
 
       <div class="header-search">
@@ -104,13 +107,13 @@
           <button type="button" class="header-profile" id="headerProfileBtn" onclick="toggleHeaderDropdown(event)">
             <div class="header-profile-avatar">AA</div>
             <div class="header-profile-info">
-              <strong id="headerProfileName">Admin Account</strong>
+              <strong id="headerProfileName">Blood Donation Coordinator</strong>
               <i class="fa-solid fa-chevron-down" style="font-size: .7rem; margin-left: 4px; opacity: .6;"></i>
             </div>
           </button>
           <div class="header-dropdown" id="headerProfileDropdown">
             <div class="dropdown-header">
-              <strong id="dropdownFullName">Admin Account</strong>
+              <strong id="dropdownFullName">Blood Donation Coordinator</strong>
               <span id="dropdownEmail">admin@bloodconnect.com</span>
             </div>
             <div class="dropdown-divider"></div>
@@ -293,14 +296,30 @@
         <div class="panel full-width" id="donorPanel">
           <div class="panel-header">
             <h3><i class="fa-solid fa-users"></i> All Donors</h3>
-            <div class="panel-actions">
-              <button class="panel-btn active" data-donor-filter="all">All</button>
-              <button class="panel-btn" data-donor-filter="registered">Registered</button>
-              <button class="panel-btn" data-donor-filter="checked_in">Checked-in</button>
-              <button class="panel-btn" data-donor-filter="donated">Donated</button>
-              <button class="panel-btn" data-donor-filter="deferred">Deferred</button>
+            <div class="panel-actions donor-filters">
+              <label>Status
+                <select id="donorStatusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="registered">Registered</option>
+                  <option value="checked_in">Checked-in</option>
+                  <option value="approved">Approved (Medical)</option>
+                  <option value="donated">Donated</option>
+                  <option value="deferred">Deferred</option>
+                </select>
+              </label>
+              <label>Blood type
+                <select id="donorBloodTypeFilter">
+                  <option value="all">All blood types</option>
+                  <option>A+</option><option>A-</option>
+                  <option>B+</option><option>B-</option>
+                  <option>AB+</option><option>AB-</option>
+                  <option>O+</option><option>O-</option>
+                </select>
+              </label>
+              <button type="button" class="panel-btn" id="clearDonorFilters" disabled>Clear filters</button>
             </div>
           </div>
+          <p id="donorFilterSummary" class="donor-filter-summary" role="status" aria-live="polite"></p>
           <div class="table-wrap">
             <table class="data-table" id="donorTable">
               <thead>
@@ -311,7 +330,7 @@
                   <th>Status</th>
                   <th>Map</th>
                   <th>Last Donated</th>
-                  <th>Next Eligible</th>
+                  <th title="Based on the recorded donation date; medical screening is still required.">Donation Interval</th>
                   <th>Registered</th>
                   <th>Action</th>
                 </tr>
@@ -861,16 +880,16 @@
             <div id="profileMapEligibilityHint" style="margin-bottom: 10px;"></div>
             <div class="form-row">
               <div class="form-group">
-                <label>Location Status</label>
-                <select id="profileLocationStatus">
+                <label for="profileLocationStatus">Location Verification</label>
+                <select id="profileLocationStatus" aria-describedby="locationVerificationHelp">
                   <option value="needs_review">Needs review</option>
                   <option value="verified">Verified</option>
-                  <option value="missing">Missing</option>
-                  <option value="hidden">Hidden</option>
+                  <option value="missing" disabled hidden>Location missing</option>
                 </select>
+                <small id="locationVerificationHelp">Confirm the area before verifying. Map visibility is controlled separately.</small>
               </div>
               <div class="form-group">
-                <label>Map Area</label>
+                <label for="profileMapArea">Map Area</label>
                 <input type="text" id="profileMapArea" placeholder="e.g. Tagbilaran City" />
               </div>
             </div>
@@ -1099,7 +1118,7 @@
     <div class="modal-overlay" id="requestStatusModal">
       <div class="modal" style="width:560px;">
         <div class="modal-header">
-          <h3><i class="fa-solid fa-arrow-right-arrow-left"></i> Change Request Status</h3>
+          <h3><i class="fa-solid fa-shield-heart"></i> <span id="requestStatusModalTitle">Change Request Status</span></h3>
           <button class="modal-close" onclick="closeRequestStatusModal()">&times;</button>
         </div>
         <form id="requestStatusForm" class="modal-body">
@@ -1109,23 +1128,24 @@
               <div class="auto-id-display" id="requestStatusRequestId">Auto-generated</div>
             </div>
             <div class="form-group">
-              <label>Transition</label>
+              <label id="requestStatusTransitionLabel">Transition</label>
               <input type="text" id="requestStatusTransition" readonly />
             </div>
           </div>
           <div class="form-group">
-            <label>Reason <span class="req">*</span></label>
+            <label><span id="requestStatusReasonLabel">Reason</span> <span class="req">*</span></label>
             <select id="requestStatusReason" required>
               <option value="">Select a reason</option>
             </select>
+            <small id="requestStatusReasonHelp"></small>
           </div>
           <div class="form-group">
-            <label>Admin Note (optional)</label>
+            <label id="requestStatusNoteLabel" for="requestStatusNote">Admin note (optional)</label>
             <textarea id="requestStatusNote" rows="3" placeholder="Optional note for this status change..."></textarea>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestStatusModal()">Cancel</button>
-            <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Confirm Change</button>
+            <button type="submit" class="btn-submit" id="requestStatusSubmit"><i class="fa-solid fa-check"></i> Confirm Change</button>
           </div>
           <div id="requestStatusMsg" class="form-msg"></div>
         </form>
@@ -1186,7 +1206,64 @@
       </div>
     </div>
 
+    <!-- ===== NOTIFY ELIGIBLE DONORS MODAL ===== -->
+    <div class="modal-overlay" id="mobilizeDonorsModal" style="z-index: 285;">
+      <div class="modal" style="width:760px;max-width:94vw;">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-bell"></i> Notify Eligible Donors</h3>
+          <button class="modal-close" onclick="closeMobilizeDonorsModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:22px;">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+            <div><strong id="mobilizeRecipientName">Recipient</strong><div id="mobilizeLocationText" style="color:#64748b;font-size:.82rem;"></div></div>
+            <div style="margin-left:auto;text-align:right;"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span><div id="mobilizeQuantityText" style="font-size:.82rem;margin-top:5px;"></div></div>
+          </div>
+          <p id="mobilizeCompatibilityText" style="font-size:.84rem;color:#475569;margin-bottom:10px;"></p>
+          <p style="font-size:.82rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+            Only in-app alerts will be created. SMS and email delivery are not enabled. Final donor screening and compatibility remain with the authorized blood facility.
+          </p>
+          <div style="font-size:.84rem;margin-bottom:8px;"><strong id="mobilizeMatchCount">0</strong> eligible donor(s) found</div>
+          <div style="overflow:auto;max-height:300px;">
+            <table class="data-table" style="width:100%;">
+              <thead><tr><th>Donor</th><th>Blood Type</th><th>Area</th><th>Contact</th><th>Eligibility</th></tr></thead>
+              <tbody id="mobilizeDonorsTableBody"></tbody>
+            </table>
+          </div>
+          <div id="mobilizeMsg" class="form-msg" style="margin-top:12px;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeMobilizeDonorsModal()">Cancel</button>
+          <button type="button" class="btn-submit" id="btnBroadcastAppeal" onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== ADMIN REQUEST DETAIL MODAL ===== -->
+    <div class="modal-overlay" id="replacementDonationModal" style="z-index: 310;">
+      <div class="modal replacement-donation-modal" role="dialog" aria-modal="true" aria-labelledby="replacementDonationTitle">
+        <div class="modal-header">
+          <h3 id="replacementDonationTitle"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</h3>
+          <button type="button" class="modal-close" onclick="closeReplacementDonationModal()" aria-label="Close">&times;</button>
+        </div>
+        <form id="replacementDonationForm" class="modal-body">
+          <input type="hidden" id="replacementDonationRequestId" />
+          <p class="replacement-form-guidance">Record only donations confirmed by the receiving facility. App registration is not required for external donors.</p>
+          <div class="replacement-progress" id="replacementDonationProgress"></div>
+          <div class="form-row">
+            <div class="form-group"><label for="replacementUnits">Units confirmed <span class="req">*</span></label><input type="number" id="replacementUnits" min="1" value="1" required /></div>
+            <div class="form-group"><label for="replacementDate">Donation date <span class="req">*</span></label><input type="date" id="replacementDate" required /></div>
+          </div>
+          <div class="form-group"><label for="replacementFacility">Receiving facility / blood drive <span class="req">*</span></label><input type="text" id="replacementFacility" maxlength="180" required placeholder="Facility that accepted the donation" /></div>
+          <div class="form-group"><label for="replacementReference">Facility confirmation reference <span class="req">*</span></label><input type="text" id="replacementReference" maxlength="120" required placeholder="Donation slip or facility reference number" /></div>
+          <div class="form-group"><label for="replacementDonorSource">Donor source <span class="req">*</span></label><select id="replacementDonorSource" required><option value="external">External donor (not registered in app)</option><option value="app">Registered app donor</option></select></div>
+          <div class="form-group" id="replacementAppDonorGroup" hidden><label for="replacementAppDonor">App donor <span class="req">*</span></label><select id="replacementAppDonor"><option value="">Select donor</option></select></div>
+          <div class="form-group"><label for="replacementNote">Coordinator note <span class="auto-field-label">Optional</span></label><textarea id="replacementNote" rows="2" maxlength="500" placeholder="Internal coordination note"></textarea></div>
+          <div id="replacementDonationMsg" class="form-msg" role="status" aria-live="polite"></div>
+          <div class="modal-footer"><button type="button" class="btn-cancel" onclick="closeReplacementDonationModal()">Cancel</button><button type="submit" class="btn-submit" id="saveReplacementDonation"><i class="fa-solid fa-check"></i> Record Confirmed Donation</button></div>
+        </form>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="adminRequestDetailModal" style="z-index: 280;">
       <div class="modal" style="width: 560px; max-width: 94vw;">
         <div class="modal-header">
@@ -1215,8 +1292,8 @@
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="/supabase-client.js?v=20260906h"></script>
-  <script src="/scripts/pages/admin-dashboard.js?v=20260906h"></script>
+  <script src="/supabase-client.js?v=20260914replacementfields"></script>
+  <script src="/scripts/pages/admin-dashboard.js?v=20260914replacementfields"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

@@ -1,0 +1,50 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const start = source.indexOf('let pendingBloodReceipt');
+const code = source.slice(start, source.indexOf('function toggleMyReqMenu', start));
+const nodes = Object.fromEntries(['bloodReceivedDialog', 'bloodReceivedRequestLabel', 'bloodReceivedGuidance', 'bloodReceivedMessage', 'cancelBloodReceived', 'confirmBloodReceived'].map(id => [id, { addEventListener() {}, focus() {} }]));
+nodes.bloodReceivedDialog.showModal = () => { nodes.bloodReceivedDialog.open = true; };
+nodes.bloodReceivedDialog.close = () => { nodes.bloodReceivedDialog.open = false; };
+let calls = 0, resolve;
+const request = { id: 9, request_type: 'replacement', status: 'active' };
+const context = vm.createContext({
+  allRequests: [request], document: { getElementById: id => nodes[id], activeElement: null },
+  getCommunityLifecycle: r => ({ status: r.status }), showToast() {}, loadRequests: async () => {},
+  completeMyBloodRequest: () => { calls++; return new Promise(done => { resolve = done; }); }
+});
+vm.runInContext(code, context);
+context.markBloodReceived(9);
+assert.equal(nodes.bloodReceivedDialog.open, undefined);
+assert.equal(calls, 0);
+request.request_type = 'emergency_donor';
+context.markBloodReceived(9);
+assert.equal(nodes.bloodReceivedDialog.open, true);
+assert.match(nodes.bloodReceivedGuidance.textContent, /close this community request/);
+context.closeBloodReceivedDialog();
+assert.equal(calls, 0);
+request.request_type = 'emergency_donor';
+context.markBloodReceived(9);
+const saving = context.confirmBloodReceipt();
+await context.confirmBloodReceipt();
+context.closeBloodReceivedDialog();
+assert.equal(calls, 1);
+assert.equal(nodes.bloodReceivedDialog.open, true);
+assert.equal(nodes.confirmBloodReceived.disabled, true);
+resolve({ error: { message: 'Test save error' } });
+await saving;
+assert.match(nodes.bloodReceivedMessage.textContent, /Test save error/);
+assert.equal(nodes.confirmBloodReceived.disabled, false);
+const retry = context.confirmBloodReceipt();
+resolve({ error: null });
+await retry;
+assert.equal(nodes.bloodReceivedDialog.open, false);
+assert.ok(request.recipient_received_at);
+context.markBloodReceived(9);
+assert.equal(nodes.bloodReceivedDialog.open, false);
+request.recipient_received_at = null;
+context.markBloodReceived(9);
+assert.match(nodes.bloodReceivedGuidance.textContent, /close this community request/);
+assert.doesNotMatch(code, /window\.confirm/);
+console.log('Blood receipt dialog regression checks passed.');

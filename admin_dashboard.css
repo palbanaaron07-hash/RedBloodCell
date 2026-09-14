@@ -1838,11 +1838,6 @@ img {
   position: relative;
 }
 
-.request-card-menu-open,
-.request-card:has(.request-action-dropdown.active) {
-  z-index: 50;
-}
-
 .request-card:hover {
   border-color: var(--blood-blush);
   box-shadow: var(--shadow-sm);
@@ -1915,95 +1910,6 @@ img {
   justify-content: flex-end;
   flex-wrap: wrap;
   max-width: 360px;
-}
-
-.request-action-dropdown {
-  position: relative;
-}
-
-.request-action-toggle {
-  border: 1px solid var(--gray-200);
-  background: #fff;
-  color: var(--gray-700);
-  width: 42px;
-  height: 30px;
-  padding: 0;
-  border-radius: 4px;
-  font-size: .69rem;
-  font-weight: 700;
-  transition: all var(--transition);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.request-action-toggle:hover {
-  border-color: var(--blood-rich);
-  color: var(--blood-rich);
-  background: var(--blood-mist);
-}
-
-.request-action-toggle i {
-  font-size: .58rem;
-  transition: transform var(--transition);
-}
-
-.request-action-dropdown.active .request-action-toggle i {
-  transform: rotate(180deg);
-}
-
-.request-action-toggle:disabled {
-  opacity: .4;
-  cursor: not-allowed;
-}
-
-.request-no-transitions {
-  color: var(--gray-400);
-  font-size: .69rem;
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: right;
-}
-
-.request-action-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  min-width: 176px;
-  padding: 6px;
-  border: 1px solid var(--gray-100);
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: var(--shadow-md);
-}
-
-.request-action-dropdown.active .request-action-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.request-action-menu-item {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--gray-700);
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: .72rem;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.request-action-menu-item:hover {
-  color: var(--blood-rich);
-  background: var(--blood-mist);
 }
 
 /* ============================================================
