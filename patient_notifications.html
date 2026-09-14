@@ -34,7 +34,7 @@
         <h2>All Notifications</h2>
         <p>Your latest activity and important updates</p>
       </div>
-      <span class="unread-count" id="unreadCount"><i class="fa-solid fa-circle" aria-hidden="true"></i> 2 unread</span>
+      <span class="unread-count" id="unreadCount"><i class="fa-solid fa-circle" aria-hidden="true"></i> 0 unread</span>
     </div>
 
     <div class="notification-controls" aria-label="Notification controls">
@@ -50,31 +50,7 @@
 
     <section class="notification-group" aria-labelledby="todayHeading">
       <h3 id="todayHeading">Today</h3>
-      <div class="full-notification-list">
-        <article class="full-notification unread" data-id="request-updated" data-target="patient_dashboard.html#section-requests" tabindex="0" role="link">
-          <div class="notification-icon warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div>
-          <div class="notification-content">
-            <div class="notification-title-row">
-              <h4>Request updated</h4>
-              <time datetime="2026-08-12T10:30">10:30 AM</time>
-            </div>
-            <p>Your blood request is now under review.</p>
-          </div>
-          <span class="unread-dot" aria-label="Unread"></span>
-        </article>
-
-        <article class="full-notification unread" data-id="new-message" data-target="patient_dashboard.html#section-requests" tabindex="0" role="link">
-          <div class="notification-icon message"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></div>
-          <div class="notification-content">
-            <div class="notification-title-row">
-              <h4>New message</h4>
-              <time datetime="2026-08-12T09:15">9:15 AM</time>
-            </div>
-            <p>A donor replied to your request chat.</p>
-          </div>
-          <span class="unread-dot" aria-label="Unread"></span>
-        </article>
-
+      <div class="full-notification-list" id="todayNotificationList">
         <article class="full-notification" data-id="match-found" data-target="patient_donor_map.html" tabindex="0" role="link">
           <div class="notification-icon match"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i></div>
           <div class="notification-content">
@@ -90,7 +66,7 @@
 
     <section class="notification-group" aria-labelledby="earlierHeading">
       <h3 id="earlierHeading">Earlier</h3>
-      <div class="full-notification-list">
+      <div class="full-notification-list" id="earlierNotificationList">
         <article class="full-notification" data-id="request-approved" data-target="patient_dashboard.html#section-requests" tabindex="0" role="link">
           <div class="notification-icon approved"><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
           <div class="notification-content">
@@ -148,7 +124,9 @@
     <button type="button" id="undoDelete">Undo</button>
   </div>
 
-  <script src="/patient_notifications.js?v=20260812f"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js?v=20260914notifications"></script>
+  <script src="/patient_notifications.js?v=20260914notifications"></script>
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>
 

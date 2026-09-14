@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   const { data, error } = await adminClient
     .schema('blood_bank')
     .from('donor')
-    .select('donor_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at, show_on_map, location_status, map_area')
+    .select('donor_id, auth_user_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at, show_on_map, location_status, map_area')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
     })
     .map((row) => ({
     id: row.donor_id,
+    auth_user_id: row.auth_user_id,
     first_name: row.first_name,
     middle_name: row.middle_name,
     last_name: row.last_name,

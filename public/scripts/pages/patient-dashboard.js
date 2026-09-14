@@ -2104,6 +2104,13 @@ function openCommunityRequestDetails(reqId) {
   const timeDateDisplay = escapeHtml(req.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
   const lifecycle = getCommunityLifecycle(req);
   const ownRequest = isMyOwnRequest(req);
+  const donor = donorDashboardData?.donor || currentProfile?.donor_profile || null;
+  const donorEligibility = getDonorRequestEligibility(donor);
+  const donorBloodType = String(donor?.blood_type || '').trim().toUpperCase().replace(/\s+/g, '');
+  const requestedBloodType = String(req.blood_type || req.blood_type_needed || '').trim().toUpperCase().replace(/\s+/g, '');
+  const bloodCompatible = isReplacement || Boolean(
+    donorBloodType && requestedBloodType && receiveFrom[requestedBloodType]?.includes(donorBloodType)
+  );
   const campaign = req.replacement_campaign || {};
   const targetUnits = Number(campaign.target_units || units);
   const pledgedUnits = Number(campaign.pledged_units || 0);
@@ -2124,7 +2131,14 @@ function openCommunityRequestDetails(reqId) {
       : 'The recipient confirmed that blood was received. This request is closed.',
     expired: 'This request expired and has been archived from the community feed.'
   };
-  const responseGuidance = guidanceByStatus[lifecycle.status];
+  let responseGuidance = guidanceByStatus[lifecycle.status];
+  if (!ownRequest && lifecycle.status === 'active' && !donor?.donor_id) {
+    responseGuidance = 'Enable Donor View and complete your donor profile before responding.';
+  } else if (!ownRequest && lifecycle.status === 'active' && !donorEligibility.eligible) {
+    responseGuidance = donorEligibility.reason;
+  } else if (!ownRequest && lifecycle.status === 'active' && !bloodCompatible) {
+    responseGuidance = `Your ${donorBloodType || 'registered'} blood type cannot donate red cells to a ${requestedBloodType} recipient.`;
+  }
   const progressSummary = isReplacement
     ? `<div class="community-detail-progress" aria-label="Replacement donation progress">
         <div>
@@ -2200,7 +2214,11 @@ function openCommunityRequestDetails(reqId) {
       `;
 
   const pledgeButton = document.getElementById('btnPledgeHelp');
-  const canRespond = !ownRequest && lifecycle.status === 'active';
+  const canRespond = !ownRequest
+    && lifecycle.status === 'active'
+    && Boolean(donor?.donor_id)
+    && donorEligibility.eligible
+    && bloodCompatible;
   if (pledgeButton) {
     pledgeButton.hidden = !canRespond;
     pledgeButton.style.display = canRespond ? '' : 'none';

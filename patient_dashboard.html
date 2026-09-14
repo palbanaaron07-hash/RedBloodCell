@@ -111,25 +111,9 @@
           <div class="notification-panel" id="notificationPanel" role="menu" aria-label="Notifications">
             <div class="notification-head">
               <strong>Notifications</strong>
-              <span id="notificationPreviewCount">2 new</span>
+              <span id="notificationPreviewCount">0 new</span>
             </div>
             <div class="notification-list">
-              <a class="notification-item unread" data-notification-id="request-updated"
-                href="patient_dashboard.html#section-requests">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <div>
-                  <strong>Request updated</strong>
-                  <p>Your blood request is now under review.</p>
-                </div>
-              </a>
-              <a class="notification-item unread" data-notification-id="new-message"
-                href="patient_dashboard.html#section-requests">
-                <i class="fa-solid fa-comment-dots"></i>
-                <div>
-                  <strong>New message</strong>
-                  <p>A donor replied to your request chat.</p>
-                </div>
-              </a>
               <a class="notification-item" data-notification-id="match-found" href="patient_donor_map.html">
                 <i class="fa-solid fa-heart-pulse"></i>
                 <div>
@@ -1040,9 +1024,9 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260914replacementfields"></script>
+  <script src="/supabase-client.js?v=20260914notifications"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/patient-dashboard.js?v=20260914replacementfields"></script>
+  <script src="/scripts/pages/patient-dashboard.js?v=20260914notifications"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 

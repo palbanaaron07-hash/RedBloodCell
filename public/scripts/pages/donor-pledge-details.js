@@ -80,11 +80,11 @@ async function loadRequestAndDonorData() {
 
   // 5. Try to load logged in profile
   try {
-    if (typeof getCurrentUserProfile === 'function') {
-      const { profile } = await getCurrentUserProfile();
+    if (typeof getCurrentUser === 'function') {
+      const { profile } = await getCurrentUser();
       if (profile) {
-        currentDonor = profile;
-        prefillDonorForm(profile);
+        currentDonor = profile.donor_profile || profile;
+        prefillDonorForm(currentDonor);
       }
     }
   } catch (e) {
@@ -150,7 +150,31 @@ function prefillDonorForm(profile) {
 
   if (bloodInput && profile.blood_type) {
     bloodInput.value = profile.blood_type;
+    bloodInput.disabled = true;
+    bloodInput.title = 'Blood type is taken from your verified donor profile.';
   }
+}
+
+const compatibleDonorsByRecipient = {
+  'A+': ['A+', 'A-', 'O+', 'O-'],
+  'A-': ['A-', 'O-'],
+  'B+': ['B+', 'B-', 'O+', 'O-'],
+  'B-': ['B-', 'O-'],
+  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  'AB-': ['A-', 'B-', 'AB-', 'O-'],
+  'O+': ['O+', 'O-'],
+  'O-': ['O-']
+};
+
+function normalizePledgeBloodType(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function donorCanServeRequest(donor, request) {
+  if (String(request?.request_type || '').toLowerCase() === 'replacement') return true;
+  const donorType = normalizePledgeBloodType(donor?.blood_type);
+  const recipientType = normalizePledgeBloodType(request?.blood_type || request?.blood_type_needed);
+  return Boolean(donorType && compatibleDonorsByRecipient[recipientType]?.includes(donorType));
 }
 
 /**
@@ -246,6 +270,17 @@ function updatePassPerksList() {
  */
 async function handleConfirmPledge(event) {
   event.preventDefault();
+
+  if (!currentDonor?.donor_id) {
+    showToast('A registered donor profile is required before you can pledge.');
+    return;
+  }
+  if (!donorCanServeRequest(currentDonor, currentRequest)) {
+    const donorType = normalizePledgeBloodType(currentDonor.blood_type) || 'Your blood type';
+    const neededType = normalizePledgeBloodType(currentRequest?.blood_type || currentRequest?.blood_type_needed) || 'the requested type';
+    showToast(`${donorType} blood is not compatible with this ${neededType} request.`);
+    return;
+  }
 
   // 1. Verify eligibility checkboxes
   const eligibilityInputs = document.querySelectorAll('.eligibility-input');

@@ -2306,15 +2306,47 @@ ${isReplacement ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statu
   }).join('');
 }
 
-function isDonorEligibleForAppeal(donor, neededType) {
-  const sameRequestedType = normalizeBloodType(donor?.blood_type) === normalizeBloodType(neededType);
+const COMPATIBLE_DONOR_TYPES = {
+  'A+': ['A+', 'A-', 'O+', 'O-'],
+  'A-': ['A-', 'O-'],
+  'B+': ['B+', 'B-', 'O+', 'O-'],
+  'B-': ['B-', 'O-'],
+  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  'AB-': ['A-', 'B-', 'AB-', 'O-'],
+  'O+': ['O+', 'O-'],
+  'O-': ['O-']
+};
+
+function canDonateBloodTo(donorType, recipientType) {
+  const acceptedTypes = COMPATIBLE_DONOR_TYPES[normalizeBloodType(recipientType)] || [];
+  return acceptedTypes.includes(normalizeBloodType(donorType));
+}
+
+function isDonorEligibleForAppeal(donor, neededType, requestType) {
+  const typeMatches = requestType === 'replacement' || canDonateBloodTo(donor?.blood_type, neededType);
   const availability = String(donor?.availability_status || '').toLowerCase();
   const lifecycle = String(donor?.donor_status || 'registered').toLowerCase();
   const waitingPeriodPassed = isEligibleToCheckIn(donor).eligible;
-  return sameRequestedType
+  return typeMatches
     && availability === 'available'
     && ['approved', 'donated'].includes(lifecycle)
     && waitingPeriodPassed;
+}
+
+function isDonorTheRequester(donor, patient) {
+  if (!donor || !patient) return false;
+
+  const donorUserId = String(donor.auth_user_id || '').trim();
+  const patientUserId = String(patient.auth_user_id || '').trim();
+  if (donorUserId && patientUserId && donorUserId === patientUserId) return true;
+
+  const donorEmail = String(donor.email || '').trim().toLowerCase();
+  const patientEmail = String(patient.email || '').trim().toLowerCase();
+  if (donorEmail && patientEmail && donorEmail === patientEmail) return true;
+
+  const donorPhone = String(donor.phone || donor.contact_number || '').replace(/\D/g, '');
+  const patientPhone = String(patient.contact_number || patient.phone || '').replace(/\D/g, '');
+  return donorPhone.length >= 7 && patientPhone.length >= 7 && donorPhone === patientPhone;
 }
 
 let activeMobilizeRequestId = null;
@@ -2332,6 +2364,7 @@ function openMobilizeDonorsModal(requestId) {
   const hospital = patient?.hospital_name || 'Partner Health Facility';
   const patientArea = patient?.address || patient?.map_area || 'Bohol';
   const neededType = normalizeBloodType(request.blood_type_needed || 'O+');
+  const requestType = String(request.request_type || 'emergency_donor').toLowerCase();
   const quantity = Number(request.quantity || 1);
 
   document.getElementById('mobilizeRecipientName').textContent = patientName;
@@ -2339,12 +2372,18 @@ function openMobilizeDonorsModal(requestId) {
   document.getElementById('mobilizeBloodTypeBadge').textContent = neededType;
   document.getElementById('mobilizeQuantityText').textContent = `${quantity} Unit(s) Needed`;
 
-  const compatibleTypes = [neededType];
-  document.getElementById('mobilizeCompatibilityText').textContent = `Requested donor type: ${compatibleTypes.join(', ')}. Final eligibility is determined by the authorized facility.`;
+  const compatibleTypes = requestType === 'replacement'
+    ? Object.keys(COMPATIBLE_DONOR_TYPES)
+    : (COMPATIBLE_DONOR_TYPES[neededType] || []);
+  document.getElementById('mobilizeCompatibilityText').textContent = requestType === 'replacement'
+    ? 'Replacement request: any eligible blood type may respond. Final eligibility is determined by the authorized facility.'
+    : `Compatible donor types for ${neededType}: ${compatibleTypes.join(', ')}. Final eligibility is determined by the authorized facility.`;
 
   // Filter matching donors from donorCache
   const donors = Array.isArray(donorCache) ? donorCache : [];
-  const matchingDonors = donors.filter((d) => isDonorEligibleForAppeal(d, neededType));
+  const matchingDonors = donors.filter((d) => (
+    isDonorEligibleForAppeal(d, neededType, requestType) && !isDonorTheRequester(d, patient)
+  ));
 
   document.getElementById('mobilizeMatchCount').textContent = matchingDonors.length;
   const tbody = document.getElementById('mobilizeDonorsTableBody');

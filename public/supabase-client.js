@@ -1437,13 +1437,13 @@ async function listDonors() {
   try {
     let { data, error } = await bloodBank()
       .from('donor')
-      .select('donor_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at, show_on_map, location_status, map_area')
+      .select('donor_id, auth_user_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at, show_on_map, location_status, map_area')
       .order('created_at', { ascending: false });
 
     if (error && String(error.message || '').toLowerCase().includes('show_on_map')) {
       const fallback = await bloodBank()
         .from('donor')
-        .select('donor_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at')
+        .select('donor_id, auth_user_id, first_name, middle_name, last_name, email, contact_number, blood_type, gender, date_of_birth, address, availability_status, donor_status, last_donation_date, created_at')
         .order('created_at', { ascending: false });
       data = fallback.data;
       error = fallback.error;
@@ -1464,6 +1464,7 @@ async function listDonors() {
       })
       .map((row) => ({
         id: row.donor_id,
+        auth_user_id: row.auth_user_id,
         first_name: row.first_name,
         middle_name: row.middle_name,
         last_name: row.last_name,
@@ -2761,12 +2762,16 @@ async function listMyNotifications(limit = 20) {
 }
 
 async function markMyNotificationRead(notificationId) {
+  return setMyNotificationReadState(notificationId, true);
+}
+
+async function setMyNotificationReadState(notificationId, isRead) {
   if (!SUPABASE_CONFIGURED) return configError();
   const id = Number(notificationId);
   if (!Number.isInteger(id) || id <= 0) return { data: null, error: { message: 'Invalid notification.' } };
   const { data, error } = await bloodBank()
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: isRead ? new Date().toISOString() : null })
     .eq('notification_id', id)
     .select('notification_id, read_at')
     .maybeSingle();
@@ -3034,7 +3039,7 @@ async function getOverviewRecentRequests(limit = 100) {
     // 1. Direct PostgREST query with patient relation join
     const { data, error } = await bloodBank()
       .from('blood_request')
-      .select('*, patient(first_name, middle_name, last_name, hospital_name, contact_number, address), replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
+      .select('*, patient(auth_user_id, first_name, middle_name, last_name, email, hospital_name, contact_number, address), replacement_campaign(target_units, pledged_units, confirmed_units, status, confirmation_reference)')
       .order('request_date', { ascending: false })
       .limit(limit);
 

@@ -1,5 +1,68 @@
-(() => {
+(async () => {
   const STORAGE_KEY = 'veindropPatientNotificationState';
+  const todayList = document.getElementById('todayNotificationList');
+  const earlierList = document.getElementById('earlierNotificationList');
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+  }
+
+  function getNotificationPresentation(type) {
+    if (type === 'donor_appeal') return { icon: 'fa-bell', style: 'warning' };
+    if (type === 'pledge_received') return { icon: 'fa-hand-holding-heart', style: 'match' };
+    if (type === 'request_updated') return { icon: 'fa-file-circle-check', style: 'info' };
+    return { icon: 'fa-bell', style: 'info' };
+  }
+
+  function formatNotificationTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  async function renderDatabaseNotifications() {
+    if (typeof listMyNotifications !== 'function') return;
+    const { data, error } = await listMyNotifications(50);
+    if (error) {
+      console.warn('Unable to load in-app notifications:', error);
+      return;
+    }
+
+    (data || []).slice().reverse().forEach((notification) => {
+      const createdAt = new Date(notification.created_at);
+      const isToday = !Number.isNaN(createdAt.getTime()) && createdAt.toDateString() === new Date().toDateString();
+      const list = isToday ? todayList : earlierList;
+      if (!list) return;
+
+      const presentation = getNotificationPresentation(notification.notification_type);
+      const item = document.createElement('article');
+      item.className = `full-notification${notification.read_at ? '' : ' unread'}`;
+      item.dataset.id = `db-${notification.notification_id}`;
+      item.dataset.databaseId = String(notification.notification_id);
+      item.dataset.target = 'patient_dashboard.html#section-requests';
+      item.tabIndex = 0;
+      item.setAttribute('role', 'link');
+      item.innerHTML = `
+        <div class="notification-icon ${presentation.style}"><i class="fa-solid ${presentation.icon}" aria-hidden="true"></i></div>
+        <div class="notification-content">
+          <div class="notification-title-row">
+            <h4>${escapeHtml(notification.title || 'Notification')}</h4>
+            <time datetime="${escapeHtml(notification.created_at || '')}">${escapeHtml(formatNotificationTime(notification.created_at))}</time>
+          </div>
+          <p>${escapeHtml(notification.message || '')}</p>
+        </div>
+        ${notification.read_at ? '' : '<span class="unread-dot" aria-label="Unread"></span>'}`;
+      list.prepend(item);
+    });
+  }
+
+  await renderDatabaseNotifications();
   const notifications = [...document.querySelectorAll('.full-notification')];
   const unreadCount = document.getElementById('unreadCount');
   const markAllButton = document.getElementById('markAllRead');
@@ -27,7 +90,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  function setRead(item, isRead) {
+  function setRead(item, isRead, persist = true) {
     const id = item.dataset.id;
     state.read = isRead
       ? [...new Set([...state.read, id])]
@@ -52,6 +115,9 @@
     }
     saveState();
     updateView();
+    if (persist && item.dataset.databaseId && typeof setMyNotificationReadState === 'function') {
+      setMyNotificationReadState(item.dataset.databaseId, isRead).catch(() => {});
+    }
   }
 
   function addActions(item) {
@@ -68,7 +134,7 @@
         </button>
       </div>`;
     item.appendChild(actions);
-    setRead(item, state.read.includes(item.dataset.id) || !item.classList.contains('unread'));
+    setRead(item, state.read.includes(item.dataset.id) || !item.classList.contains('unread'), false);
   }
 
   function closeMenus() {
