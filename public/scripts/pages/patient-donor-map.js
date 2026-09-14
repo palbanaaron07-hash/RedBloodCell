@@ -84,11 +84,13 @@ const HOSPITALS = [
 let map;
 let profile = null;
 let donorMarkers = [];
+let donorAreaSummaryMarkers = [];
 let hospitalMarkers = [];
 let townLabelMarkers = [];
 let mapToastTimer = null;
 let rawDonorsCache = [];
 let recipientArea = null; // Detected from profile, used for proximity auto-filter
+let displayedDonors = [];
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -252,6 +254,21 @@ function makeDonorPinIcon(bloodType) {
   });
 }
 
+function makeAreaSummaryIcon(count, bloodTypes) {
+  const typePreview = bloodTypes.slice(0, 3).join(' · ');
+  const moreTypes = bloodTypes.length > 3 ? ` +${bloodTypes.length - 3}` : '';
+  return L.divIcon({
+    className: 'donor-area-summary-wrap',
+    html: `<div class="donor-area-summary" aria-label="${count} donor/s: ${escapeHtml(bloodTypes.join(', '))}">
+      <strong>${count}</strong>
+      <span>donor${count === 1 ? '' : 's'}</span>
+      <small>${escapeHtml(typePreview)}${moreTypes}</small>
+    </div>`,
+    iconSize: [58, 58],
+    iconAnchor: [29, 29]
+  });
+}
+
 // ──────────────────────────────────────────────────────────────────────
 //  Popup content for a single donor pin
 // ──────────────────────────────────────────────────────────────────────
@@ -335,8 +352,8 @@ function renderTownLabels() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  Render individual blood-type pin markers (one per donor)
-//  Uses slight jitter to avoid pin overlap for same-zone donors
+//  Render individual blood-type pin markers (one per donor).
+//  Pins in one area use screen-pixel offsets, so they stay separated at every zoom.
 // ──────────────────────────────────────────────────────────────────────
 function renderDonorPins(filteredDonors) {
   // Clear old donor markers
@@ -358,13 +375,19 @@ function renderDonorPins(filteredDonors) {
     const count = zoneOffsetCounters.get(key) || 0;
     zoneOffsetCounters.set(key, count + 1);
 
-    // Spiral offset: first pin is at center, subsequent ones fan out
-    const angle = count * 72 * (Math.PI / 180); // 72° increments
-    const radius = count === 0 ? 0 : 0.003 + Math.floor((count - 1) / 5) * 0.003;
-    const jitterLat = zone.lat + Math.cos(angle) * radius;
-    const jitterLng = zone.lng + Math.sin(angle) * radius;
+    // Fan pins out in screen pixels rather than fixed map degrees. This prevents
+    // same-area pins from collapsing together as the map is zoomed.
+    const ring = count === 0 ? 0 : Math.floor((count - 1) / 6) + 1;
+    const angle = count === 0 ? 0 : ((count - 1) % 6) * 60 * (Math.PI / 180);
+    const radius = ring * 44;
+    const centerPoint = map.project([zone.lat, zone.lng], map.getZoom());
+    const pinPoint = L.point(
+      centerPoint.x + Math.cos(angle) * radius,
+      centerPoint.y + Math.sin(angle) * radius
+    );
+    const pinLatLng = map.unproject(pinPoint, map.getZoom());
 
-    const marker = L.marker([jitterLat, jitterLng], {
+    const marker = L.marker(pinLatLng, {
       icon: makeDonorPinIcon(bloodType),
       zIndexOffset: 500
     }).addTo(map);
@@ -380,6 +403,52 @@ function renderDonorPins(filteredDonors) {
   });
 }
 
+function clearDonorDisplay() {
+  donorMarkers.forEach((marker) => marker.remove());
+  donorMarkers = [];
+  donorAreaSummaryMarkers.forEach((marker) => marker.remove());
+  donorAreaSummaryMarkers = [];
+}
+
+function shouldShowAreaSummaries() {
+  const isBroadBloodTypeSearch = getSelectedBloodTypes().length > 1;
+  return isBroadBloodTypeSearch && map.getZoom() < 12;
+}
+
+function renderAreaSummaries(filteredDonors) {
+  const donorsByZone = new Map();
+  filteredDonors.forEach((donor) => {
+    const zone = ZONES[donorZoneIndex(donor)];
+    if (!zone) return;
+    const entry = donorsByZone.get(zone.area) || { zone, donors: [], bloodTypes: new Set() };
+    entry.donors.push(donor);
+    entry.bloodTypes.add(String(donor?.blood_type || '?').trim().toUpperCase());
+    donorsByZone.set(zone.area, entry);
+  });
+
+  donorAreaSummaryMarkers = Array.from(donorsByZone.values()).map(({ zone, donors, bloodTypes }) => {
+    const types = Array.from(bloodTypes).sort();
+    const marker = L.marker([zone.lat, zone.lng], {
+      icon: makeAreaSummaryIcon(donors.length, types),
+      zIndexOffset: 520,
+      title: `${zone.area}: ${donors.length} donor/s`
+    }).addTo(map);
+    marker.on('click', () => {
+      map.flyTo([zone.lat, zone.lng], Math.max(13, map.getZoom() + 2), { duration: 0.55 });
+    });
+    return marker;
+  });
+}
+
+function renderDonorDisplay(filteredDonors) {
+  clearDonorDisplay();
+  if (shouldShowAreaSummaries()) {
+    renderAreaSummaries(filteredDonors);
+    return;
+  }
+  renderDonorPins(filteredDonors);
+}
+
 async function searchDonors(forceRefresh = false) {
   const summaryEl = document.getElementById('searchSummary');
   const searchBtn = document.getElementById('btnSearchBlood');
@@ -387,9 +456,8 @@ async function searchDonors(forceRefresh = false) {
   if (searchBtn) searchBtn.disabled = true;
   if (summaryEl) summaryEl.textContent = 'Searching blood availability & verified donors...';
 
-  // Clear existing donor markers
-  donorMarkers.forEach((m) => m.remove());
-  donorMarkers = [];
+  // Clear existing donor markers and low-zoom area summaries.
+  clearDonorDisplay();
 
   const allowedTypes = getSelectedBloodTypes();
   const filterLocation = getSelectedLocation();
@@ -422,11 +490,11 @@ async function searchDonors(forceRefresh = false) {
 
     const donorCountSummaryEl = document.getElementById('donorCountSummary');
     if (donorCountSummaryEl) {
-      donorCountSummaryEl.textContent = totalMatches > 0 ? `${totalMatches} Donors` : '0 Donors';
+      donorCountSummaryEl.textContent = `${totalMatches} Donor/s`;
     }
 
-    // Render individual blood-type pin markers
-    renderDonorPins(filtered);
+    displayedDonors = filtered;
+    renderDonorDisplay(filtered);
 
     // Auto-pan: if a location filter is active, center on that area
     if (filterLocation !== 'all') {
@@ -562,6 +630,10 @@ function initMap() {
   }).addTo(map);
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  map.on('zoomend', () => {
+    if (displayedDonors.length) renderDonorDisplay(displayedDonors);
+  });
 
   renderHospitals();
   // Note: OSM tile layer already renders place names — no extra town labels needed

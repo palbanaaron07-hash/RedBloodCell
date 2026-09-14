@@ -2027,6 +2027,7 @@ function syncReplacementDonorSource() {
   const group = document.getElementById('replacementAppDonorGroup');
   const select = document.getElementById('replacementAppDonor');
   group.hidden = !appSource;
+  select.disabled = !appSource;
   select.required = appSource;
   if (!appSource) select.value = '';
   if (appSource) {
@@ -2187,9 +2188,9 @@ function openAdminRequestDetails(requestId) {
     const expired = getCommunityLifecycleInfo(row).status === 'expired';
     const canMobilize = !expired && getCommunityLifecycleInfo(row).status === 'active' && status === 'approved' && row.verification_status === 'verified';
     actions.innerHTML = `
-          ${canMobilize ? `<button type="button" class="btn-primary" style="background:#800000;font-size:0.8rem;padding:7px 14px;" onclick="closeAdminRequestDetailModal(); openMobilizeDonorsModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-bullhorn"></i> Notify Eligible Donors</button>` : ''}
+          ${canMobilize ? `<button type="button" class="btn-primary request-detail-action request-detail-action--notify" onclick="closeAdminRequestDetailModal(); openMobilizeDonorsModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-bullhorn"></i> Notify Eligible Donors</button>` : ''}
           ${status === 'pending' && !expired ? `<button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>` : ''}
-          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `<button type="button" class="btn-primary" style="font-size:0.8rem;padding:7px 14px;" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>` : ''}
+          ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `<button type="button" class="btn-primary request-detail-action request-detail-action--record" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>` : ''}
           ${row.request_type !== 'replacement' && !expired && status === 'approved' ? `<button type="button" class="btn-primary" style="font-size:0.8rem;padding:7px 14px;" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-pen-to-square"></i> Close Coordination</button>` : ''}
           ${expired ? (row.request_type === 'replacement' && row.verification_status === 'verified' ? '<p style="color:#64748b;font-size:.85rem;">Public recruitment has expired. Facility-confirmed replacement donations can still be recorded.</p>' : '<p style="color:#64748b;font-size:.85rem;">Expired request - history only. The recipient must submit a new request if blood is still needed.</p>') : ''}
         `;
@@ -2306,29 +2307,11 @@ ${isReplacement ? `<p style="font-size:.78rem;color:#64748b;">${escapeHtml(statu
   }).join('');
 }
 
-const COMPATIBLE_DONOR_TYPES = {
-  'A+': ['A+', 'A-', 'O+', 'O-'],
-  'A-': ['A-', 'O-'],
-  'B+': ['B+', 'B-', 'O+', 'O-'],
-  'B-': ['B-', 'O-'],
-  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-  'AB-': ['A-', 'B-', 'AB-', 'O-'],
-  'O+': ['O+', 'O-'],
-  'O-': ['O-']
-};
-
-function canDonateBloodTo(donorType, recipientType) {
-  const acceptedTypes = COMPATIBLE_DONOR_TYPES[normalizeBloodType(recipientType)] || [];
-  return acceptedTypes.includes(normalizeBloodType(donorType));
-}
-
-function isDonorEligibleForAppeal(donor, neededType, requestType) {
-  const typeMatches = requestType === 'replacement' || canDonateBloodTo(donor?.blood_type, neededType);
+function isDonorEligibleForAppeal(donor) {
   const availability = String(donor?.availability_status || '').toLowerCase();
   const lifecycle = String(donor?.donor_status || 'registered').toLowerCase();
   const waitingPeriodPassed = isEligibleToCheckIn(donor).eligible;
-  return typeMatches
-    && availability === 'available'
+  return availability === 'available'
     && ['approved', 'donated'].includes(lifecycle)
     && waitingPeriodPassed;
 }
@@ -2364,7 +2347,6 @@ function openMobilizeDonorsModal(requestId) {
   const hospital = patient?.hospital_name || 'Partner Health Facility';
   const patientArea = patient?.address || patient?.map_area || 'Bohol';
   const neededType = normalizeBloodType(request.blood_type_needed || 'O+');
-  const requestType = String(request.request_type || 'emergency_donor').toLowerCase();
   const quantity = Number(request.quantity || 1);
 
   document.getElementById('mobilizeRecipientName').textContent = patientName;
@@ -2372,24 +2354,17 @@ function openMobilizeDonorsModal(requestId) {
   document.getElementById('mobilizeBloodTypeBadge').textContent = neededType;
   document.getElementById('mobilizeQuantityText').textContent = `${quantity} Unit(s) Needed`;
 
-  const compatibleTypes = requestType === 'replacement'
-    ? Object.keys(COMPATIBLE_DONOR_TYPES)
-    : (COMPATIBLE_DONOR_TYPES[neededType] || []);
-  document.getElementById('mobilizeCompatibilityText').textContent = requestType === 'replacement'
-    ? 'Replacement request: any eligible blood type may respond. Final eligibility is determined by the authorized facility.'
-    : `Compatible donor types for ${neededType}: ${compatibleTypes.join(', ')}. Final eligibility is determined by the authorized facility.`;
-
-  // Filter matching donors from donorCache
+  // The facility makes the final medical match; show every currently eligible donor.
   const donors = Array.isArray(donorCache) ? donorCache : [];
   const matchingDonors = donors.filter((d) => (
-    isDonorEligibleForAppeal(d, neededType, requestType) && !isDonorTheRequester(d, patient)
+    isDonorEligibleForAppeal(d) && !isDonorTheRequester(d, patient)
   ));
 
   document.getElementById('mobilizeMatchCount').textContent = matchingDonors.length;
   const tbody = document.getElementById('mobilizeDonorsTableBody');
 
   if (!matchingDonors.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate-400);padding:24px;">No currently eligible and available donors with the requested blood type (${compatibleTypes.join(', ')}) were found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--slate-400);padding:24px;">No currently eligible and available donors were found.</td></tr>`;
   } else {
     tbody.innerHTML = matchingDonors.map((d) => {
       const name = formatCompleteName(d, 'Registered Donor');
@@ -3601,15 +3576,16 @@ function notifyNewBloodRequest(row) {
   if (!row) return false;
   const requestId = Number(row.request_id || row.id || 0);
   if (!Number.isFinite(requestId) || requestId <= 0) return false;
+  if (!isPendingRequest(row)) return false;
   if (notifKnownRequestIds.has(requestId)) return false;
 
   notifKnownRequestIds.add(requestId);
   const isCrit = isUrgentRequest(row);
   pushNotification({
     key: `req_new_${requestId}`,
-    type: isCrit ? 'critical' : 'request',
-    title: isCrit ? 'Urgent Blood Request Received' : 'New Blood Request',
-    body: `${formatRequestRequirement(row)} requested${isCrit ? ' - marked URGENT' : ''}.`,
+    type: 'request',
+    title: 'New Blood Request Pending',
+    body: `${formatRequestRequirement(row)} requested${isCrit ? ' - marked URGENT' : ''}. Awaiting coordinator review.`,
     critical: isCrit
   });
   return true;
@@ -3824,58 +3800,21 @@ function setupNotifFilters() {
 
 /** Scan existing cache for notifications (on page load) */
 function generateBootstrapNotifications() {
-  // Low / critical inventory alerts
-  getInventoryRowsWithAllTypes().forEach(row => {
-    const units = Number(row.units_available) || 0;
-    const level = getInventoryLevelClass(units);
-    if (level === 'critical') {
-      pushNotification({
-        key: `inv_crit_${row.blood_type}`,
-        type: 'critical',
-        title: `Critical Blood Stock: ${row.blood_type}`,
-        body: `Only ${formatNumber(units)} unit(s) of ${row.blood_type} remaining - immediate restock required.`,
-        critical: true
-      });
-    } else if (level === 'low') {
-      pushNotification({
-        key: `inv_low_${row.blood_type}`,
-        type: 'inventory',
-        title: `Low Inventory Alert: ${row.blood_type}`,
-        body: `${row.blood_type} has only ${formatNumber(units)} unit(s) - replenishment recommended soon.`,
-        critical: false
-      });
-    }
-  });
-
-  // Pending urgent requests
-  const urgentPending = overviewRequestsCache.filter(r => isUrgentRequest(r) && isPendingRequest(r));
-  urgentPending.forEach(r => {
+  // Only pending requests require coordinator notification.
+  overviewRequestsCache.filter(isPendingRequest).forEach(r => {
     const patient = Array.isArray(r.patient) ? r.patient[0] : r.patient;
     const name = formatCompleteName(patient, 'Unknown');
+    const isCrit = isUrgentRequest(r);
     pushNotification({
-      key: `req_urgent_${r.request_id || r.id}`,
+      key: `req_new_${r.request_id || r.id}`,
       type: 'request',
-      title: `Urgent Blood Request Pending`,
+      title: 'New Blood Request Pending',
       body: `Patient ${escapeHtml(name)} needs ${formatRequestRequirement(r)} - awaiting coordinator action.`,
-      critical: true
+      critical: isCrit
     });
   });
 
-  // Expiring soon (<=7 days)
-  overviewExpirationsCache.forEach(row => {
-    if (row.daysLeft <= 7 && row.daysLeft >= 0) {
-      const isCrit = row.daysLeft <= 2;
-      pushNotification({
-        key: `exp_${row.unitId}`,
-        type: isCrit ? 'critical' : 'inventory',
-        title: isCrit ? `Blood Unit Expiring in ${row.daysLeft} Day(s)!` : `Upcoming Expiry: ${row.bloodType}`,
-        body: `Unit #${row.unitId} (${row.bloodType}, ${formatNumber(row.units)} units) expires on ${formatDateShort(row.expiryDate)}.`,
-        critical: isCrit
-      });
-    }
-  });
-
-  // Recent donors
+  // Recent registrations remain the only donor notifications.
   const recentDonors = donorCache.slice(0, 3);
   recentDonors.forEach(d => {
     pushNotification({
@@ -3912,98 +3851,28 @@ function initNotificationsRealtime() {
 
     // ---- DONOR STATUS CHANGED ----
     .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'donor' }, payload => {
-      const d = payload.new || {};
-      const status = String(d.donor_status || '').toLowerCase();
-      const name = formatCompleteName(d, 'A donor');
-      if (status === 'donated') {
-        pushNotification({
-          key: `donor_donated_${d.donor_id || d.id}_${Date.now()}`,
-          type: 'donor',
-          title: 'Donation Recorded',
-          body: `${escapeHtml(name)} successfully donated blood (${d.blood_type || '?'}).`,
-          critical: false
-        });
-      } else if (status === 'deferred') {
-        pushNotification({
-          key: `donor_deferred_${d.donor_id || d.id}_${Date.now()}`,
-          type: 'donor',
-          title: 'Donor Deferred',
-          body: `${escapeHtml(name)} has been deferred from donating.`,
-          critical: false
-        });
-      }
+      // Keep dashboard data current without creating an admin notification.
+      loadDonors();
+      refreshOverviewStats();
     })
 
     // ---- NEW BLOOD REQUEST ----
     .on('postgres_changes', { event: 'INSERT', schema: 'blood_bank', table: 'blood_request' }, payload => {
       const r = payload.new || {};
-      const isCrit = isUrgentRequest(r);
-      pushNotification({
-        key: `req_new_${r.request_id || r.id}`,
-        type: isCrit ? 'critical' : 'request',
-        title: isCrit ? 'Urgent Blood Request Received' : 'New Blood Request',
-        body: `${formatRequestRequirement(r)} requested${isCrit ? ' - marked URGENT' : ''}.`,
-        critical: isCrit
-      });
+      notifyNewBloodRequest(r);
       refreshRequestsSection();
       refreshOverviewStats();
     })
 
     // ---- REQUEST STATUS CHANGED ----
     .on('postgres_changes', { event: 'UPDATE', schema: 'blood_bank', table: 'blood_request' }, payload => {
-      const r = payload.new || {};
-      const status = normalizeRequestStatus(r.status);
-      const labels = {
-        approved: 'Request Approved',
-        fulfilled: 'Request Fulfilled OK',
-        rejected: 'Request Rejected',
-        needs_clarification: 'Clarification Needed'
-      };
-      if (labels[status]) {
-        pushNotification({
-          key: `req_status_${r.request_id || r.id}_${status}`,
-          type: 'request',
-          title: labels[status],
-          body: `Blood request #${r.request_id || '?'} (${formatRequestRequirement(r)}) status changed to "${status.replace('_', ' ')}".`,
-          critical: status === 'rejected'
-        });
-      }
       refreshRequestsSection();
       refreshOverviewStats();
     })
 
     // ---- INVENTORY CHANGE ----
     .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'blood_inventory' }, payload => {
-      const row = payload.new || {};
-      const units = Number(row.units_available) || 0;
-      const level = getInventoryLevelClass(units);
-
-      if (level === 'critical') {
-        pushNotification({
-          key: `inv_crit_${row.blood_type}_${Date.now()}`,
-          type: 'critical',
-          title: `Critical Stock: ${row.blood_type || '?'}`,
-          body: `${row.blood_type || '?'} dropped to ${formatNumber(units)} unit(s) - immediate restock needed!`,
-          critical: true
-        });
-      } else if (level === 'low') {
-        pushNotification({
-          key: `inv_low_${row.blood_type}_${Date.now()}`,
-          type: 'inventory',
-          title: `Low Inventory: ${row.blood_type || '?'}`,
-          body: `${row.blood_type || '?'} is running low with only ${formatNumber(units)} unit(s) remaining.`,
-          critical: false
-        });
-      } else if (payload.eventType === 'INSERT') {
-        pushNotification({
-          key: `inv_add_${row.blood_type}_${Date.now()}`,
-          type: 'inventory',
-          title: 'Inventory Stock Added',
-          body: `${formatNumber(units)} unit(s) of ${row.blood_type || '?'} added to inventory.`,
-          critical: false
-        });
-      }
-
+      // Inventory remains live in the dashboard; it no longer produces admin notifications.
       refreshInventorySection();
       refreshOverviewInventoryPanel();
       refreshOverviewExpirationsTable();

@@ -2101,7 +2101,8 @@ async function createDonorPledge(payload) {
     p_preferred_date: payload?.preferred_date || null,
     p_preferred_time: String(payload?.preferred_time || '').trim() || null,
     p_donor_phone: String(payload?.donor_phone || '').trim() || null,
-    p_notes: String(payload?.notes || '').trim() || null
+    p_notes: String(payload?.notes || '').trim() || null,
+    p_support_preferences: Array.isArray(payload?.support_preferences) ? payload.support_preferences : []
   });
 
   if (error) {
@@ -2117,6 +2118,17 @@ async function createDonorPledge(payload) {
   }
 
   return { data, error: null };
+}
+
+async function getMyRequestSupportPreferences(requestId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const id = Number(requestId);
+  if (!Number.isInteger(id) || id <= 0) return { data: [], error: { message: 'A valid blood request is required.' } };
+
+  const { data, error } = await bloodBank().rpc('get_my_request_support_preferences', {
+    p_request_id: id
+  });
+  return { data: data || [], error: error ? mapError(error, 'Unable to load donor support preferences.') : null };
 }
 
 async function completeMyBloodRequest(requestId) {

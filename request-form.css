@@ -21,8 +21,10 @@
 #requestForm .request-type-help { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #fbf2f3; color: #68545a; font-size: .75rem; line-height: 1.5; }
 #requestForm .request-type-help p { margin: 0; }
 #requestForm .request-type-help p + p { margin-top: 5px; }
-#requestForm .replacement-requirements-note { margin: 0 0 14px; padding: 10px 12px; border-radius: 9px; background: #f7faf8; color: #416052; font-size: .75rem; line-height: 1.5; border: 1px solid #d7e9de; }
-#requestForm .replacement-requirements-note i { margin-right: 5px; color: #18794e; }
+#requestForm .replacement-requirements-note { margin: 0 0 14px; padding: 10px 12px; border-radius: 9px; background: #fffbeb; color: #92400e; font-size: .75rem; line-height: 1.5; border: 1px solid #fde68a; }
+#requestForm .replacement-requirements-note i { margin-right: 5px; color: #b45309; }
+#requestForm #requestBloodTypeGroup[hidden],
+#requestForm #requestUrgencyGroup[hidden] { display: none !important; }
 #requestForm .form-row.request-single-field > .form-group:not([hidden]) { flex: 1 1 100%; max-width: none; }
 #requestForm .verification-support-intro { margin: 0 0 14px; color: #68545a; font-size: .76rem; line-height: 1.55; }
 #requestForm .request-field-label { display: block; margin-bottom: 7px; color: #4f1b22; font-size: .8rem; font-weight: 600; }
@@ -59,8 +61,8 @@
 #requestForm .request-attachment-chevron { flex: 0 0 auto; color: #a98d92; font-size: .72rem; }
 #requestForm .request-attachment-picker.has-file { border-color: #bd8e95; background: #fff7f8; }
 #requestForm .request-attachment-picker.has-file .request-attachment-icon { background: #800000; color: #fff; }
-#requestForm .request-review-note { color: #64748b; font-size: .76rem; line-height: 1.5; }
-#requestForm .request-review-note i { color: #800000; }
+#requestForm .request-review-note { margin: 0; padding: 10px 12px; border: 1px solid #fde68a; border-radius: 9px; background: #fffbeb; color: #92400e; font-size: .76rem; line-height: 1.5; }
+#requestForm .request-review-note i { color: #b45309; }
 #requestForm .modal-footer { position: sticky; bottom: 0; padding: 14px 0; background: #fff; border-top: 1px solid #efdee1; margin-top: 16px; }
 #requestForm #requestMsg:empty { display: none; }
 @media (max-width: 540px) {

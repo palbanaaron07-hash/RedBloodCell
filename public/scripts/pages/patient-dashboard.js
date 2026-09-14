@@ -1305,8 +1305,8 @@ function renderDonorDashboard(data) {
     matchElement.innerHTML = matches.length ? matches.map((request) => {
       const isReplacement = request.request_type === 'replacement';
       const urgency = String(request.urgency_level || 'normal').toLowerCase();
-      return `<article class="request-card">
-            <div class="request-type">${isReplacement ? '<i class="fa-solid fa-rotate" aria-hidden="true"></i>' : escapeHtml(request.blood_type_needed || '--')}</div>
+      return `<article class="request-card donor-match-card">
+            <div class="request-type" aria-hidden="true">${isReplacement ? '<i class="fa-solid fa-rotate"></i>' : escapeHtml(request.blood_type_needed || '--')}</div>
             <div class="request-info">
               <strong>Request #${Number(request.request_id)}</strong>
               <span>${isReplacement
@@ -1314,11 +1314,15 @@ function renderDonorDashboard(data) {
                 : `${formatNumber(request.quantity || 0)} unit(s) of ${escapeHtml(request.blood_type_needed || '--')}`}</span>
             </div>
             <div class="request-meta">
-              ${isReplacement
-                ? '<span class="badge approved">Replacement</span>'
-                : `<span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>`}
-              <small>${formatDateShort(request.request_date)}</small>
-              <button type="button" class="btn-feed-details" onclick="viewMatchingRequest(${Number(request.request_id)}, this)">View Request</button>
+              <div class="request-meta-details">
+                ${isReplacement
+                  ? '<span class="badge approved">Replacement</span>'
+                  : `<span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.charAt(0).toUpperCase() + urgency.slice(1))}</span>`}
+                <small><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${formatDateShort(request.request_date)}</small>
+              </div>
+              <button type="button" class="btn-feed-details" onclick="viewMatchingRequest(${Number(request.request_id)}, this)">
+                <span>View Request</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+              </button>
             </div>
           </article>`;
     }).join('') : `<p class="donor-empty-state">${escapeHtml(requestEligibility.eligible ? 'No open, verified requests you can help with right now.' : requestEligibility.reason)}</p>`;
@@ -1868,7 +1872,11 @@ function syncRequestTypeFields() {
   const unitsLabel = document.getElementById('requestUnitsLabel');
 
   if (bloodTypeGroup) bloodTypeGroup.hidden = isReplacement;
-  if (bloodType) { bloodType.disabled = isReplacement; bloodType.required = !isReplacement; }
+  if (bloodType) {
+    bloodType.disabled = isReplacement;
+    bloodType.required = !isReplacement;
+    if (isReplacement) bloodType.value = '';
+  }
   if (urgencyGroup) urgencyGroup.hidden = isReplacement;
   if (urgency) { urgency.disabled = isReplacement; urgency.required = !isReplacement; if (isReplacement) urgency.value = 'normal'; }
   if (requirementsNote) requirementsNote.hidden = !isReplacement;
@@ -2141,12 +2149,12 @@ function openCommunityRequestDetails(reqId) {
   }
   const progressSummary = isReplacement
     ? `<div class="community-detail-progress" aria-label="Replacement donation progress">
-        <div>
-          <span>Donor pledges</span>
+        <div class="community-progress-card community-progress-card--pledged">
+          <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor pledges</span>
           <strong>${pledgedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} pledged</strong>
         </div>
-        <div>
-          <span>Facility-confirmed donations</span>
+        <div class="community-progress-card community-progress-card--confirmed">
+          <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Facility-confirmed donations</span>
           <strong>${confirmedUnits}/${targetUnits} unit${targetUnits !== 1 ? 's' : ''} confirmed</strong>
         </div>
       </div>`
@@ -2160,13 +2168,21 @@ function openCommunityRequestDetails(reqId) {
   };
   const privateSupportSummary = verificationSupport
     ? `<section class="patient-private-support">
-        <strong><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</strong>
-        ${verificationSupport.facility_contact ? `<span>Facility contact: ${escapeHtml(verificationSupport.facility_contact)}</span>` : '<span>No facility contact provided.</span>'}
-        ${verificationSupport.verification_method ? `<span>Coordinator verification: ${escapeHtml(requesterVerificationLabels[verificationSupport.verification_method] || 'Verified')}</span>` : '<span>Coordinator verification is pending.</span>'}
-        ${verificationSupport.verification_note ? `<span>Verification note: ${escapeHtml(verificationSupport.verification_note)}</span>` : ''}
+        <strong class="patient-private-support__title"><i class="fa-solid fa-lock" aria-hidden="true"></i> Private verification support</strong>
+        <div class="patient-private-support__details">
+          <div class="patient-private-support__item"><span>Facility contact</span><b>${escapeHtml(verificationSupport.facility_contact || 'Not provided')}</b></div>
+          <div class="patient-private-support__item"><span>Coordinator verification</span><b>${escapeHtml(verificationSupport.verification_method ? (requesterVerificationLabels[verificationSupport.verification_method] || 'Verified') : 'Pending')}</b></div>
+          ${verificationSupport.verification_note ? `<div class="patient-private-support__item patient-private-support__item--wide"><span>Verification note</span><b>${escapeHtml(verificationSupport.verification_note)}</b></div>` : ''}
+        </div>
         ${verificationSupport.storage_path
           ? `<a id="patientRequestDocumentLink" href="#" aria-disabled="true"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> Preparing ${escapeHtml(verificationSupport.file_name || 'supporting document')}...</a>`
-          : '<span>No supporting document attached.</span>'}
+          : '<span class="patient-private-support__document-state">No supporting document attached.</span>'}
+      </section>`
+    : '';
+  const donorSupportSummary = ownRequest
+    ? `<section class="requester-donor-support" aria-labelledby="requesterDonorSupportTitle">
+        <strong id="requesterDonorSupportTitle"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i> Donor support preferences</strong>
+        <p id="requesterDonorSupportContent">Loading donor preferences...</p>
       </section>`
     : '';
 
@@ -2174,11 +2190,11 @@ function openCommunityRequestDetails(reqId) {
         <div class="community-detail-info-card">
           <div class="community-detail-item">
             <span class="label"><i class="fa-solid fa-file-waveform"></i> Request</span>
-            <span class="val" style="font-weight:700;">Request #${req.id || req.request_id}</span>
+            <span class="val">Request #${req.id || req.request_id}</span>
           </div>
-          <div class="community-detail-item">
+          <div class="community-detail-item community-detail-need">
             <span class="label"><i class="fa-solid ${isReplacement ? 'fa-rotate' : 'fa-droplet'}"></i> ${isReplacement ? 'Replacement Needed' : 'Blood Needed'}</span>
-            <span class="val" style="color:var(--accent); font-size:1.1rem;">${isReplacement
+            <span class="val">${isReplacement
               ? `${units} replacement donor${units !== 1 ? 's' : ''} · Any eligible blood type`
               : `${units} Unit${units !== 1 ? 's' : ''} (${bloodType})`}</span>
           </div>
@@ -2199,14 +2215,15 @@ function openCommunityRequestDetails(reqId) {
             <span class="val">${contact}</span>
           </div>
         </div>
-        <div style="margin-top: 12px;">
-          <h4 style="font-size:0.88rem; color:#7a6064; margin-bottom:4px; font-weight:700;">Reason / Problem Description:</h4>
-          <p style="font-size:0.92rem; line-height:1.5; color:#2d1b1e; background:#fbf5f5; padding:12px; border-radius:10px; border:1px solid #f0dedf;">
+        <section class="community-detail-description" aria-labelledby="communityDetailDescriptionTitle">
+          <h4 id="communityDetailDescriptionTitle"><i class="fa-regular fa-clipboard" aria-hidden="true"></i> Reason / Problem Description</h4>
+          <p>
             ${description}
           </p>
-        </div>
+        </section>
         ${progressSummary}
         ${privateSupportSummary}
+        ${donorSupportSummary}
         <div class="community-response-guidance community-response-guidance--${lifecycle.status}">
           <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
           <span>${responseGuidance}</span>
@@ -2227,6 +2244,43 @@ function openCommunityRequestDetails(reqId) {
   }
   modal?.classList.add('active');
   if (verificationSupport?.storage_path) preparePatientRequestDocument(verificationSupport);
+  if (ownRequest) loadRequesterDonorSupportPreferences(req.id || req.request_id);
+}
+
+const donorSupportPreferenceLabels = {
+  meals: 'Meals and packed snacks',
+  travel: 'Travel allowance',
+  allowance: 'Donor allowance / token',
+  screening: 'Medical and blood screening'
+};
+
+async function loadRequesterDonorSupportPreferences(requestId) {
+  const target = document.getElementById('requesterDonorSupportContent');
+  if (!target || typeof getMyRequestSupportPreferences !== 'function') return;
+
+  const { data, error } = await getMyRequestSupportPreferences(requestId);
+  if (!document.body.contains(target)) return;
+  if (error) {
+    target.textContent = 'Donor support preferences are temporarily unavailable.';
+    return;
+  }
+
+  const pledges = data || [];
+  if (!pledges.length) {
+    target.textContent = 'No support preferences were recorded for the current pledge(s).';
+    return;
+  }
+
+  target.innerHTML = pledges.map((pledge) => {
+    const choices = (Array.isArray(pledge.support_preferences) ? pledge.support_preferences : [])
+      .map((choice) => donorSupportPreferenceLabels[choice])
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join(', ');
+    return choices
+      ? `<span class="requester-donor-support__pledge"><b>${escapeHtml(pledge.donor_name || 'A donor')}</b> requested: ${choices}</span>`
+      : '<span class="requester-donor-support__pledge">The donor did not select any support preferences.</span>';
+  }).join('');
 }
 
 async function preparePatientRequestDocument(support) {
@@ -2427,15 +2481,15 @@ function renderRequestCard(r) {
   const timeDateDisplay = escapeHtml(r.needed_time || (isUrgent ? 'As soon as possible' : 'Within 24-48 Hours'));
 
   return `
-    <article class="feed-request-card" id="myReqCard-${reqId}" data-request-id="${reqId}">
+    <article class="feed-request-card my-request-card" id="myReqCard-${reqId}" data-request-id="${reqId}">
       <div class="feed-card-header">
         <div class="feed-requester-info">
-          <div class="feed-requester-avatar" style="background:#fee2e2; color:#991b1b; display:flex; align-items:center; justify-content:center; font-weight:700;">
+          <div class="feed-requester-avatar my-request-avatar">
             <i class="fa-solid fa-droplet" aria-hidden="true"></i>
           </div>
           <div style="flex:1; min-width:0;">
             <div class="request-card-heading">
-              <h4 class="feed-requester-name" style="margin:0; font-size:1.02rem; font-weight:700; color:#1e293b;">
+              <h4 class="feed-requester-name">
                 Request #${reqId}
               </h4>
               <span class="feed-status-pill ${headerStatus.tone}">${headerStatus.label}</span>
@@ -2486,13 +2540,16 @@ function renderRequestCard(r) {
         <div class="feed-desc-section">
           <span class="feed-desc-label">Reason for request</span>
           <p class="feed-desc-text">${description || 'No description provided.'}</p>
-          ${isReplacement ? `<div class="request-progress-summary"><span><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span><span><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span></div>` : ''}
+          ${isReplacement ? `<div class="request-progress-summary my-request-progress" aria-label="Replacement donation progress">
+            <span><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i><strong>${Number(campaign.pledged_units || 0)}/${Number(campaign.target_units || units)}</strong> donors pledged</span>
+            <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><strong>${Number(campaign.confirmed_units || 0)}/${Number(campaign.target_units || units)}</strong> units confirmed</span>
+          </div>` : ''}
         </div>
       </div>
 
       <div class="feed-actions-row">
         ${completionAction}
-        <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">View Details</button>
+        <button type="button" class="btn-feed-details" onclick="openCommunityRequestDetails('${reqId}')">View Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
       </div>
     </article>
   `;

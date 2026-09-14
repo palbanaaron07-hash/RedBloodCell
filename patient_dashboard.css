@@ -1874,6 +1874,99 @@ body.desktop-sidebar-open .main {
   margin-top: 3px;
 }
 
+/* Donor dashboard match cards */
+.donor-match-card {
+  position: relative;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff 0%, #fffafa 100%);
+  border-color: #f1e3e5;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.donor-match-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, #a30d20, #6f0010);
+}
+
+.donor-match-card:hover {
+  border-color: #e5c6ca;
+  box-shadow: 0 8px 22px rgba(96, 0, 13, .08);
+  transform: translateY(-1px);
+}
+
+.donor-match-card .request-type {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff0f1;
+  box-shadow: inset 0 0 0 1px rgba(128, 0, 0, .04);
+}
+
+.donor-match-card .request-info strong {
+  margin-bottom: 4px;
+  font-size: .9rem;
+}
+
+.donor-match-card .request-info span {
+  display: block;
+  max-width: 48ch;
+  color: var(--slate-500);
+  line-height: 1.45;
+}
+
+.donor-match-card .request-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+
+.donor-match-card .request-meta-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.donor-match-card .request-meta small {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.donor-match-card .btn-feed-details {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 138px;
+  padding: 0 18px;
+}
+
+.donor-match-card .btn-feed-details i {
+  font-size: .72rem;
+  transition: transform .2s ease;
+}
+
+.donor-match-card .btn-feed-details:hover i {
+  transform: translateX(3px);
+}
+
+.donor-match-card .btn-feed-details:focus-visible {
+  outline: 3px solid rgba(128, 0, 0, .2);
+  outline-offset: 3px;
+}
+
+.donor-match-card .btn-feed-details:disabled {
+  cursor: wait;
+  opacity: .65;
+  transform: none;
+}
+
 /* ============================================================
    BLOOD REQUESTS FEED & COMMUNITY REQUESTS (NEW LAYOUT)
    ============================================================ */
@@ -2494,19 +2587,23 @@ body.desktop-sidebar-open .main {
 /* Community Detail Modal */
 .community-detail-modal-box {
   max-width: 580px;
+  overflow: hidden;
 }
 
 .community-detail-info-card {
-  background: #fdf8f8;
-  border: 1px solid #f2e2e4;
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 16px;
+  background: linear-gradient(145deg, #fffafa 0%, #fff 100%);
+  border: 1px solid #f0dcdf;
+  border-radius: 16px;
+  padding: 6px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 5px 16px rgba(91, 0, 12, .035);
 }
 
 .community-detail-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   padding: 8px 0;
   border-bottom: 1px solid #f0dedf;
   font-size: 0.9rem;
@@ -2519,11 +2616,64 @@ body.desktop-sidebar-open .main {
 .community-detail-item .label {
   color: #7d6467;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .community-detail-item .val {
   color: #1a0b0d;
   font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.community-detail-need {
+  align-items: flex-start;
+  padding: 12px 0;
+}
+
+.community-detail-need .label {
+  color: #8d2633;
+}
+
+.community-detail-need .val {
+  max-width: 60%;
+  color: var(--accent);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.community-detail-description {
+  margin-top: 14px;
+}
+
+.community-detail-description h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 7px;
+  color: #715a5d;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+
+.community-detail-description h4 i {
+  color: var(--accent);
+}
+
+.community-detail-description p {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #f0dedf;
+  border-radius: 12px;
+  background: #fdf8f8;
+  color: #2d1b1e;
+  font-size: .9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .btn-pledge-help {
@@ -2548,6 +2698,11 @@ body.desktop-sidebar-open .main {
   background: #fff8f8;
 }
 
+.community-detail-progress .community-progress-card--confirmed {
+  border-color: #cde9db;
+  background: #f4fcf7;
+}
+
 .community-detail-progress span,
 .community-detail-progress strong {
   display: block;
@@ -2558,6 +2713,16 @@ body.desktop-sidebar-open .main {
   color: #7d6467;
   font-size: .76rem;
   font-weight: 700;
+}
+
+.community-detail-progress span i {
+  margin-right: 4px;
+  color: var(--accent);
+}
+
+.community-detail-progress .community-progress-card--confirmed span i,
+.community-detail-progress .community-progress-card--confirmed strong {
+  color: #137a4b;
 }
 
 .community-detail-progress strong {
@@ -2571,10 +2736,10 @@ body.desktop-sidebar-open .main {
   gap: 8px;
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #fde68a;
   border-radius: 10px;
-  background: #f0fdf4;
-  color: #166534;
+  background: #fffbeb;
+  color: #92400e;
   font-size: .86rem;
   line-height: 1.5;
 }
@@ -2594,21 +2759,75 @@ body.desktop-sidebar-open .main {
 
 .patient-private-support {
   margin-top: 14px;
-  padding: 12px;
-  border: 1px solid #efdadd;
-  border-radius: 10px;
-  background: #fffafa;
+  padding: 0 0 0 11px;
+  border: 0;
+  border-left: 3px solid #e7c7ca;
+  border-radius: 0;
+  background: transparent;
   color: #60484c;
   font-size: .82rem;
   line-height: 1.5;
 }
-.patient-private-support strong { display: block; margin-bottom: 3px; color: #800000; }
+.patient-private-support__title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: #800000; font-size: .8rem; }
+.patient-private-support__details { display: grid; grid-template-columns: 1fr; gap: 0; }
+.patient-private-support__item { min-width: 0; padding: 7px 0; border: 0; border-bottom: 1px solid #f1e0e2; border-radius: 0; background: transparent; }
+.patient-private-support__item--wide { grid-column: 1 / -1; }
+.patient-private-support__item span,
+.patient-private-support__item b { display: block; }
+.patient-private-support__item span { margin-bottom: 2px; color: #8c7376; font-size: .68rem; font-weight: 700; }
+.patient-private-support__item b { color: #493438; font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
 .patient-private-support a { display: inline-flex; align-items: center; gap: 6px; margin-top: 9px; color: #800000; font-weight: 800; }
 .patient-private-support a[aria-disabled="true"] { color: #9a8588; pointer-events: none; }
+.patient-private-support__document-state { display: block; margin-top: 9px; color: #8c7376; font-size: .74rem; }
+
+.requester-donor-support { margin-top: 14px; padding: 12px 14px; border: 1px solid #dbe7f4; border-radius: 12px; background: #f8fbff; color: #42556f; font-size: .82rem; line-height: 1.5; }
+.requester-donor-support > strong { display: flex; align-items: center; gap: 7px; color: #34506f; font-size: .82rem; }
+.requester-donor-support > strong i { color: #800000; }
+.requester-donor-support > p { margin: 8px 0 0; color: #64748b; }
+.requester-donor-support__pledge { display: block; padding: 8px 0; border-bottom: 1px solid #e4edf7; }
+.requester-donor-support__pledge:last-child { padding-bottom: 0; border-bottom: 0; }
+.requester-donor-support__pledge b { color: #334155; }
 
 @media (max-width: 520px) {
   .community-detail-progress {
     grid-template-columns: 1fr;
+  }
+
+  .patient-private-support__details {
+    grid-template-columns: 1fr;
+  }
+
+  .community-detail-modal-box .modal-header {
+    padding: 15px 16px;
+  }
+
+  .community-detail-modal-box .modal-body {
+    padding: 16px;
+  }
+
+  .community-detail-info-card {
+    padding: 5px 12px;
+    border-radius: 14px;
+  }
+
+  .community-detail-item {
+    gap: 10px;
+    padding: 9px 0;
+    font-size: .82rem;
+  }
+
+  .community-detail-item .label {
+    max-width: 46%;
+  }
+
+  .community-detail-need .val {
+    max-width: 56%;
+    font-size: .94rem;
+  }
+
+  .community-detail-description p {
+    padding: 11px 12px;
+    font-size: .86rem;
   }
 }
 
@@ -4287,6 +4506,49 @@ html[data-initial-section="help"] #section-help {
     text-align: left;
   }
 
+  .donor-matches-panel .card-head {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .donor-matches-panel .card-head h3 {
+    min-width: 0;
+    line-height: 1.35;
+  }
+
+  .donor-matches-panel .card-head > .badge {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .donor-match-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .donor-match-card .request-info {
+    align-self: center;
+  }
+
+  .donor-match-card .request-meta {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid #f1e3e5;
+  }
+
+  .donor-match-card .btn-feed-details {
+    min-width: 132px;
+  }
+
   .header-actions {
     gap: 2px;
   }
@@ -4916,6 +5178,27 @@ html[data-initial-section="help"] #section-help {
 }
 
 @media (max-width: 380px) {
+  .donor-matches-panel .card-head {
+    align-items: flex-start;
+  }
+
+  .donor-matches-panel .card-head h3 i {
+    margin-top: 3px;
+  }
+
+  .donor-match-card .request-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .donor-match-card .request-meta-details {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .donor-match-card .btn-feed-details {
+    width: 100%;
+  }
   .account-view-btn span {
     font-size: .7rem;
   }

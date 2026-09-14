@@ -302,6 +302,12 @@ async function handleConfirmPledge(event) {
   const donorDate = document.getElementById('donorPreferredDate')?.value || new Date().toISOString().split('T')[0];
   const donorTime = document.getElementById('donorPreferredTime')?.value || 'Morning (8:00 AM - 11:30 AM)';
   const donorNotes = document.getElementById('donorNotes')?.value.trim() || '';
+  const supportPreferences = [
+    ['perkMeals', 'meals'],
+    ['perkTravel', 'travel'],
+    ['perkToken', 'allowance'],
+    ['perkLabs', 'screening']
+  ].filter(([id]) => document.getElementById(id)?.checked).map(([, value]) => value);
 
   // 3. Generate unique Donation Pass Reference ID
   const randomSuffix = Math.floor(10000 + Math.random() * 90000);
@@ -327,7 +333,8 @@ async function handleConfirmPledge(event) {
       preferred_date: donorDate,
       preferred_time: donorTime,
       donor_phone: donorPhone,
-      notes: donorNotes
+      notes: donorNotes,
+      support_preferences: supportPreferences
     });
 
     if (error) throw error;

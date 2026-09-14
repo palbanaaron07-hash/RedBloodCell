@@ -1,6 +1,33 @@
 /* Shared mobile layout for My Requests and Community Requests. */
 .request-card-heading { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
 .request-progress-summary { display: grid; gap: 5px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #efdee1; color: #800000; font-size: .82rem; line-height: 1.5; }
+
+/* My Requests: a distinct, scannable treatment without changing request controls. */
+.my-request-card { position: relative; border-color: #efdee1; background: linear-gradient(145deg, #fff 0%, #fffafa 100%); overflow: hidden; }
+.my-request-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg, #a30d20, #6f0010); }
+.my-request-card:hover { border-color: #e7c6cb; box-shadow: 0 8px 24px rgba(96, 0, 13, .09); }
+.my-request-card .my-request-avatar { background: #fff0f1; color: #991b1b; box-shadow: inset 0 0 0 1px rgba(128, 0, 0, .05); }
+.my-request-card .feed-requester-name { margin: 0; color: #1e293b; font-size: 1.02rem; font-weight: 800; }
+.my-request-card .feed-inner-box { background: #fffafa; border-color: #f1e2e4; }
+.my-request-card .feed-requirement-row { border-color: #efdcdf; }
+.my-request-card .feed-desc-text { color: #493438; }
+.my-request-card .my-request-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; }
+.my-request-card .my-request-progress span { display: flex; align-items: center; gap: 5px; padding: 8px; border: 1px solid #efdcdf; border-radius: 9px; background: #fff; font-size: .74rem; line-height: 1.35; }
+.my-request-card .my-request-progress span:last-child { border-color: #cde9db; background: #f4fcf7; color: #176c45; }
+.my-request-card .my-request-progress i { color: #991b1b; font-size: .72rem; }
+.my-request-card .my-request-progress span:last-child i { color: #137a4b; }
+.my-request-card .my-request-progress strong { font-size: .82rem; }
+.my-request-card .btn-feed-details { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.my-request-card .btn-feed-details i { font-size: .72rem; transition: transform .2s ease; }
+.my-request-card .btn-feed-details:hover i { transform: translateX(3px); }
+.my-request-card .request-card-heading { justify-content: flex-start; align-items: flex-start; }
+.my-request-card .feed-status-pill { margin-left: 0; }
+.my-request-card .request-arrangement-text,
+.my-request-card .feed-post-time { width: 100%; text-align: left; }
+
+/* Requirement names must remain readable at any card width. */
+:is([id^="myReqCard-"], [id^="feedCard-"]) .feed-blood-badge-wrap { flex: 1; min-width: 0; }
+:is([id^="myReqCard-"], [id^="feedCard-"]) .feed-blood-title { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   :is([id^="myReqCard-"], [id^="feedCard-"]) { padding: 16px; border-radius: 18px; }
   :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-card-header { gap: 8px; margin-bottom: 16px; }
@@ -24,6 +51,12 @@
   :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-actions-row button { width: 100%; min-height: 48px; height: auto; padding: 12px; border-radius: 12px; font-size: .9rem; line-height: 1.4; }
   :is([id^="myReqCard-"], [id^="feedCard-"]) .btn-feed-details { order: -1; }
   :is([id^="myReqCard-"], [id^="feedCard-"]) button:focus-visible { outline: 2px solid #800000; outline-offset: 3px; }
+  .my-request-card .my-request-progress { grid-template-columns: 1fr; gap: 6px; }
+  .my-request-card .my-request-progress span { padding: 9px 10px; }
+  .my-request-card .request-card-heading { flex-direction: column; align-items: flex-start; }
+  .my-request-card .feed-requirement-row { align-items: flex-start; flex-wrap: nowrap; }
+  .my-request-card .feed-blood-badge-wrap { flex: 1; }
+  .my-request-card .feed-blood-title { white-space: normal; }
 }
 @media (max-width: 360px) {
   :is([id^="myReqCard-"], [id^="feedCard-"]) .feed-info-grid { grid-template-columns: 1fr; }

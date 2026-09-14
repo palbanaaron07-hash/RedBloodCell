@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Coordinator Dashboard - VeinDrop</title>
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/admin_dashboard.css?v=20260907fix" />
+    <link rel="stylesheet" href="/admin_dashboard.css?v=20260915mobilizefooter" />
   <link rel="stylesheet" href="/admin-request-details.css?v=20260913verification" />
   <link rel="stylesheet" href="/admin-donor-filters.css?v=20260912a" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
@@ -1208,32 +1208,32 @@
 
     <!-- ===== NOTIFY ELIGIBLE DONORS MODAL ===== -->
     <div class="modal-overlay" id="mobilizeDonorsModal" style="z-index: 285;">
-      <div class="modal" style="width:760px;max-width:94vw;">
+      <div class="modal mobilize-donors-modal">
         <div class="modal-header">
           <h3><i class="fa-solid fa-bell"></i> Notify Eligible Donors</h3>
           <button class="modal-close" onclick="closeMobilizeDonorsModal()">&times;</button>
         </div>
-        <div class="modal-body" style="padding:22px;">
-          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-            <div><strong id="mobilizeRecipientName">Recipient</strong><div id="mobilizeLocationText" style="color:#64748b;font-size:.82rem;"></div></div>
-            <div style="margin-left:auto;text-align:right;"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span><div id="mobilizeQuantityText" style="font-size:.82rem;margin-top:5px;"></div></div>
-          </div>
-          <p id="mobilizeCompatibilityText" style="font-size:.84rem;color:#475569;margin-bottom:10px;"></p>
-          <p style="font-size:.82rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
-            Only in-app alerts will be created. SMS and email delivery are not enabled. Final donor screening and compatibility remain with the authorized blood facility.
+        <div class="modal-body mobilize-donors-body">
+          <section class="mobilize-request-summary" aria-label="Request summary">
+            <div class="mobilize-request-summary__person"><strong id="mobilizeRecipientName">Recipient</strong><div id="mobilizeLocationText"></div></div>
+            <div class="mobilize-request-summary__need"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span><div id="mobilizeQuantityText"></div></div>
+          </section>
+          <p class="mobilize-notice">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            Only in-app alerts will be created. SMS and email delivery are not enabled. The authorized blood facility makes the final donor match and screening decision.
           </p>
-          <div style="font-size:.84rem;margin-bottom:8px;"><strong id="mobilizeMatchCount">0</strong> eligible donor(s) found</div>
-          <div style="overflow:auto;max-height:300px;">
-            <table class="data-table" style="width:100%;">
+          <div class="mobilize-match-count"><strong id="mobilizeMatchCount">0</strong><span>eligible donor(s) found</span></div>
+          <div class="mobilize-donors-table-wrap">
+            <table class="data-table mobilize-donors-table">
               <thead><tr><th>Donor</th><th>Blood Type</th><th>Area</th><th>Contact</th><th>Eligibility</th></tr></thead>
               <tbody id="mobilizeDonorsTableBody"></tbody>
             </table>
           </div>
-          <div id="mobilizeMsg" class="form-msg" style="margin-top:12px;"></div>
+          <div id="mobilizeMsg" class="form-msg mobilize-message"></div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-cancel" onclick="closeMobilizeDonorsModal()">Cancel</button>
-          <button type="button" class="btn-submit" id="btnBroadcastAppeal" onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
+        <div class="modal-footer mobilize-donors-footer">
+          <button type="button" class="btn-cancel mobilize-cancel" onclick="closeMobilizeDonorsModal()">Cancel</button>
+          <button type="button" class="btn-submit mobilize-send" id="btnBroadcastAppeal" onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
         </div>
       </div>
     </div>
@@ -1274,8 +1274,8 @@
           <!-- Populated by JS -->
         </div>
         <div class="modal-footer" style="justify-content: space-between;">
-          <button type="button" class="btn-cancel" onclick="closeAdminRequestDetailModal()">Close</button>
-          <div id="adminRequestDetailActions" style="display: flex; gap: 8px;"></div>
+          <button type="button" class="btn-cancel admin-request-detail-close" onclick="closeAdminRequestDetailModal()">Close</button>
+          <div id="adminRequestDetailActions" class="admin-request-detail-actions"></div>
         </div>
       </div>
     </div>
@@ -1293,7 +1293,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="/supabase-client.js?v=20260914notifications"></script>
-  <script src="/scripts/pages/admin-dashboard.js?v=20260914notifications"></script>
+    <script src="/scripts/pages/admin-dashboard.js?v=20260915eligibledonors"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

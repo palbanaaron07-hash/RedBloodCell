@@ -6,7 +6,7 @@
 #bloodReceivedDialog .receipt-dialog-body { padding: 0 22px; font-size: .9rem; line-height: 1.6; }
 #bloodReceivedQuestion { margin: 0 0 8px; }
 .receipt-request-label { color: #78656b; font-size: .78rem; margin: 0 0 14px; }
-.receipt-guidance { margin: 0; padding: 12px; border: 1px solid #efd7dc; border-radius: 10px; background: #fbf2f3; color: #69404a; font-size: .82rem; }
+.receipt-guidance { margin: 0; padding: 12px; border: 1px solid #fde68a; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: .82rem; }
 #bloodReceivedMessage { color: #991b1b; font-size: .82rem; overflow-wrap: anywhere; }
 #bloodReceivedMessage:empty { display: none; }
 .receipt-dialog-actions { display: flex; gap: 10px; padding: 20px 22px; }
