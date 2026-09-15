@@ -179,7 +179,7 @@ The system uses a unified landing implementation:
 ### 4.1 Registration process
 
 1. The user chooses an initial role: patient or donor.
-2. The registration interface collects personal information, blood type, date of birth, account details, and an optional medical note.
+2. The registration interface collects personal information, blood type, date of birth, account details, gender, and account details.
 3. Client validation checks:
    - Email structure and several common domain misspellings;
    - A real date of birth from year 1900 through the current date;

@@ -46,6 +46,7 @@
       <a href="#" class="nav-item" data-section="requests">
         <i class="fa-solid fa-hand-holding-medical"></i>
         <span class="nav-item-label">Blood Requests</span>
+        <span class="nav-badge" id="sidebarRequestsBadge">0</span>
       </a>
       <a href="#" class="nav-item" data-section="inventory">
         <i class="fa-solid fa-flask-vial"></i>
@@ -67,6 +68,10 @@
         <span class="nav-item-label">Notifications</span>
         <span class="nav-badge" id="sidebarNotifBadge">0</span>
       </a>
+      <a href="#" class="nav-item" data-section="activity" id="navActivity">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span class="nav-item-label">Activity Logs</span>
+      </a>
     </nav>
   </aside>
 
@@ -83,9 +88,13 @@
         <h1>Coordinator Dashboard</h1>
       </div>
 
-      <div class="header-search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="globalSearchInput" placeholder="Search donors by ID or blood type..." />
+      <div class="header-search" id="headerSearchWrap">
+        <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+        <input type="text" id="globalSearchInput" placeholder="Search donors, requests, inventory, or pages..." autocomplete="off" spellcheck="false" />
+        <button type="button" class="header-search-clear" id="globalSearchClearBtn" aria-label="Clear search" style="display: none;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="header-search-results" id="globalSearchResults" style="display: none;" role="listbox" aria-label="Search suggestions"></div>
       </div>
 
       <div class="header-actions">
@@ -131,16 +140,6 @@
       <!-- ===== SECTION: DASHBOARD (default view) ===== -->
       <div class="page-section active" id="section-dashboard">
 
-        <section class="overview-command">
-          <div>
-            <span class="overview-eyebrow"><i class="fa-solid fa-gauge-high"></i> Operations Overview</span>
-            <h2>Blood bank command center</h2>
-          </div>
-          <div class="overview-command-pulse" aria-hidden="true">
-            <span></span>
-            Live monitoring
-          </div>
-        </section>
 
         <section class="stats-grid">
           <div class="stat-card red">
@@ -374,39 +373,42 @@
           <button class="btn-primary" onclick="openInventoryModal()"><i class="fa-solid fa-circle-plus"></i> Add Stock</button>
         </div>
 
-        <section class="stats-grid" style="margin-bottom: 20px;">
-          <div class="stat-card red">
-            <div class="stat-icon"><i class="fa-solid fa-droplet"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Total Unit/s</p>
-              <h2 class="stat-value" id="inventoryTotalUnits">0</h2>
-              <span class="stat-change" id="inventoryTotalUnitsNote">No stock encoded yet</span>
-            </div>
-          </div>
-          <div class="stat-card green">
-            <div class="stat-icon"><i class="fa-solid fa-check-circle"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Adequate Stock</p>
-              <h2 class="stat-value" id="inventoryAdequateCount">0</h2>
-              <span class="stat-change" id="inventoryAdequateNote">No blood type data</span>
-            </div>
-          </div>
-          <div class="stat-card amber">
-            <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Low Stock</p>
-              <h2 class="stat-value" id="inventoryLowCount">0</h2>
-              <span class="stat-change" id="inventoryLowNote">No low-stock alerts</span>
-            </div>
-          </div>
-          <div class="stat-card red">
-            <div class="stat-icon"><i class="fa-solid fa-droplet-slash"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Critical Stock</p>
-              <h2 class="stat-value" id="inventoryCriticalCount">0</h2>
-              <span class="stat-change" id="inventoryCriticalNote">No critical-stock alerts</span>
-            </div>
-          </div>
+        <section class="drives-signal-board" aria-label="Inventory summary signals">
+          <article class="drive-signal danger">
+            <header>
+              <span class="drive-signal-label">Total Unit/s</span>
+              <i class="fa-solid fa-droplet" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="inventoryTotalUnits">0</p>
+            <p class="drive-signal-note" id="inventoryTotalUnitsNote">No stock encoded yet</p>
+          </article>
+
+          <article class="drive-signal success">
+            <header>
+              <span class="drive-signal-label">Adequate Stock</span>
+              <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="inventoryAdequateCount">0</p>
+            <p class="drive-signal-note" id="inventoryAdequateNote">No blood type data</p>
+          </article>
+
+          <article class="drive-signal warn">
+            <header>
+              <span class="drive-signal-label">Low Stock</span>
+              <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="inventoryLowCount">0</p>
+            <p class="drive-signal-note" id="inventoryLowNote">No low-stock alerts</p>
+          </article>
+
+          <article class="drive-signal danger">
+            <header>
+              <span class="drive-signal-label">Critical Stock</span>
+              <i class="fa-solid fa-droplet-slash" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="inventoryCriticalCount">0</p>
+            <p class="drive-signal-note" id="inventoryCriticalNote">No critical-stock alerts</p>
+          </article>
         </section>
 
         <div class="panel full-width">
@@ -550,39 +552,42 @@
           </div>
         </div>
 
-        <section class="stats-grid" style="margin-bottom: 20px;">
-          <div class="stat-card red">
-            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Total Donors</p>
-              <h2 class="stat-value" id="reportsTotalDonors">0</h2>
-              <span class="stat-change" id="reportsTotalDonorsNote">No donor records yet</span>
-            </div>
-          </div>
-          <div class="stat-card blue">
-            <div class="stat-icon"><i class="fa-solid fa-hand-holding-medical"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Total Requests</p>
-              <h2 class="stat-value" id="reportsTotalRequests">0</h2>
-              <span class="stat-change" id="reportsTotalRequestsNote">No request records yet</span>
-            </div>
-          </div>
-          <div class="stat-card green">
-            <div class="stat-icon"><i class="fa-solid fa-percent"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Fulfillment Rate</p>
-              <h2 class="stat-value" id="reportsFulfillmentRate">0%</h2>
-              <span class="stat-change" id="reportsFulfillmentRateNote">No fulfillment data yet</span>
-            </div>
-          </div>
-          <div class="stat-card amber">
-            <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div class="stat-info">
-              <p class="stat-label">Inventory Coverage</p>
-              <h2 class="stat-value" id="reportsInventoryCoverage">0%</h2>
-              <span class="stat-change" id="reportsInventoryCoverageNote">No inventory data yet</span>
-            </div>
-          </div>
+        <section class="drives-signal-board" aria-label="Reports summary signals">
+          <article class="drive-signal danger">
+            <header>
+              <span class="drive-signal-label">Total Donors</span>
+              <i class="fa-solid fa-users" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="reportsTotalDonors">0</p>
+            <p class="drive-signal-note" id="reportsTotalDonorsNote">No donor records yet</p>
+          </article>
+
+          <article class="drive-signal info">
+            <header>
+              <span class="drive-signal-label">Total Requests</span>
+              <i class="fa-solid fa-hand-holding-medical" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="reportsTotalRequests">0</p>
+            <p class="drive-signal-note" id="reportsTotalRequestsNote">No request records yet</p>
+          </article>
+
+          <article class="drive-signal success">
+            <header>
+              <span class="drive-signal-label">Fulfillment Rate</span>
+              <i class="fa-solid fa-percent" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="reportsFulfillmentRate">0%</p>
+            <p class="drive-signal-note" id="reportsFulfillmentRateNote">No fulfillment data yet</p>
+          </article>
+
+          <article class="drive-signal warn">
+            <header>
+              <span class="drive-signal-label">Inventory Coverage</span>
+              <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="reportsInventoryCoverage">0%</p>
+            <p class="drive-signal-note" id="reportsInventoryCoverageNote">No inventory data yet</p>
+          </article>
         </section>
 
         <div class="panel full-width" style="margin-bottom:20px;">
@@ -730,6 +735,109 @@
 
       </div>
       <!-- end section-appointments -->
+
+      <!-- ===== SECTION: ACTIVITY LOGS ===== -->
+      <div class="page-section" id="section-activity">
+
+        <div class="section-heading">
+          <div class="activity-export-actions">
+            <span class="activity-status-note" id="activityStatusNote" role="status" aria-live="polite"></span>
+            <button type="button" class="btn-primary" id="refreshActivityBtn" onclick="refreshActivityLogsSection()">
+              <i class="fa-solid fa-arrows-rotate"></i> <span>Refresh</span>
+            </button>
+            <button type="button" class="btn-primary" id="exportActivityBtn" onclick="exportActivityLogsCsv()" style="background:var(--gray-700);">
+              <i class="fa-solid fa-file-export"></i> <span>Export Log</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="drives-signal-board" aria-label="Activity summary signals">
+          <article class="drive-signal danger">
+            <header>
+              <span class="drive-signal-label">Total Actions Logged</span>
+              <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="activityTotalActions">0</p>
+            <p class="drive-signal-note" id="activityTotalActionsNote">Historical operations</p>
+          </article>
+
+          <article class="drive-signal info">
+            <header>
+              <span class="drive-signal-label">Actions Today</span>
+              <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="activityTodayActions">0</p>
+            <p class="drive-signal-note" id="activityTodayActionsNote">Today's operations</p>
+          </article>
+
+          <article class="drive-signal warn">
+            <header>
+              <span class="drive-signal-label">Request Operations</span>
+              <i class="fa-solid fa-hand-holding-medical" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="activityRequestActions">0</p>
+            <p class="drive-signal-note" id="activityRequestActionsNote">Verified &amp; closed</p>
+          </article>
+
+          <article class="drive-signal success">
+            <header>
+              <span class="drive-signal-label">Donor Operations</span>
+              <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+            </header>
+            <p class="drive-signal-value" id="activityDonorActions">0</p>
+            <p class="drive-signal-note" id="activityDonorActionsNote">Screened &amp; intake</p>
+          </article>
+        </section>
+
+        <div class="panel full-width">
+          <div class="panel-header">
+            <h3><i class="fa-solid fa-clipboard-list"></i> Coordinator Activity &amp; Audit Trail</h3>
+            <div class="panel-actions activity-filter-bar">
+              <label>Category
+                <select id="activityCategoryFilter" onchange="filterActivityLogs()">
+                  <option value="all">All Categories</option>
+                  <option value="requests">Blood Requests</option>
+                  <option value="donors">Donors</option>
+                  <option value="inventory">Inventory</option>
+                  <option value="drives">Blood Drives</option>
+                  <option value="session">Admin Sessions</option>
+                </select>
+              </label>
+              <label>Timeframe
+                <select id="activityTimeframeFilter" onchange="filterActivityLogs()">
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">Past 7 Days</option>
+                  <option value="month">This Month</option>
+                </select>
+              </label>
+              <button type="button" class="panel-btn" id="clearActivityFiltersBtn" onclick="clearActivityFilters()">Clear</button>
+            </div>
+          </div>
+          <p id="activityFilterSummary" class="activity-filter-summary" role="status" aria-live="polite"></p>
+          <div class="table-wrap">
+            <table class="data-table" id="activityLogsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Category</th>
+                  <th>Action Performed</th>
+                  <th>Target Entity</th>
+                  <th>Details &amp; Reason</th>
+                  <th>Coordinator / Actor</th>
+                </tr>
+              </thead>
+              <tbody id="activityLogsBody">
+                <tr>
+                  <td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">Loading coordinator activity...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <!-- end section-activity -->
 
     </div>
     <!-- end .content -->

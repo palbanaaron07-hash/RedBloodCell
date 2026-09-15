@@ -113,6 +113,40 @@
 }
 .btn-verify-request:active { transform: translateY(0); }
 .btn-verify-request i { color: currentColor; }
+
+.btn-close-coordination,
+.request-detail-action--complete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid #047857;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);
+  font-size: .82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-close-coordination:hover,
+.request-detail-action--complete:hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.38);
+  transform: translateY(-1.5px);
+}
+.btn-close-coordination:active,
+.request-detail-action--complete:active {
+  transform: translateY(0);
+}
+.btn-close-coordination i,
+.request-detail-action--complete i {
+  color: #ffffff;
+  font-size: .85rem;
+}
 .replacement-progress-panel { padding: 15px; border: 1px solid var(--blood-blush); border-radius: 11px; background: var(--blood-soft); }
 .replacement-progress-panel h4 { margin: 0 0 8px; color: var(--blood-dark); font-size: .82rem; }
 .replacement-progress-count { color: var(--blood-mid); font-size: 1rem; font-weight: 800; }

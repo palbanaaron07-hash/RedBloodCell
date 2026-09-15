@@ -93,13 +93,13 @@
     }
 
     // Try server-side PHP login as a fallback for accounts created via the PHP API
-    async function attemptPhpLogin(email, password) {
+    async function attemptPhpLogin(loginIdentifier, password) {
       try {
         const res = await fetch('/api/login.php', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ login: loginIdentifier, email: loginIdentifier, password })
         });
 
         const json = await res.json().catch(() => ({}));
@@ -115,12 +115,12 @@
 
     document.querySelector('.login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
+      const loginIdentifier = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       const btn = e.target.querySelector('.btn-primary');
 
-      if (!email || !password) {
-        const missingInput = !email
+      if (!loginIdentifier || !password) {
+        const missingInput = !loginIdentifier
           ? document.getElementById('email')
           : document.getElementById('password');
         showAlert('Please fill in all fields.', 'error', missingInput);
@@ -134,7 +134,7 @@
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in...';
 
       try {
-          const { data, error } = await signIn(email, password);
+          const { data, error } = await signIn(loginIdentifier, password);
 
           // If Supabase says invalid credentials, try the PHP login API as a fallback
           if (error) {
@@ -142,7 +142,7 @@
             const isInvalid = msg.includes('invalid') || msg.includes('credentials') || msg.includes('password');
             if (isInvalid) {
               try {
-                const php = await attemptPhpLogin(email, password);
+                const php = await attemptPhpLogin(loginIdentifier, password);
                 if (php && php.data) {
                   // PHP session set via cookie; perform same redirect logic
                   showAlert('Login successful! Redirecting...', 'success');

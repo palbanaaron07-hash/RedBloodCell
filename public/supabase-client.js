@@ -181,7 +181,7 @@ function configError() {
   };
 }
 
-async function syncPhpRegistration({ email, password, firstName, middleName, lastName, phone, dob, address, gender, bloodType, username, medicalNotes, role }) {
+async function syncPhpRegistration({ email, password, firstName, middleName, lastName, phone, dob, address, gender, bloodType, username, medicalNotes = "", role }) {
   try {
     const response = await fetch('/api/register.php', {
       method: 'POST',
@@ -1069,7 +1069,7 @@ async function resolveRegularUserProfile(user) {
    AUTH HELPERS  (same function signatures as before)
    ============================================================ */
 
-async function signUp({ email, password, firstName, middleName, lastName, phone, dob, address, gender, bloodType, role, username, medicalNotes }) {
+async function signUp({ email, password, firstName, middleName, lastName, phone, dob, address, gender, bloodType, role, username, medicalNotes = "" }) {
   if (!SUPABASE_CONFIGURED) return configError();
   const startingRole = String(role || '').toLowerCase() === 'donor' ? 'donor' : 'patient';
   const emailCheck = validateRegistrationEmail(email);
@@ -1104,7 +1104,8 @@ async function signUp({ email, password, firstName, middleName, lastName, phone,
           gender: gender || null,
           address: address || null,
           blood_type: bloodType || null,
-          dob: dob || null
+          dob: dob || null,
+          username: username || null
         }
       }
     });
@@ -1173,9 +1174,24 @@ async function signUp({ email, password, firstName, middleName, lastName, phone,
   }
 }
 
-async function signIn(email, password) {
+async function resolveLoginEmail(identifier) {
+  const clean = String(identifier || "").trim();
+  if (!clean) return "";
+  if (clean.includes("@")) return clean;
+  if (clean.toLowerCase() === "admin") return "admin@bloodconnect.com";
+  try {
+    const { data, error } = await supabaseClient.rpc("resolve_login_identifier", { identifier: clean });
+    if (!error && Array.isArray(data) && data[0]?.email) {
+      return data[0].email;
+    }
+  } catch (e) {}
+  return clean;
+}
+
+async function signIn(loginIdentifier, password) {
   if (!SUPABASE_CONFIGURED) return configError();
   try {
+    const email = await resolveLoginEmail(loginIdentifier);
     let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error && isInvalidCredentialsError(error)) {

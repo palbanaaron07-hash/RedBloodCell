@@ -11,19 +11,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-$email    = trim($input['email'] ?? '');
+$login    = trim($input['email'] ?? $input['login'] ?? $input['username'] ?? '');
 $password = $input['password'] ?? '';
 
-if (!$email || !$password) {
-    jsonResponse(['error' => 'Email and password are required'], 400);
+if (!$login || !$password) {
+    jsonResponse(['error' => 'Email or username and password are required'], 400);
 }
 
-$stmt = $pdo->prepare('SELECT * FROM profiles WHERE email = ?');
-$stmt->execute([$email]);
+$stmt = $pdo->prepare('SELECT * FROM profiles WHERE email = ? OR username = ?');
+$stmt->execute([$login, $login]);
 $user = $stmt->fetch();
 
 if (!$user || !password_verify($password, $user['password_hash'])) {
-    jsonResponse(['error' => 'Invalid email or password'], 401);
+    jsonResponse(['error' => 'Invalid credentials'], 401);
 }
 
 // Allow admin, donor, and recipient (patient) accounts to log in

@@ -24,7 +24,8 @@ const sectionTitles = {
   drives: { title: 'Blood Drives' },
   reports: { title: 'Reports' },
   appointments: { title: 'Appointments' },
-  notifications: { title: 'Notifications' }
+  notifications: { title: 'Notifications' },
+  activity: { title: 'Activity Logs' }
 };
 
 const globalSearchInput = document.getElementById('globalSearchInput');
@@ -86,16 +87,17 @@ function normalizeBloodType(value) {
 function updateSearchPlaceholder(sectionName) {
   if (!globalSearchInput) return;
   const placeholders = {
-    dashboard: 'Search donors by ID or blood type...',
-    donors: 'Search donors by name, email, blood type...',
+    dashboard: 'Search donors, requests, inventory, or pages...',
+    donors: 'Search donors by name, ID, blood type, email...',
     requests: 'Search requests by patient, hospital, blood type...',
-    inventory: 'Search inventory by blood type...',
-    drives: 'Search drives by venue, status, or blood type...',
-    reports: 'Search reports by status, blood type, or metric...',
+    inventory: 'Search inventory by blood type, stock...',
+    drives: 'Search drives by venue, status, or title...',
+    reports: 'Search reports by status, metric, or type...',
     appointments: 'Search appointments...',
-    notifications: 'Search notifications...'
+    notifications: 'Search notifications...',
+    activity: 'Search activity logs by action, target, actor...'
   };
-  globalSearchInput.placeholder = placeholders[sectionName] || 'Search...';
+  globalSearchInput.placeholder = placeholders[sectionName] || 'Search donors, requests, inventory, or pages...';
 }
 
 function applySearchToVisibleSection() {
@@ -128,6 +130,10 @@ function applySearchToVisibleSection() {
   }
   if (activeSection === 'notifications') {
     renderNotificationsSection();
+    return;
+  }
+  if (activeSection === 'activity') {
+    renderActivityLogsSection();
   }
 }
 
@@ -169,6 +175,8 @@ function navigateToSection(sectionName) {
     refreshBloodDrives();
   } else if (sectionName === 'reports') {
     refreshReportsSection();
+  } else if (sectionName === 'activity') {
+    refreshActivityLogsSection();
   }
 
   // Close mobile sidebar and clear all menu-open state
@@ -921,6 +929,15 @@ async function handleScheduleDriveSubmit(event) {
     const notified = Number(data?.notified_count || 0);
     msg.textContent = `Drive scheduled successfully. ${formatNumber(notified)} donor${notified === 1 ? '' : 's'} notified.`;
     msg.className = 'form-msg success';
+
+    // Activity log
+    recordAdminActivity({
+      category: 'drives',
+      action: 'Scheduled Blood Drive',
+      target: payload.drive_name || 'Blood Drive',
+      details: `${formatDateShort(payload.date)} · ${payload.venue} · Target: ${formatNumber(payload.target_units)} unit(s) · ${formatNumber(notified)} donor(s) notified`
+    });
+
     form.reset();
     await refreshBloodDrives();
     setTimeout(closeScheduleDriveModal, 1500);
@@ -1154,6 +1171,13 @@ async function exportReportsSummary() {
     previewWindow.focus();
     setTimeout(() => previewWindow.print(), 350);
     if (status) status.textContent = 'Print dialog opened — choose “Save as PDF” to export.';
+    // Activity log
+    recordAdminActivity({
+      category: 'reports',
+      action: 'Exported Dashboard Report Summary',
+      target: 'Reports & Analytics',
+      details: `Period: ${getReportPeriodLabel(reportsTrendPeriod)} view`
+    });
     setTimeout(() => {
       if (status?.textContent.startsWith('Print dialog opened')) status.textContent = '';
     }, 3500);
@@ -1507,10 +1531,15 @@ async function refreshOverviewStats() {
 
   setOverviewUrgentPendingKpi(pendingUrgent);
 
-  const totalRequestsCount = Number(data.requests_count ?? data.pending_requests_count ?? 0);
+  const totalRequestsCount = requestsSectionCache.length > 0
+    ? requestsSectionCache.length
+    : Number(data.requests_count ?? data.pending_requests_count ?? 0);
+  const hasPending = requestsSectionCache.length > 0
+    ? requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending')
+    : Number(data.pending_requests_count || 0) > 0;
 
   setSidebarBadge('donors', donorsCount);
-  setSidebarBadge('requests', totalRequestsCount, Number(data.pending_requests_count || 0) > 0);
+  setSidebarBadge('requests', totalRequestsCount, hasPending);
 
   updateOverviewMiniStats();
   renderReportsSection();
@@ -1583,6 +1612,10 @@ async function refreshOverviewRequestsPanel() {
   }
 
   overviewRequestsCache = Array.isArray(data) ? data : [];
+  if (requestsSectionCache.length === 0 && overviewRequestsCache.length > 0) {
+    requestsSectionCache = overviewRequestsCache;
+  }
+  setSidebarBadge('requests', requestsSectionCache.length, requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending'));
 
   const pendingUrgentFromStats = Number(
     latestOverviewStats?.pending_urgent_requests ??
@@ -1913,6 +1946,7 @@ async function refreshRequestsSection() {
   }
 
   requestsSectionCache = Array.isArray(data) ? data : [];
+  setSidebarBadge('requests', requestsSectionCache.length, requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending'));
   updateRequestsStatsCards(requestsSectionCache);
   renderRequestsSection();
   buildOverviewActivityCache();
@@ -2239,18 +2273,37 @@ function openRequestStatusModal(requestId, targetStatus) {
 
   document.getElementById('requestStatusRequestId').textContent = `#${requestId}`;
   const isVerification = targetStatus === 'approved';
-  document.getElementById('requestStatusModalTitle').textContent = isVerification ? 'Verify Blood Request' : 'Change Request Status';
-  document.getElementById('requestStatusTransitionLabel').textContent = isVerification ? 'Result' : 'Transition';
+  const isClosing = targetStatus === 'fulfilled';
+  document.getElementById('requestStatusModalTitle').textContent = isVerification
+    ? 'Verify Blood Request'
+    : isClosing
+      ? 'Close Blood Request Coordination'
+      : 'Change Request Status';
+  document.getElementById('requestStatusTransitionLabel').textContent = isVerification
+    ? 'Result'
+    : isClosing
+      ? 'Final Status'
+      : 'Transition';
   document.getElementById('requestStatusTransition').value = isVerification
     ? 'Pending verification → Verified and published'
-    : `${oldStatus.replace('_', ' ')} → ${targetStatus.replace('_', ' ')}`;
-  document.getElementById('requestStatusReasonLabel').textContent = isVerification ? 'Verification basis' : 'Reason';
+    : isClosing
+      ? 'Approved / Active → Fulfilled (Coordination Closed)'
+      : `${oldStatus.replace('_', ' ')} → ${targetStatus.replace('_', ' ')}`;
+  document.getElementById('requestStatusReasonLabel').textContent = isVerification
+    ? 'Verification basis'
+    : isClosing
+      ? 'Closure basis'
+      : 'Reason';
   document.getElementById('requestStatusReasonHelp').textContent = isVerification
     ? 'Choose the evidence you personally reviewed before publishing this request.'
-    : '';
+    : isClosing
+      ? 'Select the fulfillment or verification source used to close this request.'
+      : '';
   document.getElementById('requestStatusSubmit').innerHTML = isVerification
     ? '<i class="fa-solid fa-shield-heart"></i> Verify and Publish Request'
-    : '<i class="fa-solid fa-check"></i> Confirm Change';
+    : isClosing
+      ? '<i class="fa-solid fa-circle-check"></i> Confirm & Close Coordination'
+      : '<i class="fa-solid fa-check"></i> Confirm Change';
 
   const reasonSelect = document.getElementById('requestStatusReason');
   reasonSelect.innerHTML = `<option value="">${isVerification ? 'Select verification basis' : 'Select a reason'}</option>` +
@@ -2342,6 +2395,23 @@ async function submitRequestStatusTransition(event) {
     const patient = Array.isArray(row?.patient) ? row.patient[0] : row?.patient;
     await queueClarificationNotification({ requestId, reason, note, patient });
   }
+
+  // Activity log
+  const _reqActionLabels = {
+    approved: 'Verified Blood Request',
+    fulfilled: 'Closed Coordination (Fulfilled)',
+    needs_clarification: 'Requested Clarification',
+    rejected: 'Rejected Blood Request',
+    cancelled: 'Cancelled Blood Request'
+  };
+  const _reqPatient = Array.isArray(row?.patient) ? row.patient[0] : row?.patient;
+  const _reqPatientName = [_reqPatient?.first_name, _reqPatient?.last_name].filter(Boolean).join(' ') || row?.patient_name || '';
+  recordAdminActivity({
+    category: 'requests',
+    action: _reqActionLabels[targetStatus] || `Updated Request to ${targetStatus}`,
+    target: `REQ-${requestId}${_reqPatientName ? ` (${_reqPatientName})` : ''}`,
+    details: [reasonLabel, note].filter(Boolean).join(' — ')
+  });
 
   const fulfilledMessage = targetStatus === 'fulfilled'
     ? (row.request_type === 'replacement'
@@ -2587,7 +2657,7 @@ function openAdminRequestDetails(requestId) {
           ${canMobilize ? `<button type="button" class="btn-primary request-detail-action request-detail-action--notify" onclick="closeAdminRequestDetailModal(); openMobilizeDonorsModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-bullhorn"></i> Notify Eligible Donors</button>` : ''}
           ${status === 'pending' && !expired ? `<button type="button" class="btn-verify-request" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'approved')"><i class="fa-solid fa-pen-to-square"></i> Verify Request</button>` : ''}
           ${row.request_type === 'replacement' && row.verification_status === 'verified' && status !== 'fulfilled' ? `<button type="button" class="btn-primary request-detail-action request-detail-action--record" onclick="closeAdminRequestDetailModal(); openReplacementDonationModal(${Number(row.request_id || row.id)})"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</button>` : ''}
-          ${row.request_type !== 'replacement' && !expired && status === 'approved' ? `<button type="button" class="btn-primary" style="font-size:0.8rem;padding:7px 14px;" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-pen-to-square"></i> Close Coordination</button>` : ''}
+          ${row.request_type !== 'replacement' && !expired && status === 'approved' ? `<button type="button" class="btn-close-coordination request-detail-action request-detail-action--complete" onclick="closeAdminRequestDetailModal(); openRequestStatusModal(${Number(row.request_id || row.id)}, 'fulfilled')"><i class="fa-solid fa-circle-check"></i> Close Coordination</button>` : ''}
           ${expired ? (row.request_type === 'replacement' && row.verification_status === 'verified' ? '<p style="color:#64748b;font-size:.85rem;">Public recruitment has expired. Facility-confirmed replacement donations can still be recorded.</p>' : '<p style="color:#64748b;font-size:.85rem;">Expired request - history only. The recipient must submit a new request if blood is still needed.</p>') : ''}
         `;
   }
@@ -3391,6 +3461,7 @@ async function loadDonors() {
     if (error) throw error;
 
     donorCache = donors || [];
+    setSidebarBadge('donors', donorCache.length);
     renderDonorRows();
     buildOverviewActivityCache();
     renderOverviewActivityFeed();
@@ -3582,6 +3653,15 @@ async function submitCheckIn() {
   renderDonorRows();
   refreshOverviewStats();
   showLifecycleMsg('Donor checked in successfully! Proceed to medical screening.', 'success');
+
+  // Activity log
+  const _ciDonor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
+  recordAdminActivity({
+    category: 'donors',
+    action: 'Donor Clinic Check-in',
+    target: formatCompleteName(_ciDonor, `Donor #${activeDonorId}`),
+    details: notes ? `Notes: ${notes}` : 'No additional notes'
+  });
 }
 window.submitCheckIn = submitCheckIn;
 
@@ -3668,6 +3748,15 @@ async function submitApproveMedical() {
   renderDonorRows();
   refreshOverviewStats();
   showLifecycleMsg('Medical screening approved! Donor is eligible for blood draw.', 'success');
+
+  // Activity log
+  const _amDonor = donorCache.find(d => Number(d.id ?? d.donor_id) === Number(activeDonorId));
+  recordAdminActivity({
+    category: 'donors',
+    action: 'Approved Pre-Donation Medical Screening',
+    target: formatCompleteName(_amDonor, `Donor #${activeDonorId}`),
+    details: `Assessment: ${assessment} | Hb: ${hemoglobin} g/dL | BP: ${bp}`
+  });
 }
 window.submitApproveMedical = submitApproveMedical;
 
@@ -3759,6 +3848,19 @@ async function submitMarkDonated() {
 
   showLifecycleMsg(successMsg, status === 'failed' ? 'error' : 'success');
   btn.disabled = false;
+
+  // Activity log
+  const _mdDonor = donorCache.find(d => (d.id ?? d.donor_id) === activeDonorId);
+  const _mdOutcomeLabel = status === 'completed' ? 'Recorded Blood Collection (Completed)'
+    : status === 'failed' ? 'Recorded Blood Collection (Failed)'
+    : status === 'cancelled' ? 'Recorded Blood Collection (Cancelled)'
+    : 'Recorded Blood Collection (Pending)';
+  recordAdminActivity({
+    category: 'donors',
+    action: _mdOutcomeLabel,
+    target: formatCompleteName(_mdDonor, `Donor #${activeDonorId}`),
+    details: `${units} unit(s) · ${blood_type}${reason ? ` · ${reason}` : ''}${notes ? ` · ${notes}` : ''}`
+  });
 }
 window.submitMarkDonated = submitMarkDonated;
 
@@ -3798,6 +3900,15 @@ async function submitDefer() {
   refreshOverviewStats();
   showLifecycleMsg(`Donor deferred: ${reason} OK`, 'error');
   btn.disabled = false;
+
+  // Activity log
+  const _dfDonor = donorCache.find(d => (d.id ?? d.donor_id) === activeDonorId);
+  recordAdminActivity({
+    category: 'donors',
+    action: 'Medically Deferred Donor',
+    target: formatCompleteName(_dfDonor, `Donor #${activeDonorId}`),
+    details: fullReason
+  });
 }
 window.submitDefer = submitDefer;
 
@@ -3823,6 +3934,16 @@ document.getElementById('addDonorForm').addEventListener('submit', async (e) => 
 
     msg.textContent = 'Donor added successfully!';
     msg.className = 'form-msg success';
+
+    // Activity log
+    const _adName = [body.first_name, body.last_name].filter(Boolean).join(' ') || 'New Donor';
+    recordAdminActivity({
+      category: 'donors',
+      action: 'Manually Added Donor',
+      target: _adName,
+      details: `Blood type: ${body.blood_type || '?'} · Contact: ${body.email || body.contact_number || 'N/A'}`
+    });
+
     form.reset();
     loadDonors();
     refreshOverviewStats();
@@ -3837,11 +3958,378 @@ document.getElementById('addDonorForm').addEventListener('submit', async (e) => 
 // Load donors on page load
 loadDonors();
 
+// ---- Global Search Suggestions & Omnibox ----
+const globalSearchResults = document.getElementById('globalSearchResults');
+const globalSearchClearBtn = document.getElementById('globalSearchClearBtn');
+let selectedSuggestionIndex = -1;
+let currentSuggestions = [];
+
+const SEARCHABLE_SECTIONS = [
+  { id: 'dashboard', name: 'Overview / Command Center', icon: 'fa-gauge-high', iconClass: 'page', desc: 'Summary metrics, activity feed & blood units', keywords: 'dashboard overview command center metrics stats summary home' },
+  { id: 'donors', name: 'Donor Management', icon: 'fa-users', iconClass: 'page', desc: 'Donor directory, medical verification & intake', keywords: 'donors list volunteers blood donors medical history profiles registration' },
+  { id: 'requests', name: 'Blood Requests', icon: 'fa-hand-holding-medical', iconClass: 'page', desc: 'Hospital and emergency patient blood requests', keywords: 'requests blood requests hospital patient needed urgent emergency transfer verification' },
+  { id: 'inventory', name: 'Blood Inventory', icon: 'fa-box-archive', iconClass: 'page', desc: 'Real-time blood stock levels, bags & expiry status', keywords: 'inventory stock blood units bank storage available bags supply' },
+  { id: 'drives', name: 'Blood Drives & Campaigns', icon: 'fa-calendar-days', iconClass: 'page', desc: 'Donation events, venues and mobile clinics', keywords: 'drives events mobile clinic venue schedules campaigns blood donation drives' },
+  { id: 'reports', name: 'Reports & Analytics', icon: 'fa-chart-pie', iconClass: 'page', desc: 'Analytics trends, donation statistics & exports', keywords: 'reports export trends charts performance analytics graphs print' },
+  { id: 'notifications', name: 'Notifications Center', icon: 'fa-bell', iconClass: 'page', desc: 'System alerts, urgent requests & coordinator logs', keywords: 'notifications alerts system logs messages activity updates' },
+  { id: 'activity', name: 'Activity Logs', icon: 'fa-clock-rotate-left', iconClass: 'page', desc: 'Coordinator operations audit trail and history', keywords: 'activity logs audit history coordinator actions trail operations' }
+];
+
+function highlightSearchMatch(text, query) {
+  const safeText = escapeHtml(String(text || ''));
+  if (!query) return safeText;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return safeText.replace(regex, '<mark>$1</mark>');
+}
+
+function hideSearchSuggestions() {
+  if (globalSearchResults) {
+    globalSearchResults.style.display = 'none';
+    globalSearchResults.innerHTML = '';
+  }
+  selectedSuggestionIndex = -1;
+  currentSuggestions = [];
+}
+
+function updateSearchClearBtn() {
+  if (!globalSearchClearBtn) return;
+  if (globalSearchInput && globalSearchInput.value.trim().length > 0) {
+    globalSearchClearBtn.style.display = 'flex';
+  } else {
+    globalSearchClearBtn.style.display = 'none';
+  }
+}
+
+function renderGlobalSearchSuggestions(query) {
+  if (!globalSearchResults) return;
+  const q = String(query || '').trim().toLowerCase();
+
+  if (!q) {
+    hideSearchSuggestions();
+    return;
+  }
+
+  const matches = {
+    sections: [],
+    donors: [],
+    requests: [],
+    inventory: [],
+    drives: []
+  };
+
+  // 1. Navigation sections
+  SEARCHABLE_SECTIONS.forEach((sec) => {
+    if (sec.name.toLowerCase().includes(q) || sec.desc.toLowerCase().includes(q) || sec.keywords.toLowerCase().includes(q)) {
+      matches.sections.push({
+        type: 'section',
+        id: sec.id,
+        title: sec.name,
+        subtitle: sec.desc,
+        icon: sec.icon,
+        iconClass: 'page',
+        badge: 'Page'
+      });
+    }
+  });
+
+  // 2. Donors
+  if (Array.isArray(donorCache) && donorCache.length > 0) {
+    for (const d of donorCache) {
+      const name = formatCompleteName(d, 'Donor');
+      const bloodType = d.blood_type || '';
+      const email = d.email || '';
+      const phone = d.phone || '';
+      const donorIdStr = String(d.id || d.donor_id || '');
+      const donorCode = `DONOR-${donorIdStr}`;
+      const status = d.donor_status || 'registered';
+      const city = d.city || d.address || '';
+
+      const isMatch = name.toLowerCase().includes(q)
+        || bloodType.toLowerCase().includes(q)
+        || email.toLowerCase().includes(q)
+        || phone.toLowerCase().includes(q)
+        || donorIdStr.includes(q)
+        || donorCode.toLowerCase().includes(q)
+        || city.toLowerCase().includes(q);
+
+      if (isMatch) {
+        matches.donors.push({
+          type: 'donor',
+          id: d.id || d.donor_id,
+          title: name,
+          subtitle: `${bloodType ? `${bloodType} • ` : ''}${d.email || d.phone || city || 'ID: #' + donorIdStr} • ${getDonorLifecycleLabel(status)}`,
+          icon: 'fa-user',
+          iconClass: 'donor',
+          badge: bloodType || 'Donor',
+          badgeClass: 'blood'
+        });
+      }
+      if (matches.donors.length >= 5) break;
+    }
+  }
+
+  // 3. Blood Requests
+  const reqSource = (Array.isArray(requestsSectionCache) && requestsSectionCache.length > 0)
+    ? requestsSectionCache
+    : (Array.isArray(overviewRequestsCache) ? overviewRequestsCache : []);
+
+  if (reqSource.length > 0) {
+    for (const r of reqSource) {
+      const patient = Array.isArray(r.patient) ? r.patient[0] : r.patient;
+      const patientName = [patient?.first_name, patient?.last_name].filter(Boolean).join(' ') || r.patient_name || 'Patient Request';
+      const hospital = r.hospital_name || patient?.hospital_name || r.hospital || 'Hospital';
+      const bloodType = normalizeBloodType(r.blood_type_needed || r.blood_type || '');
+      const reqIdStr = String(r.request_id || r.id || '');
+      const reqCode = `REQ-${reqIdStr}`;
+      const status = normalizeRequestStatus(r.status);
+      const units = Number(r.quantity || r.units_needed || 1);
+      const isUrgent = isUrgentRequest(r);
+
+      const isMatch = patientName.toLowerCase().includes(q)
+        || hospital.toLowerCase().includes(q)
+        || bloodType.toLowerCase().includes(q)
+        || reqIdStr.includes(q)
+        || reqCode.toLowerCase().includes(q)
+        || status.toLowerCase().includes(q);
+
+      if (isMatch) {
+        matches.requests.push({
+          type: 'request',
+          id: r.request_id || r.id,
+          title: patientName,
+          subtitle: `${hospital} • ${units} Unit${units > 1 ? 's' : ''} (${bloodType}) • ${status.toUpperCase()}`,
+          icon: 'fa-hand-holding-medical',
+          iconClass: 'request',
+          badge: isUrgent ? 'Urgent' : bloodType,
+          badgeClass: isUrgent ? 'urgent' : 'blood'
+        });
+      }
+      if (matches.requests.length >= 5) break;
+    }
+  }
+
+  // 4. Blood Inventory Stock
+  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const isInventoryKeyword = ['inventory', 'stock', 'units', 'bags', 'bank', 'storage', 'supply'].some((kw) => q.includes(kw));
+
+  bloodTypes.forEach((type) => {
+    const normType = normalizeBloodType(type).toLowerCase();
+    if (normType.includes(q) || q.includes(normType) || isInventoryKeyword) {
+      const invItem = (Array.isArray(inventoryByTypeCache) ? inventoryByTypeCache : []).find((i) => normalizeBloodType(i.blood_type) === type)
+        || (Array.isArray(overviewInventoryCache) ? overviewInventoryCache : []).find((i) => normalizeBloodType(i.blood_type) === type);
+      const units = invItem ? Number(invItem.units_available ?? invItem.units ?? 0) : 0;
+      const levelClass = getInventoryLevelClass(units);
+      matches.inventory.push({
+        type: 'inventory',
+        bloodType: type,
+        title: `Blood Type ${type}`,
+        subtitle: `${units} unit${units !== 1 ? 's' : ''} in stock (${levelClass.toUpperCase()})`,
+        icon: 'fa-droplet',
+        iconClass: 'inventory',
+        badge: `${units} Units`,
+        badgeClass: levelClass === 'critical' ? 'urgent' : 'status'
+      });
+    }
+  });
+  if (matches.inventory.length > 4) {
+    matches.inventory = matches.inventory.slice(0, 4);
+  }
+
+  // 5. Blood Drives
+  if (Array.isArray(BLOOD_DRIVE_PLAN) && BLOOD_DRIVE_PLAN.length > 0) {
+    for (const drive of BLOOD_DRIVE_PLAN) {
+      const title = drive.title || drive.name || 'Blood Donation Drive';
+      const venue = drive.venue || drive.location || 'Location';
+      if (title.toLowerCase().includes(q) || venue.toLowerCase().includes(q) || q.includes('drive') || q.includes('campaign')) {
+        matches.drives.push({
+          type: 'drive',
+          id: drive.id,
+          title: title,
+          subtitle: `${venue} • ${drive.date || 'Upcoming'}`,
+          icon: 'fa-calendar-days',
+          iconClass: 'drive',
+          badge: 'Drive',
+          badgeClass: 'status'
+        });
+      }
+      if (matches.drives.length >= 3) break;
+    }
+  }
+
+  const allItems = [
+    ...matches.sections,
+    ...matches.donors,
+    ...matches.requests,
+    ...matches.inventory,
+    ...matches.drives
+  ];
+
+  currentSuggestions = allItems;
+  selectedSuggestionIndex = -1;
+
+  if (allItems.length === 0) {
+    globalSearchResults.innerHTML = `
+      <div class="search-empty-state">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <p>No results found for "<strong>${escapeHtml(q)}</strong>"</p>
+        <span style="font-size:0.75rem;color:var(--gray-400);">Try searching for donor names, blood types (e.g. O+), hospitals, or pages</span>
+      </div>
+    `;
+    globalSearchResults.style.display = 'flex';
+    return;
+  }
+
+  let html = '';
+
+  const renderGroup = (groupTitle, icon, items) => {
+    if (!items || items.length === 0) return '';
+    let groupHtml = `<div class="search-suggestion-group">
+      <div class="search-suggestion-group-title"><i class="fa-solid ${icon}"></i> ${groupTitle}</div>`;
+    items.forEach((item) => {
+      const globalIdx = currentSuggestions.indexOf(item);
+      groupHtml += `
+        <div class="search-suggestion-item" data-index="${globalIdx}" role="option">
+          <div class="search-suggestion-left">
+            <div class="search-suggestion-icon ${item.iconClass}"><i class="fa-solid ${item.icon}"></i></div>
+            <div class="search-suggestion-info">
+              <span class="search-suggestion-title">${highlightSearchMatch(item.title, q)}</span>
+              <span class="search-suggestion-sub">${escapeHtml(item.subtitle)}</span>
+            </div>
+          </div>
+          ${item.badge ? `<span class="search-suggestion-badge ${item.badgeClass || ''}">${escapeHtml(item.badge)}</span>` : ''}
+        </div>
+      `;
+    });
+    groupHtml += '</div>';
+    return groupHtml;
+  };
+
+  html += renderGroup('Navigation Pages', 'fa-compass', matches.sections);
+  html += renderGroup('Donors', 'fa-users', matches.donors);
+  html += renderGroup('Blood Requests', 'fa-hand-holding-medical', matches.requests);
+  html += renderGroup('Blood Stock', 'fa-box-archive', matches.inventory);
+  html += renderGroup('Blood Drives', 'fa-calendar-days', matches.drives);
+
+  globalSearchResults.innerHTML = html;
+  globalSearchResults.style.display = 'flex';
+
+  // Add click listeners to items
+  globalSearchResults.querySelectorAll('.search-suggestion-item').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = Number(el.getAttribute('data-index'));
+      executeSuggestion(idx);
+    });
+  });
+}
+
+function executeSuggestion(index) {
+  if (index < 0 || index >= currentSuggestions.length) return;
+  const item = currentSuggestions[index];
+  if (!item) return;
+
+  hideSearchSuggestions();
+
+  if (item.type === 'section') {
+    navigateToSection(item.id);
+  } else if (item.type === 'donor') {
+    navigateToSection('donors');
+    if (typeof openDonorProfileModal === 'function' && item.id) {
+      setTimeout(() => openDonorProfileModal(Number(item.id)), 100);
+    }
+  } else if (item.type === 'request') {
+    navigateToSection('requests');
+    if (typeof openAdminRequestDetails === 'function' && item.id) {
+      setTimeout(() => openAdminRequestDetails(Number(item.id)), 100);
+    }
+  } else if (item.type === 'inventory') {
+    navigateToSection('inventory');
+  } else if (item.type === 'drive') {
+    navigateToSection('drives');
+  }
+}
+
+function updateSelectedSuggestionHighlight() {
+  if (!globalSearchResults) return;
+  const items = globalSearchResults.querySelectorAll('.search-suggestion-item');
+  items.forEach((item, idx) => {
+    if (idx === selectedSuggestionIndex) {
+      item.classList.add('selected');
+      item.scrollIntoView({ block: 'nearest' });
+    } else {
+      item.classList.remove('selected');
+    }
+  });
+}
+
 if (globalSearchInput) {
   globalSearchInput.addEventListener('input', () => {
+    updateSearchClearBtn();
+    applySearchToVisibleSection();
+    renderGlobalSearchSuggestions(globalSearchInput.value);
+  });
+
+  globalSearchInput.addEventListener('focus', () => {
+    if (globalSearchInput.value.trim().length > 0) {
+      renderGlobalSearchSuggestions(globalSearchInput.value);
+    }
+  });
+
+  globalSearchInput.addEventListener('keydown', (e) => {
+    if (!globalSearchResults || globalSearchResults.style.display === 'none') {
+      if (e.key === 'ArrowDown' && globalSearchInput.value.trim().length > 0) {
+        renderGlobalSearchSuggestions(globalSearchInput.value);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (currentSuggestions.length > 0) {
+        selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+        updateSelectedSuggestionHighlight();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (currentSuggestions.length > 0) {
+        selectedSuggestionIndex = (selectedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+        updateSelectedSuggestionHighlight();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < currentSuggestions.length) {
+        executeSuggestion(selectedSuggestionIndex);
+      } else if (currentSuggestions.length > 0) {
+        executeSuggestion(0);
+      }
+    } else if (e.key === 'Escape') {
+      hideSearchSuggestions();
+      globalSearchInput.blur();
+    }
+  });
+}
+
+if (globalSearchClearBtn) {
+  globalSearchClearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (globalSearchInput) {
+      globalSearchInput.value = '';
+      globalSearchInput.focus();
+    }
+    updateSearchClearBtn();
+    hideSearchSuggestions();
     applySearchToVisibleSection();
   });
 }
+
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('headerSearchWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    hideSearchSuggestions();
+  }
+});
+
 
 setupReportsPeriodFilters();
 document.getElementById('exportReportsBtn')?.addEventListener('click', exportReportsSummary);
@@ -3888,6 +4376,14 @@ document.getElementById('inventoryForm').addEventListener('submit', async (e) =>
 
   msg.textContent = `Stock added: ${escapeHtml(data?.blood_type || payload.blood_type)} now has ${formatNumber(data?.units_available || 0)} unit(s).`;
   msg.className = 'form-msg success';
+
+  // Activity log
+  recordAdminActivity({
+    category: 'inventory',
+    action: 'Added Blood Inventory Stock',
+    target: `Blood Type ${data?.blood_type || payload.blood_type}`,
+    details: `+${formatNumber(payload.units)} unit(s) added · Total now: ${formatNumber(data?.units_available || 0)} unit(s)`
+  });
 
   await refreshOverviewStats();
   await Promise.all([
@@ -4339,3 +4835,262 @@ if (typeof attachPageRefreshListeners === 'function') {
   });
 }
 // ==================== END NOTIFICATIONS SYSTEM ====================
+
+// ==================== ACTIVITY LOGS ENGINE ====================
+
+const ACTIVITY_LOGS_KEY = 'bloodconnect_admin_activity_logs';
+const ACTIVITY_LOGS_MAX = 500;
+
+/**
+ * @typedef {{ id: number, timestamp: string, category: string, action: string,
+ *             target: string, details: string, actor: string }} ActivityLogEntry
+ */
+
+let activityLogsCache = [];  // in-memory list, newest-first
+let activityLogsNextId = 1;
+let activityLogsFiltered = []; // currently rendered subset
+
+// ---- Persistence helpers ----
+function _loadActivityLogs() {
+  try {
+    const raw = localStorage.getItem(ACTIVITY_LOGS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function _saveActivityLogs() {
+  try {
+    localStorage.setItem(ACTIVITY_LOGS_KEY, JSON.stringify(activityLogsCache.slice(0, ACTIVITY_LOGS_MAX)));
+  } catch (_) { /* storage quota – silently ignore */ }
+}
+
+function _initActivityEngine() {
+  const stored = _loadActivityLogs();
+  activityLogsCache = stored;
+  activityLogsNextId = stored.length > 0
+    ? Math.max(...stored.map(e => Number(e.id) || 0)) + 1
+    : 1;
+}
+_initActivityEngine();
+
+// ---- Public: record an action ----
+/**
+ * Record a coordinator/admin action in the activity log.
+ * @param {Object} opts
+ * @param {'requests'|'donors'|'inventory'|'drives'|'session'|'reports'} opts.category
+ * @param {string} opts.action  – Short human-readable verb phrase e.g. "Verified Blood Request"
+ * @param {string} [opts.target] – Entity identifier e.g. "REQ-42" or "John Santos"
+ * @param {string} [opts.details] – Extra context e.g. reason, note, blood type
+ */
+function recordAdminActivity({ category, action, target = '', details = '' }) {
+  const actor = currentAdminContext?.fullName || currentAdminContext?.email || 'Coordinator';
+  const entry = {
+    id: activityLogsNextId++,
+    timestamp: new Date().toISOString(),
+    category: String(category || 'session'),
+    action: String(action || ''),
+    target: String(target || ''),
+    details: String(details || ''),
+    actor: String(actor)
+  };
+  activityLogsCache.unshift(entry);
+  if (activityLogsCache.length > ACTIVITY_LOGS_MAX) activityLogsCache.length = ACTIVITY_LOGS_MAX;
+  _saveActivityLogs();
+
+  // Live-update if currently viewing the section
+  if (activeSection === 'activity') {
+    _applyActivityFilters();
+    _renderActivityTable();
+    _updateActivityStats();
+  }
+}
+window.recordAdminActivity = recordAdminActivity;
+
+// ---- Stats ----
+function _updateActivityStats() {
+  const all = activityLogsCache;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+  const total = all.length;
+  const today = all.filter(e => new Date(e.timestamp) >= todayStart).length;
+  const requests = all.filter(e => e.category === 'requests').length;
+  const donors = all.filter(e => e.category === 'donors').length;
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('activityTotalActions', formatNumber(total));
+  setText('activityTodayActions', formatNumber(today));
+  setText('activityRequestActions', formatNumber(requests));
+  setText('activityDonorActions', formatNumber(donors));
+  setText('activityTotalActionsNote', total > 0 ? `${formatNumber(total)} operations on record` : 'No actions logged yet');
+  setText('activityTodayActionsNote', today > 0 ? `${formatNumber(today)} action(s) today` : 'No actions recorded today');
+  setText('activityRequestActionsNote', requests > 0 ? `${formatNumber(requests)} request operation(s)` : 'No request operations yet');
+  setText('activityDonorActionsNote', donors > 0 ? `${formatNumber(donors)} donor operation(s)` : 'No donor operations yet');
+}
+
+// ---- Filter helpers ----
+function _applyActivityFilters() {
+  const category = String(document.getElementById('activityCategoryFilter')?.value || 'all');
+  const timeframe = String(document.getElementById('activityTimeframeFilter')?.value || 'all');
+  const query = getSearchQuery().toLowerCase();
+
+  const now = new Date();
+  let cutoff = null;
+  if (timeframe === 'today') {
+    cutoff = new Date(now); cutoff.setHours(0, 0, 0, 0);
+  } else if (timeframe === 'week') {
+    cutoff = new Date(now); cutoff.setDate(now.getDate() - 7);
+  } else if (timeframe === 'month') {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  activityLogsFiltered = activityLogsCache.filter(e => {
+    if (category !== 'all' && e.category !== category) return false;
+    if (cutoff && new Date(e.timestamp) < cutoff) return false;
+    if (query) {
+      const blob = `${e.action} ${e.target} ${e.details} ${e.actor} ${e.category}`.toLowerCase();
+      if (!blob.includes(query)) return false;
+    }
+    return true;
+  });
+}
+
+function filterActivityLogs() {
+  _applyActivityFilters();
+  _renderActivityTable();
+  _updateActivityFilterSummary();
+}
+window.filterActivityLogs = filterActivityLogs;
+
+function clearActivityFilters() {
+  const cat = document.getElementById('activityCategoryFilter');
+  const tf = document.getElementById('activityTimeframeFilter');
+  if (cat) cat.value = 'all';
+  if (tf) tf.value = 'all';
+  filterActivityLogs();
+}
+window.clearActivityFilters = clearActivityFilters;
+
+function _updateActivityFilterSummary() {
+  const el = document.getElementById('activityFilterSummary');
+  if (!el) return;
+  const total = activityLogsFiltered.length;
+  const all = activityLogsCache.length;
+  if (total === all || all === 0) {
+    el.textContent = all === 0 ? 'No activity recorded yet. Start using the dashboard to generate logs.' : `Showing all ${formatNumber(all)} activity log entries.`;
+  } else {
+    el.textContent = `Showing ${formatNumber(total)} of ${formatNumber(all)} entries matching current filters.`;
+  }
+}
+
+// ---- Render table ----
+const ACTIVITY_CATEGORY_META = {
+  requests:  { label: 'Requests',  cls: 'requests' },
+  donors:    { label: 'Donors',    cls: 'donors' },
+  inventory: { label: 'Inventory', cls: 'inventory' },
+  drives:    { label: 'Drives',    cls: 'drives' },
+  session:   { label: 'Session',   cls: 'session' },
+  reports:   { label: 'Reports',   cls: 'session' }
+};
+
+function _renderActivityTable() {
+  const tbody = document.getElementById('activityLogsBody');
+  if (!tbody) return;
+
+  if (activityLogsFiltered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--slate-400,#94a3b8);padding:48px;">
+      <i class="fa-solid fa-clipboard-list" style="font-size:1.8rem;margin-bottom:12px;display:block;opacity:0.35;"></i>
+      No activity log entries match the current filters.
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = activityLogsFiltered.map(e => {
+    const meta = ACTIVITY_CATEGORY_META[e.category] || { label: e.category, cls: 'session' };
+    const ts = new Date(e.timestamp);
+    const tsStr = Number.isNaN(ts.getTime()) ? '-' : ts.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const relStr = formatRelativeTime(e.timestamp);
+
+    return `<tr>
+      <td title="${escapeHtml(ts.toLocaleString())}">
+        <span style="font-weight:600;white-space:nowrap;">${escapeHtml(tsStr)}</span><br>
+        <small style="color:var(--slate-400,#94a3b8);">${escapeHtml(relStr)}</small>
+      </td>
+      <td><span class="activity-badge ${escapeHtml(meta.cls)}">${escapeHtml(meta.label)}</span></td>
+      <td><span class="activity-action-name">${escapeHtml(e.action)}</span></td>
+      <td>${e.target ? `<span class="activity-target-pill">${escapeHtml(e.target)}</span>` : '<span style="color:var(--slate-400,#94a3b8);">—</span>'}</td>
+      <td style="max-width:220px;word-break:break-word;">${escapeHtml(e.details) || '<span style="color:var(--slate-400,#94a3b8);">—</span>'}</td>
+      <td><span class="activity-actor-tag">${escapeHtml(e.actor)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- Main section render / refresh ----
+function renderActivityLogsSection() {
+  _applyActivityFilters();
+  _renderActivityTable();
+  _updateActivityStats();
+  _updateActivityFilterSummary();
+}
+window.renderActivityLogsSection = renderActivityLogsSection;
+
+function refreshActivityLogsSection() {
+  // Re-init from localStorage in case another tab wrote entries
+  _initActivityEngine();
+  renderActivityLogsSection();
+  const note = document.getElementById('activityStatusNote');
+  if (note) {
+    note.textContent = `Last refreshed: ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+  }
+}
+window.refreshActivityLogsSection = refreshActivityLogsSection;
+
+// ---- CSV Export ----
+function exportActivityLogsCsv() {
+  _applyActivityFilters();
+  const rows = activityLogsFiltered;
+  if (rows.length === 0) {
+    alert('No activity log entries to export with the current filters.');
+    return;
+  }
+
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = ['Timestamp', 'Category', 'Action', 'Target', 'Details', 'Coordinator'];
+  const csvLines = [
+    header.join(','),
+    ...rows.map(e => [
+      escape(new Date(e.timestamp).toLocaleString('en-US')),
+      escape(e.category),
+      escape(e.action),
+      escape(e.target),
+      escape(e.details),
+      escape(e.actor)
+    ].join(','))
+  ];
+
+  const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `activity_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 800);
+}
+window.exportActivityLogsCsv = exportActivityLogsCsv;
+
+// ---- Session login record ----
+(function recordSessionLogin() {
+  setTimeout(() => {
+    recordAdminActivity({
+      category: 'session',
+      action: 'Admin Session Started',
+      target: '',
+      details: `Logged in as ${currentAdminContext?.email || 'coordinator'}`
+    });
+  }, 3500); // after admin context is populated
+})();
+
+// ==================== END ACTIVITY LOGS ENGINE ====================

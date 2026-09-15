@@ -848,7 +848,6 @@
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       const confirmPw = document.getElementById('confirm_password').value;
-      const medicalNotes = document.getElementById('medical_notes').value.trim();
       const terms = document.getElementById('terms').checked;
       const selectedRole = document.querySelector('input[name="account_role"]:checked')?.value || '';
       const role = selectedRole === 'donor' ? 'donor' : 'patient';
@@ -917,7 +916,7 @@
         const { error } = await signUp({
           firstName, middleName, lastName, email, phone: normalizedPhone, dob,
           address: `${address}, ${city}, ${province}`,
-          gender, bloodType, username, password, medicalNotes,
+          gender, bloodType, username, password,
           role
         });
 
