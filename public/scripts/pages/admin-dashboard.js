@@ -46,6 +46,7 @@ let overviewMiniLineChart = null;
 let overviewMiniBarChart = null;
 let reportsRealtimeChannel = null;
 let reportsRealtimeTimer = null;
+let bloodDrivesRealtimeChannel = null;
 let overviewExpirationsCollapsed = false;
 const INVENTORY_TARGET_UNITS = 50;
 const BLOOD_DRIVE_PLAN = [];
@@ -162,6 +163,8 @@ function navigateToSection(sectionName) {
   } else if (sectionName === 'dashboard') {
     refreshOverviewStats();
     refreshOverviewPanels();
+  } else if (sectionName === 'drives') {
+    refreshBloodDrives();
   }
 
   // Close mobile sidebar and clear all menu-open state
@@ -660,6 +663,15 @@ function getDriveStatusBadge(status) {
   return '<span class="badge pending">Recruiting</span>';
 }
 
+function formatDriveTime(value) {
+  if (!value) return '';
+  const match = String(value).match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return String(value);
+  const hours = Number(match[1]);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  return `${hours % 12 || 12}:${match[2]} ${period}`;
+}
+
 function renderBloodDrivesSection() {
   const tableBody = document.getElementById('drivesTableBody');
   const readinessList = document.getElementById('drivesReadinessList');
@@ -673,7 +685,8 @@ function renderBloodDrivesSection() {
     const driveDate = new Date(drive.date);
     driveDate.setHours(0, 0, 0, 0);
     const openSlots = Math.max(0, Number(drive.target_units || 0) - Number(drive.registered_donors || 0));
-    const isUpcoming = driveDate >= today && String(drive.status || '').toLowerCase() !== 'completed';
+    const status = String(drive.status || '').toLowerCase();
+    const isUpcoming = driveDate >= today && !['completed', 'cancelled'].includes(status);
     return { ...drive, openSlots, isUpcoming, driveDate };
   });
 
@@ -682,16 +695,10 @@ function renderBloodDrivesSection() {
   const targetUnits = upcoming.reduce((sum, drive) => sum + (Number(drive.target_units) || 0), 0);
   const openSlots = upcoming.reduce((sum, drive) => sum + (Number(drive.openSlots) || 0), 0);
 
-  const priorityInventory = getInventoryRowsWithAllTypes()
-    .slice()
-    .sort((a, b) => (Number(a.units_available) || 0) - (Number(b.units_available) || 0))[0];
-  const priorityType = priorityInventory?.blood_type || '--';
-  const priorityUnits = Number(priorityInventory?.units_available || 0);
-
   document.getElementById('drivesUpcomingCount').textContent = formatNumber(upcomingCount);
   document.getElementById('drivesTargetUnits').textContent = formatNumber(targetUnits);
   document.getElementById('drivesOpenSlots').textContent = formatNumber(openSlots);
-  document.getElementById('drivesPriorityType').textContent = priorityType;
+  document.getElementById('drivesPriorityType').textContent = 'All';
 
   document.getElementById('drivesUpcomingNote').textContent =
     upcomingCount > 0 ? `${formatNumber(upcomingCount)} campaign(s) in pipeline` : 'No scheduled drives';
@@ -699,8 +706,7 @@ function renderBloodDrivesSection() {
     targetUnits > 0 ? `${formatNumber(targetUnits)} planned unit/s collection goal` : 'No unit targets yet';
   document.getElementById('drivesOpenSlotsNote').textContent =
     openSlots > 0 ? `${formatNumber(openSlots)} donor slot(s) still open` : 'No pending donor slots';
-  document.getElementById('drivesPriorityTypeNote').textContent =
-    `Current lowest stock: ${priorityType} (${formatNumber(priorityUnits)} unit/s)`;
+  document.getElementById('drivesPriorityTypeNote').textContent = 'All blood types are welcome';
 
   const filteredDrives = drives.filter((drive) => includesQuery([
     drive.drive_id,
@@ -718,7 +724,7 @@ function renderBloodDrivesSection() {
     tableBody.innerHTML = filteredDrives.map((drive) => {
       return `<tr>
             <td>${escapeHtml(drive.drive_name)}<br><small style="color:var(--gray-400);">${escapeHtml(drive.drive_id)}</small></td>
-            <td>${escapeHtml(formatDateShort(drive.date))}</td>
+            <td>${escapeHtml(formatDateShort(drive.date))}${drive.start_time || drive.end_time ? `<br><small style="color:var(--gray-400);">${escapeHtml([formatDriveTime(drive.start_time), formatDriveTime(drive.end_time)].filter(Boolean).join(' - '))}</small>` : ''}</td>
             <td>${escapeHtml(drive.venue)}</td>
             <td>${formatNumber(drive.target_units)}</td>
             <td>${formatNumber(drive.registered_donors)}</td>
@@ -767,6 +773,126 @@ function renderBloodDrivesSection() {
         </div>`;
   }).join('');
 }
+
+async function refreshBloodDrives() {
+  const tableBody = document.getElementById('drivesTableBody');
+  if (typeof listBloodDrives !== 'function') {
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:32px;">Blood-drive service is unavailable.</td></tr>';
+    return;
+  }
+
+  const { data, error } = await listBloodDrives();
+  if (error) {
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:32px;">${escapeHtml(error.message || 'Failed to load blood drives.')}</td></tr>`;
+    return;
+  }
+
+  BLOOD_DRIVE_PLAN.splice(0, BLOOD_DRIVE_PLAN.length, ...(Array.isArray(data) ? data : []));
+  renderBloodDrivesSection();
+}
+
+function getLocalDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function openScheduleDriveModal() {
+  const modal = document.getElementById('scheduleDriveModal');
+  const dateInput = document.getElementById('driveDate');
+  const msg = document.getElementById('scheduleDriveMsg');
+  if (dateInput) {
+    dateInput.min = getLocalDateInputValue();
+    if (!dateInput.value) dateInput.value = getLocalDateInputValue();
+  }
+  const startTimeInput = document.getElementById('driveStartTime');
+  const endTimeInput = document.getElementById('driveEndTime');
+  if (startTimeInput && !startTimeInput.value) startTimeInput.value = '08:00';
+  if (endTimeInput && !endTimeInput.value) endTimeInput.value = '17:00';
+  if (msg) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+  modal?.classList.add('active');
+  document.body.classList.add('modal-open');
+  setTimeout(() => document.getElementById('driveName')?.focus(), 50);
+}
+
+function closeScheduleDriveModal() {
+  document.getElementById('scheduleDriveModal')?.classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+async function handleScheduleDriveSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const msg = document.getElementById('scheduleDriveMsg');
+  const submitBtn = document.getElementById('saveScheduleDriveBtn');
+  const formData = new FormData(form);
+  const startTime = String(formData.get('start_time') || '');
+  const endTime = String(formData.get('end_time') || '');
+
+  if (!startTime || !endTime) {
+    msg.textContent = 'Start time and end time are required.';
+    msg.className = 'form-msg error';
+    return;
+  }
+
+  if (endTime <= startTime) {
+    msg.textContent = 'End time must be later than start time.';
+    msg.className = 'form-msg error';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  msg.textContent = 'Scheduling the drive and notifying donors...';
+  msg.className = 'form-msg info';
+
+  const payload = {
+    drive_name: String(formData.get('drive_name') || '').trim(),
+    date: String(formData.get('drive_date') || ''),
+    start_time: startTime || null,
+    end_time: endTime || null,
+    venue: String(formData.get('venue') || '').trim(),
+    address: String(formData.get('address') || '').trim(),
+    target_units: Number(formData.get('target_units')),
+    focus_type: String(formData.get('focus_type') || 'All'),
+    notes: String(formData.get('notes') || '').trim()
+  };
+
+  try {
+    const { data, error } = await scheduleBloodDrive(payload);
+    if (error) throw new Error(error.message);
+    const notified = Number(data?.notified_count || 0);
+    msg.textContent = `Drive scheduled successfully. ${formatNumber(notified)} donor${notified === 1 ? '' : 's'} notified.`;
+    msg.className = 'form-msg success';
+    form.reset();
+    await refreshBloodDrives();
+    setTimeout(closeScheduleDriveModal, 1500);
+  } catch (error) {
+    msg.textContent = error?.message || 'Failed to schedule the blood drive.';
+    msg.className = 'form-msg error';
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+function initBloodDrivesRealtime() {
+  if (typeof supabaseClient === 'undefined') return;
+  bloodDrivesRealtimeChannel = supabaseClient
+    .channel(`admin-blood-drives-${Date.now()}`)
+    .on('postgres_changes', { event: '*', schema: 'blood_bank', table: 'blood_drive' }, refreshBloodDrives)
+    .subscribe();
+}
+
+document.getElementById('scheduleDriveBtn')?.addEventListener('click', openScheduleDriveModal);
+document.getElementById('closeScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
+document.getElementById('cancelScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
+document.getElementById('scheduleDriveForm')?.addEventListener('submit', handleScheduleDriveSubmit);
+document.getElementById('scheduleDriveModal')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeScheduleDriveModal();
+});
 
 function renderReportsSection() {
   const requestBody = document.getElementById('reportsRequestBreakdownBody');
@@ -1451,7 +1577,7 @@ async function refreshInventorySection() {
     critical > 0 ? 'Immediate restock required' : 'No critical-stock alerts';
 
   renderInventorySection();
-  renderBloodDrivesSection();
+  await refreshBloodDrives();
   updateOverviewMiniStats();
   renderReportsSection();
 }
@@ -2506,6 +2632,7 @@ document.querySelectorAll('.nav-item[data-section]').forEach(item => {
   applyOverviewExpirationsVisibility();
   refreshReportsTrendChart();
   initReportsRealtime();
+  initBloodDrivesRealtime();
   updateSearchPlaceholder(activeSection);
 })();
 
@@ -3917,6 +4044,9 @@ window.addEventListener('beforeunload', () => {
   if (notifRequestPollTimer) {
     clearInterval(notifRequestPollTimer);
   }
+  if (bloodDrivesRealtimeChannel && typeof supabaseClient !== 'undefined') {
+    try { supabaseClient.removeChannel(bloodDrivesRealtimeChannel); } catch (_) { }
+  }
 });
 
 // Auto-refresh when landing, returning via bfcache, or switching back to the tab
@@ -3929,7 +4059,8 @@ if (typeof attachPageRefreshListeners === 'function') {
           typeof refreshOverviewPanels === 'function' ? refreshOverviewPanels() : Promise.resolve(),
           typeof loadRequests === 'function' ? loadRequests() : Promise.resolve(),
           typeof loadDonors === 'function' ? loadDonors() : Promise.resolve(),
-          typeof refreshInventorySection === 'function' ? refreshInventorySection() : Promise.resolve()
+          typeof refreshInventorySection === 'function' ? refreshInventorySection() : Promise.resolve(),
+          typeof refreshBloodDrives === 'function' ? refreshBloodDrives() : Promise.resolve()
         ]);
       } catch (_) { }
     },

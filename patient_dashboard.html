@@ -19,7 +19,7 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
   <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/patient_dashboard.css?v=20260915supportpreferences" />
+  <link rel="stylesheet" href="/patient_dashboard.css?v=20260915capacitylabelsfix" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="/patient_mobile_nav.css?v=20260907fix" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
@@ -233,36 +233,32 @@
 
         <div id="donorDashboardState" hidden>
           <section class="stats-row donor-stats-row" aria-label="Donor overview">
-            <div class="stat-card green stat-card-passive">
-              <div class="stat-ring"><i class="fa-solid fa-stethoscope"></i></div>
+            <div class="stat-card green stat-card-passive donor-status-card" id="donorEligibilityCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-shield-heart"></i></div><p class="stat-label">Eligibility</p></div>
               <div class="stat-body">
-                <p class="stat-label">Eligibility & Status</p>
                 <h2 class="stat-number donor-stat-text" id="donorEligibilityStat">--</h2>
                 <p class="stat-sub" id="donorEligibilitySub">Checking status</p>
               </div>
             </div>
-            <div class="stat-card blue stat-card-passive">
-              <div class="stat-ring"><i class="fa-solid fa-signal"></i></div>
+            <div class="stat-card blue stat-card-passive donor-status-card" id="donorAvailabilityCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-tower-broadcast"></i></div><p class="stat-label">Availability</p></div>
               <div class="stat-body">
-                <p class="stat-label">Availability</p>
                 <h2 class="stat-number donor-stat-text" id="donorAvailabilityStat">--</h2>
                 <p class="stat-sub" id="donorAvailabilitySub">Your current setting</p>
               </div>
             </div>
-            <div class="stat-card red stat-card-passive">
-              <div class="stat-ring"><i class="fa-solid fa-calendar-check"></i></div>
+            <div class="stat-card red stat-card-passive donor-status-card" id="donorLastDonationCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-clock-rotate-left"></i></div><p class="stat-label">Last donation</p></div>
               <div class="stat-body">
-                <p class="stat-label">Last Donation</p>
                 <h2 class="stat-number donor-stat-text" id="donorLastDonationStat">--</h2>
                 <p class="stat-sub" id="donorLastDonationSub">Recorded donation</p>
               </div>
             </div>
-            <div class="stat-card violet stat-card-passive">
-              <div class="stat-ring"><i class="fa-solid fa-calendar-plus"></i></div>
+            <div class="stat-card violet stat-card-passive donor-status-card" id="donorNextEligibleCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-calendar-day"></i></div><p class="stat-label">Next eligible</p></div>
               <div class="stat-body">
-                <p class="stat-label">Next Eligible</p>
                 <h2 class="stat-number donor-stat-text" id="donorNextEligibleStat">--</h2>
-                <p class="stat-sub">Based on 56-day rule</p>
+                <p class="stat-sub" id="donorNextEligibleSub">Based on the 56-day recovery period</p>
               </div>
             </div>
           </section>
@@ -1024,9 +1020,9 @@
 
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/supabase-client.js?v=20260915supportpreferences"></script>
+  <script src="/supabase-client.js?v=20260915blooddrives"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/scripts/pages/patient-dashboard.js?v=20260915supportpreferencesb"></script>
+  <script src="/scripts/pages/patient-dashboard.js?v=20260915donorstatuscards"></script>
   <script src="/pull-to-refresh.js?v=20260906n" defer></script>
 </body>
 

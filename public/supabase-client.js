@@ -2763,7 +2763,7 @@ async function listMyNotifications(limit = 20) {
 
   const { data, error } = await bloodBank()
     .from('notifications')
-    .select('notification_id, request_id, notification_type, title, message, read_at, created_at')
+    .select('notification_id, request_id, drive_id, notification_type, title, message, read_at, created_at')
     .eq('recipient_user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(Math.max(1, Math.min(Number(limit) || 20, 50)));
@@ -2771,6 +2771,80 @@ async function listMyNotifications(limit = 20) {
   return error
     ? { data: null, error: mapError(error, 'Failed to load notifications.') }
     : { data: data || [], error: null };
+}
+
+async function listBloodDrives() {
+  if (!SUPABASE_CONFIGURED) return configError();
+  try {
+    const { data, error } = await bloodBank()
+      .from('blood_drive')
+      .select('drive_id, drive_name, drive_date, start_time, end_time, venue, address, target_units, registered_donors, focus_type, status, notes, created_at, updated_at')
+      .order('drive_date', { ascending: true })
+      .order('start_time', { ascending: true, nullsFirst: false });
+
+    return error
+      ? { data: null, error: mapError(error, 'Failed to load blood drives.') }
+      : {
+        data: (data || []).map((drive) => ({ ...drive, date: drive.drive_date })),
+        error: null
+      };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while loading blood drives.' } };
+  }
+}
+
+async function scheduleBloodDrive(payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const values = payload || {};
+  try {
+    const { data, error } = await bloodBank().rpc('schedule_blood_drive', {
+      p_drive_name: values.drive_name,
+      p_drive_date: values.date || values.drive_date,
+      p_start_time: values.start_time || null,
+      p_end_time: values.end_time || null,
+      p_venue: values.venue,
+      p_address: values.address || null,
+      p_target_units: Number(values.target_units),
+      p_focus_type: values.focus_type || 'All',
+      p_notes: values.notes || null
+    });
+    return error
+      ? { data: null, error: mapError(error, 'Failed to schedule the blood drive.') }
+      : { data, error: null };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while scheduling the blood drive.' } };
+  }
+}
+
+async function listMyBloodDriveRegistrations() {
+  if (!SUPABASE_CONFIGURED) return configError();
+  try {
+    const { data, error } = await bloodBank()
+      .from('blood_drive_registration')
+      .select('drive_id, status, registered_at')
+      .eq('status', 'registered');
+    return error
+      ? { data: null, error: mapError(error, 'Failed to load drive registrations.') }
+      : { data: data || [], error: null };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while loading drive registrations.' } };
+  }
+}
+
+async function registerForBloodDrive(driveId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const id = Number(driveId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return { data: null, error: { message: 'Invalid blood drive.' } };
+  }
+  try {
+    const { data, error } = await bloodBank().rpc('register_for_blood_drive', { p_drive_id: id });
+    return error
+      ? { data: null, error: mapError(error, 'Failed to register for the blood drive.') }
+      : { data, error: null };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while registering for the blood drive.' } };
+  }
 }
 
 async function markMyNotificationRead(notificationId) {

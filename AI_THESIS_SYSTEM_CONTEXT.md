@@ -1,5 +1,7 @@
 # VeinDrop / BloodConnect: Complete System Context for Thesis Writing Assistants
 
+> **Superseded:** Use `SYSTEM_KNOWLEDGE_FOR_AI.md` for the current September 14, 2026 system, workflow, and database context. This older snapshot is retained only for history.
+
 > Repository snapshot reviewed: September 1, 2026  
 > Purpose: Give Claude, ChatGPT, Gemini, or another AI assistant enough verified context to help write the thesis about this system without inventing features, database objects, results, or technical claims.
 

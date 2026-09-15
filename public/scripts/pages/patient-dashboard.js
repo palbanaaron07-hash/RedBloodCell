@@ -64,7 +64,9 @@ async function loadInAppNotifications() {
     item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
     item.dataset.notificationId = `db-${notification.notification_id}`;
     item.dataset.dynamicNotification = 'true';
-    item.href = 'patient_dashboard.html#section-requests';
+    item.href = notification.notification_type === 'blood_drive_scheduled'
+      ? 'patient_dashboard.html#section-drives'
+      : 'patient_dashboard.html#section-requests';
     item.innerHTML = `<i class="fa-solid fa-bell"></i><div><strong>${escapeHtml(notification.title || 'Coordinator donor appeal')}</strong><p>${escapeHtml(notification.message || '')}</p></div>`;
     item.addEventListener('click', () => {
       if (typeof markMyNotificationRead === 'function') markMyNotificationRead(notification.notification_id);
@@ -537,6 +539,7 @@ let donorZoneMarkers = [];
 
 // Blood Drives data (Empty by default — populated dynamically when drives exist)
 const BLOOD_DRIVE_PLAN = [];
+const REGISTERED_BLOOD_DRIVE_IDS = new Set();
 
 const DONOR_SEARCH_BLOOD_TYPES = ['Compatible', 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 const DONOR_SEARCH_ZONES = [
@@ -567,6 +570,17 @@ function formatDateShort(dateStr) {
   } catch {
     return dateStr;
   }
+}
+
+function formatDriveTime(value) {
+  if (!value) return '';
+  const match = String(value).match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return String(value);
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 || 12;
+  return `${displayHour}:${minutes} ${period}`;
 }
 
 function getDriveStatusBadge(status) {
@@ -809,6 +823,11 @@ function renderBloodDrives() {
     const visibleStatus = getVisibleDriveStatus(drive);
     const statusClass = getDriveStatusClass(visibleStatus);
     const driveId = escapeHtml(drive.drive_id || '');
+    const isRegistered = REGISTERED_BLOOD_DRIVE_IDS.has(String(drive.drive_id));
+    const timeRange = [formatDriveTime(drive.start_time), formatDriveTime(drive.end_time)].filter(Boolean).join(' - ');
+    const focusLabel = String(drive.focus_type || '').toLowerCase() === 'all'
+      ? 'All blood types'
+      : `${drive.focus_type || '--'} focus`;
     return `<article class="drive-card ${statusClass}" role="button" tabindex="0" data-drive-id="${driveId}" onclick="openDriveDetailsModal('${driveId}')" onkeydown="handleDriveCardKeydown(event, '${driveId}')" aria-label="View details for ${escapeHtml(drive.drive_name || 'blood drive')}">
           <div class="drive-card-top">
             <div class="drive-date">
@@ -822,19 +841,25 @@ function renderBloodDrives() {
             <p><i class="fa-solid fa-location-dot"></i> ${escapeHtml(drive.venue || '--')}</p>
           </div>
           <div class="drive-meta">
-            <span><i class="fa-solid fa-fingerprint"></i> ${driveId || '--'}</span>
-            <span class="type-pill">${escapeHtml(drive.focus_type || '--')}</span>
+            <span class="drive-focus-pill"><i class="fa-solid fa-droplet"></i> ${escapeHtml(focusLabel)}</span>
+            ${isRegistered ? '<span class="drive-registered-pill"><i class="fa-solid fa-circle-check"></i> Registered</span>' : ''}
           </div>
-          <div class="drive-progress" aria-label="${percent}% donor registration progress">
-            <div class="drive-progress-head">
-              <span>${formatNumber(registered)} registered</span>
-              <strong>${formatNumber(open)} open</strong>
+          <div class="drive-capacity" aria-label="${percent}% of donor slots filled">
+            <div class="drive-capacity-item">
+              <span>Registered</span>
+              <strong>${formatNumber(registered)}</strong>
             </div>
-            <div class="drive-progress-track"><span style="width:${percent}%"></span></div>
-            <div class="drive-progress-foot">
-              <span>${percent}% filled</span>
-              <span>${formatNumber(target)} target units</span>
+            <div class="drive-capacity-item open">
+              <span>Open slots</span>
+              <strong>${formatNumber(open)}</strong>
             </div>
+            <div class="drive-capacity-item target">
+              <span>Target units</span>
+              <strong>${formatNumber(target)}</strong>
+            </div>
+          </div>
+          <div class="drive-card-footer">
+            <span><i class="fa-regular fa-clock"></i> ${escapeHtml(timeRange || 'Time to be announced')}</span>
           </div>
         </article>`;
   }).join('');
@@ -867,57 +892,160 @@ function openDriveDetailsModal(driveId) {
   const registered = Number(drive.registered_donors) || 0;
   const open = Math.max(0, target - registered);
   const percent = target > 0 ? Math.min(100, Math.round((registered / target) * 100)) : 0;
+  const isRegistered = REGISTERED_BLOOD_DRIVE_IDS.has(String(drive.drive_id));
+  const canRegister = !isDrivePast(drive) && !['completed', 'cancelled', 'full'].includes(String(drive.status || '').toLowerCase());
+  const timeRange = [formatDriveTime(drive.start_time), formatDriveTime(drive.end_time)].filter(Boolean).join(' - ');
+  const formattedDriveDate = formatDateShort(drive.date);
+  const [driveDateLabel, driveYearLabel = ''] = formattedDriveDate.split(',').map((part) => part.trim());
+  const focusLabel = String(drive.focus_type || '').toLowerCase() === 'all'
+    ? 'All blood types'
+    : `${drive.focus_type || '--'} focus`;
 
   if (title) {
-    title.innerHTML = '<i class="fa-solid fa-vial"></i> ' + escapeHtml(drive.drive_name || 'Blood drive details');
+    title.innerHTML = '<i class="fa-solid fa-vial"></i> Blood Drive Details';
   }
 
   content.innerHTML = `
         <div class="drive-detail-hero">
-          <div>
-            <span class="type-pill">${escapeHtml(drive.focus_type || '--')}</span>
+          <div class="drive-detail-date" aria-label="${escapeHtml(formattedDriveDate)}">
+            <strong>${escapeHtml(driveDateLabel)}</strong>
+            <span>${escapeHtml(driveYearLabel)}</span>
+          </div>
+          <div class="drive-detail-summary">
+            <span class="drive-focus-pill"><i class="fa-solid fa-droplet"></i> ${escapeHtml(focusLabel)}</span>
             <h4>${escapeHtml(drive.drive_name || '--')}</h4>
-            <p>${escapeHtml(drive.drive_id || '--')}</p>
           </div>
-          ${getDriveStatusBadge(drive.status)}
+          <div class="drive-detail-status">${getDriveStatusBadge(getVisibleDriveStatus(drive))}</div>
         </div>
-        <div class="drive-detail-grid">
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-calendar-days"></i> Date</span>
-            <strong>${formatDateShort(drive.date)}</strong>
-          </div>
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-location-dot"></i> Venue</span>
-            <strong>${escapeHtml(drive.venue || '--')}</strong>
-          </div>
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-droplet"></i> Target units</span>
-            <strong>${formatNumber(target)}</strong>
-          </div>
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-user-group"></i> Registered donors</span>
-            <strong>${formatNumber(registered)}</strong>
-          </div>
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-door-open"></i> Open slots</span>
-            <strong>${formatNumber(open)}</strong>
-          </div>
-          <div class="drive-detail-item">
-            <span><i class="fa-solid fa-chart-simple"></i> Progress</span>
-            <strong>${percent}% filled</strong>
-          </div>
+
+        <div class="drive-detail-breakdown">
+          <section class="drive-detail-section">
+            <h5><i class="fa-regular fa-calendar"></i> Schedule</h5>
+            <div class="drive-detail-line">
+              <span>Date</span>
+              <strong>${escapeHtml(formattedDriveDate)}</strong>
+            </div>
+            <div class="drive-detail-line">
+              <span>Time</span>
+              <strong>${escapeHtml(timeRange || 'To be announced')}</strong>
+            </div>
+          </section>
+
+          <section class="drive-detail-section">
+            <h5><i class="fa-solid fa-location-dot"></i> Location</h5>
+            <div class="drive-detail-line">
+              <span>Venue</span>
+              <strong>${escapeHtml(drive.venue || '--')}</strong>
+            </div>
+            <div class="drive-detail-line">
+              <span>Complete address</span>
+              <strong>${escapeHtml(drive.address || 'No additional address provided')}</strong>
+            </div>
+          </section>
         </div>
-        <div class="drive-progress detail">
-          <div class="drive-progress-head">
-            <span>${formatNumber(registered)} registered</span>
-            <strong>${formatNumber(open)} open</strong>
+
+        <section class="drive-detail-section drive-donation-section">
+          <h5><i class="fa-solid fa-hand-holding-droplet"></i> Donation availability</h5>
+          <div class="drive-detail-line drive-blood-types-line">
+            <span>Accepted blood types</span>
+            <strong>${escapeHtml(focusLabel)}</strong>
           </div>
-          <div class="drive-progress-track"><span style="width:${percent}%"></span></div>
-        </div>
+          <div class="drive-capacity drive-capacity-detail">
+            <div class="drive-capacity-item">
+              <span>Registered</span>
+              <strong>${formatNumber(registered)}</strong>
+            </div>
+            <div class="drive-capacity-item open">
+              <span>Open slots</span>
+              <strong>${formatNumber(open)}</strong>
+            </div>
+            <div class="drive-capacity-item target">
+              <span>Target units</span>
+              <strong>${formatNumber(target)}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="drive-detail-section drive-notes-section">
+          <h5><i class="fa-solid fa-clipboard-list"></i> Coordinator notes</h5>
+          <div class="drive-notes-content">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <p>${escapeHtml(drive.notes || 'No special instructions were provided. Please bring a valid ID and follow the coordinator’s instructions at the venue.')}</p>
+          </div>
+        </section>
+        <div id="driveRegistrationMsg" class="form-msg" role="status" aria-live="polite"></div>
+        ${isRegistered
+          ? '<button type="button" class="btn-submit" disabled><i class="fa-solid fa-circle-check"></i> You are registered</button>'
+          : (canRegister
+            ? `<button type="button" class="btn-submit" id="registerDriveBtn" onclick="registerForSelectedBloodDrive('${escapeHtml(drive.drive_id)}')"><i class="fa-solid fa-user-plus"></i> Register for this drive</button>`
+            : '')}
       `;
 
   modal.classList.add('active');
   document.body.classList.add('modal-open');
+}
+
+async function refreshBloodDrives() {
+  if (typeof listBloodDrives !== 'function') {
+    renderBloodDrives();
+    return;
+  }
+
+  const [drivesResult, registrationsResult] = await Promise.all([
+    listBloodDrives(),
+    typeof listMyBloodDriveRegistrations === 'function'
+      ? listMyBloodDriveRegistrations()
+      : Promise.resolve({ data: [], error: null })
+  ]);
+
+  if (drivesResult.error) {
+    const tableBody = document.getElementById('drivesTableBody');
+    if (tableBody) tableBody.innerHTML = `<p class="drive-empty">${escapeHtml(drivesResult.error.message || 'Unable to load blood drives.')}</p>`;
+    return;
+  }
+
+  BLOOD_DRIVE_PLAN.splice(0, BLOOD_DRIVE_PLAN.length, ...(Array.isArray(drivesResult.data) ? drivesResult.data : []));
+  REGISTERED_BLOOD_DRIVE_IDS.clear();
+  if (!registrationsResult.error) {
+    (registrationsResult.data || []).forEach((registration) => {
+      REGISTERED_BLOOD_DRIVE_IDS.add(String(registration.drive_id));
+    });
+  }
+  renderBloodDrives();
+}
+
+async function registerForSelectedBloodDrive(driveId) {
+  const button = document.getElementById('registerDriveBtn');
+  const msg = document.getElementById('driveRegistrationMsg');
+  if (typeof registerForBloodDrive !== 'function') return;
+  if (button) button.disabled = true;
+  if (msg) {
+    msg.textContent = 'Registering your donor slot...';
+    msg.className = 'form-msg info';
+  }
+
+  const { data, error } = await registerForBloodDrive(driveId);
+  if (error) {
+    if (msg) {
+      msg.textContent = error.message || 'Unable to register for this drive.';
+      msg.className = 'form-msg error';
+    }
+    if (button) button.disabled = false;
+    return;
+  }
+
+  REGISTERED_BLOOD_DRIVE_IDS.add(String(driveId));
+  if (msg) {
+    msg.textContent = data?.already_registered
+      ? 'You are already registered for this drive.'
+      : 'Registration confirmed. Thank you for volunteering to donate!';
+    msg.className = 'form-msg success';
+  }
+  if (button) {
+    button.innerHTML = '<i class="fa-solid fa-circle-check"></i> You are registered';
+    button.disabled = true;
+  }
+  await refreshBloodDrives();
 }
 
 function closeDriveDetailsModal() {
@@ -941,7 +1069,7 @@ async function refreshDashboardData(options = {}) {
     if (currentProfile?.has_donor_profile) {
       loadDonorDashboard();
     }
-    renderBloodDrives();
+    await refreshBloodDrives();
     if (typeof updateUnreadBadge === 'function') {
       updateUnreadBadge();
     }
@@ -964,7 +1092,7 @@ function initRequestsRealtime() {
         if (currentProfile?.has_patient_profile) loadRequests();
         if (currentProfile?.has_donor_profile) loadDonorDashboard();
       } else if (change.type === 'blood_drive') {
-        renderBloodDrives();
+        refreshBloodDrives();
       } else if (change.type === 'blood_inventory') {
         if (currentProfile?.has_patient_profile) loadRequests();
       } else if (change.type === 'notifications') {
@@ -1157,20 +1285,25 @@ function renderDonorDashboard(data) {
   // 4. Update Summary Stat Cards
   const elStat = document.getElementById('donorEligibilityStat');
   const elSub = document.getElementById('donorEligibilitySub');
+  const elCard = document.getElementById('donorEligibilityCard');
   if (elStat) elStat.textContent = medicallyDeferred ? 'Deferred' : (eligible ? 'Eligible' : 'Waiting');
+  if (elCard) elCard.dataset.state = medicallyDeferred ? 'alert' : (eligible ? 'positive' : 'waiting');
   if (elSub) {
     elSub.textContent = medicallyDeferred
       ? (donor.deferred_reason || 'Staff clearance required')
-      : (eligible ? 'Eligible for donor check-in' : `${eligibility.daysRemaining || 0} day(s) remaining`);
+      : (eligible ? 'Cleared for donor check-in' : `${eligibility.daysRemaining || 0} day(s) until eligible`);
   }
 
   const avStat = document.getElementById('donorAvailabilityStat');
   const avSub = document.getElementById('donorAvailabilitySub');
+  const avCard = document.getElementById('donorAvailabilityCard');
   if (avStat) avStat.textContent = availability === 'available' ? 'Available' : 'Paused';
-  if (avSub) avSub.textContent = availability === 'available' ? 'Ready to respond' : 'Currently paused';
+  if (avCard) avCard.dataset.state = availability === 'available' ? 'positive' : 'waiting';
+  if (avSub) avSub.textContent = availability === 'available' ? 'Donor alerts are enabled' : 'Donor alerts are paused';
 
   const lastStat = document.getElementById('donorLastDonationStat');
   const lastSub = document.getElementById('donorLastDonationSub');
+  const lastCard = document.getElementById('donorLastDonationCard');
   if (lastStat) {
     lastStat.textContent = lastDonation
       ? lastDonation.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -1181,13 +1314,18 @@ function renderDonorDashboard(data) {
       ? `${completedCount} completed donation${completedCount === 1 ? '' : 's'}`
       : 'No completed records';
   }
+  if (lastCard) lastCard.dataset.state = lastDonation ? 'recorded' : 'neutral';
 
   const nextStat = document.getElementById('donorNextEligibleStat');
+  const nextSub = document.getElementById('donorNextEligibleSub');
+  const nextCard = document.getElementById('donorNextEligibleCard');
   if (nextStat) {
     nextStat.textContent = nextEligible
       ? nextEligible.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'Now';
   }
+  if (nextSub) nextSub.textContent = nextEligible ? 'After the 56-day recovery period' : 'Donation window is open';
+  if (nextCard) nextCard.dataset.state = !nextEligible || eligible ? 'positive' : 'waiting';
 
   // 5. Update Activity Breakdown Summary Pills
   const statTotal = document.getElementById('statTotalDonations');
@@ -1656,7 +1794,7 @@ function applyProfileToUI(profile) {
 
   if (profile.has_donor_profile) loadDonorDashboard();
   // Load blood drives
-  renderBloodDrives();
+  refreshBloodDrives();
 
   const currentSection = window.location.hash.replace('#section-', '');
   if (Object.prototype.hasOwnProperty.call(sectionTitles, currentSection)) {
