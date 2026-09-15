@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const start = source.indexOf('function renderCommunityCard(r)');
 const code = source.slice(start, source.indexOf('\n}', start) + 2);
 const context = vm.createContext({
@@ -20,8 +20,12 @@ for (const request_type of ['replacement', 'emergency_donor']) {
   assert.match(html, /openCommunityRequestDetails\('9'\)/);
   assert.match(html, /View Details/);
   assert.match(html, /&lt;test>/);
-  assert.match(html, /URGENT/);
-  if (request_type === 'replacement') assert.match(html, /request-progress-summary/);
+  if (request_type === 'replacement') {
+    assert.doesNotMatch(html, /URGENT/);
+    assert.match(html, /request-progress-summary/);
+  } else {
+    assert.match(html, /URGENT/);
+  }
 }
 context.activeCommunityFilter = 'hidden';
 assert.match(context.renderCommunityCard({ id: 9 }), /unhideFeedCard\('9'\)/);

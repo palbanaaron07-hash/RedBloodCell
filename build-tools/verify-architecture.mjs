@@ -11,6 +11,9 @@ const pages = [
   'register.html',
   'forgot-password.html',
   'donor_registration.html',
+  'account_dashboard.html',
+  'recipient_donor_map.html',
+  'account_notifications.html',
   'patient_dashboard.html',
   'patient_donor_map.html',
   'patient_notifications.html',
@@ -20,7 +23,7 @@ const pages = [
 const errors = [];
 const allowedInlineScripts = new Map([
   // This tiny head script applies the saved theme before first paint.
-  ['patient_dashboard.html', 1]
+  ['account_dashboard.html', 1]
 ]);
 
 function localReferenceTarget(reference, baseDirectory) {

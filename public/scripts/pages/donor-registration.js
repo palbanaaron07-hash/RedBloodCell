@@ -8,10 +8,10 @@
     const accountLinkNotice = document.getElementById('accountLinkNotice');
     const submitButton = donorForm.querySelector('.submit-btn');
     const registrationUrl = new URL(window.location.href);
-    const requestedReturn = registrationUrl.searchParams.get('return') || 'patient_dashboard.html#section-donor';
+    const requestedReturn = registrationUrl.searchParams.get('return') || 'account_dashboard.html#section-donor';
     const safeReturnUrl = /^(?:patient_dashboard\.html|homie\.html)(?:[?#].*)?$/.test(requestedReturn)
       ? requestedReturn
-      : 'patient_dashboard.html#section-donor';
+      : 'account_dashboard.html#section-donor';
     let authenticatedAccount = null;
     let accountReady = false;
 
@@ -249,7 +249,7 @@
         const account = await getCurrentUser();
         if (!account?.user || !account?.profile) {
           accountLinkNotice.className = 'account-link-notice error';
-          accountLinkNotice.innerHTML = '<i class="fa-solid fa-lock"></i><span>Sign in first so this donor profile is linked to your one VeinDrop account. Redirecting...</span>';
+          accountLinkNotice.innerHTML = '<i class="fa-solid fa-lock"></i><span>Sign in first so this donor profile is linked to your one BloodConnect account. Redirecting...</span>';
           const next = encodeURIComponent(`donor_registration.html?return=${encodeURIComponent(safeReturnUrl)}`);
           window.setTimeout(() => { window.location.href = `login.html?next=${next}`; }, 1100);
           return;
@@ -336,7 +336,7 @@
         setReusedAccountValue('dob', sharedProfile.date_of_birth || sharedProfile.dob || profile.date_of_birth);
         setReusedAccountValue('address', sharedProfile.address || profile.address);
 
-        backLink.href = 'patient_dashboard.html#section-dashboard';
+        backLink.href = 'account_dashboard.html#section-dashboard';
         backLink.setAttribute('aria-label', 'Back to Patient Overview');
         if (backLinkText) backLinkText.textContent = 'Back to Overview';
         validatePhoneInput();

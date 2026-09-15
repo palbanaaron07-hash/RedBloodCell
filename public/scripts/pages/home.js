@@ -22,7 +22,7 @@
 
     /* -- Page-leave transitions for external links -- */
     const topLinks = document.querySelectorAll('.top-actions a');
-    const requestBloodLink = document.querySelector('.hero-actions a[href="patient_dashboard.html"]');
+    const requestBloodLink = document.querySelector('.hero-actions a[href="account_dashboard.html"]');
     const becomeDonorLink = document.getElementById('becomeDonorLink');
 
     topLinks.forEach((link) => {
@@ -48,12 +48,12 @@
         try {
           const { user, profile } = await getCurrentUser();
           const destination = user && profile
-            ? 'patient_dashboard.html'
-            : 'login.html?next=patient_dashboard.html';
+            ? 'account_dashboard.html'
+            : 'login.html?next=account_dashboard.html';
           setTimeout(() => { window.location.href = destination; }, 340);
         } catch (error) {
           console.error('Request blood redirect error:', error);
-          setTimeout(() => { window.location.href = 'login.html?next=patient_dashboard.html'; }, 340);
+          setTimeout(() => { window.location.href = 'login.html?next=account_dashboard.html'; }, 340);
         }
       });
     }
@@ -166,7 +166,7 @@
           if (user && profile) {
             const isAdmin = profile.roles?.includes('admin') || profile.role === 'admin';
             loginLink.innerHTML = '<i class="fa-solid fa-gauge" aria-hidden="true"></i> Dashboard';
-            loginLink.href = isAdmin ? 'admin_dashboard.html' : 'patient_dashboard.html';
+            loginLink.href = isAdmin ? 'admin_dashboard.html' : 'account_dashboard.html';
           } else {
             loginLink.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i> Login';
             loginLink.href = 'login.html';

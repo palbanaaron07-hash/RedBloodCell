@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const start = source.indexOf('let pendingBloodReceipt');
 const code = source.slice(start, source.indexOf('function toggleMyReqMenu', start));
 const nodes = Object.fromEntries(['bloodReceivedDialog', 'bloodReceivedRequestLabel', 'bloodReceivedGuidance', 'bloodReceivedMessage', 'cancelBloodReceived', 'confirmBloodReceived'].map(id => [id, { addEventListener() {}, focus() {} }]));

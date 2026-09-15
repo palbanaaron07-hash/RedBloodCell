@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const start = source.indexOf('function renderAccountRoleControls(');
 const nodes = Object.fromEntries(['recipientOverviewState', 'donorEnrollmentState', 'donorDashboardState', 'donorSetupMessage'].map(id => [id, {}]));
 nodes['section-dashboard'] = { classList: { contains: () => true } };
@@ -23,7 +23,7 @@ for (const hasPatient of [false, true]) {
   assert.equal(nodes.donorDashboardState.hidden, false);
   assert.equal(title.textContent, 'Donor Center');
 }
-const html = fs.readFileSync(new URL('../patient_dashboard.html', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../account_dashboard.html', import.meta.url), 'utf8');
 assert.match(html, /id="donorEnrollmentState" hidden/);
 assert.doesNotMatch(source, /replaceState\(null, '', window\.location\.pathname \+ window\.location\.search\)/);
 assert.match(source, /const currentSection = window\.location\.hash/);

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const start = source.indexOf('function getRequestHeaderStatus(');
 const end = source.indexOf('\n}', start) + 2;
 const context = vm.createContext({});
@@ -19,7 +19,7 @@ const card = source.slice(source.indexOf('function renderRequestCard('), source.
 assert.equal((card.match(/class="feed-status-pill/g) || []).length, 1);
 assert.match(card, /class="request-arrangement-text"/);
 assert.match(card, /class="request-card-heading"/);
-assert.match(card, /class="request-progress-summary"/);
+assert.match(card, /class="request-progress-summary(?: [^"]*)?"/);
 assert.match(card, /Mark Blood Received/);
 assert.match(card, /View Details/);
 assert.match(card, /onclick="markBloodReceived\(/);

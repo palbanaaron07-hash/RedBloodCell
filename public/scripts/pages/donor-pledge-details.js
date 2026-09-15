@@ -1,5 +1,5 @@
 /**
- * VeinDrop - Donor Pledge Details & Medical Screening Instructions Logic
+ * BloodConnect - Donor Pledge Details & Medical Screening Instructions Logic
  */
 
 let currentRequest = null;
@@ -429,7 +429,7 @@ function copyPassDetails() {
   const donor = document.getElementById('passDonorName')?.textContent || '';
   const time = document.getElementById('passDateTime')?.textContent || '';
 
-  const text = `🩸 VEINDROP BLOOD DONATION PASS\n` +
+  const text = `🩸 BLOODCONNECT BLOOD DONATION PASS\n` +
     `Reference ID: ${passId}\n` +
     `Recipient: ${recip}\n` +
     `Blood Type Needed: ${blood}\n` +

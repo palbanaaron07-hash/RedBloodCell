@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Coordinator Dashboard - VeinDrop</title>
-  <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/admin_dashboard.css?v=20260915mobilizefooter" />
+  <title>Coordinator Dashboard - BloodConnect</title>
+  <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/admin_dashboard.css?v=20260915reportsstatusfill" />
   <link rel="stylesheet" href="/admin-request-details.css?v=20260913verification" />
   <link rel="stylesheet" href="/admin-donor-filters.css?v=20260912a" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
@@ -23,10 +23,10 @@
 
     <div class="sidebar-brand">
       <div class="sidebar-brand-icon" aria-hidden="true">
-        <img src="assets/veindrop-mark.svg" alt="" />
+        <img src="assets/bloodconnect-mark.svg" alt="" />
       </div>
       <div class="sidebar-brand-text">
-        <h2>VeinDrop</h2>
+        <h2>BloodConnect</h2>
         <small>Blood Donation Coordinator</small>
       </div>
     </div>
@@ -542,7 +542,12 @@
       <div class="page-section" id="section-reports">
 
         <div class="section-heading">
-          <button type="button" class="btn-primary"><i class="fa-solid fa-file-export"></i> Export Summary</button>
+          <div class="reports-export-actions">
+            <span class="reports-export-status" id="reportsExportStatus" role="status" aria-live="polite"></span>
+            <button type="button" class="btn-primary" id="exportReportsBtn">
+              <i class="fa-solid fa-file-export"></i> <span>Export Summary</span>
+            </button>
+          </div>
         </div>
 
         <section class="stats-grid" style="margin-bottom: 20px;">
@@ -593,12 +598,17 @@
           <div class="panel-body">
             <div class="reports-chart-wrap">
               <canvas id="reportsTrendChart" aria-label="Reports trend line chart" role="img"></canvas>
+              <div class="reports-chart-state" id="reportsChartState" role="status" aria-live="polite">
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                <span>Loading report activity...</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="dashboard-grid" style="margin-bottom:20px;">
-          <div class="panel">
+        <div class="dashboard-grid reports-detail-grid" style="margin-bottom:20px;">
+          <div class="reports-detail-stack">
+            <div class="panel reports-status-panel">
             <div class="panel-header">
               <h3><i class="fa-solid fa-chart-pie"></i> Request Status Breakdown</h3>
             </div>
@@ -607,13 +617,12 @@
                 <thead>
                   <tr>
                     <th>Status</th>
-                    <th>Count</th>
-                    <th>Share</th>
+                    <th>Requests</th>
                   </tr>
                 </thead>
                 <tbody id="reportsRequestBreakdownBody">
                   <tr>
-                    <td colspan="3" style="text-align:center;color:var(--slate-400);padding:32px;">No request data
+                    <td colspan="2" style="text-align:center;color:var(--slate-400);padding:32px;">No request data
                       available.</td>
                   </tr>
                 </tbody>
@@ -621,7 +630,17 @@
             </div>
           </div>
 
-          <div class="panel">
+            <div class="panel reports-timestamp-panel">
+              <div class="panel-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Reporting Timestamp</h3>
+              </div>
+              <div class="panel-body">
+                <p>Last generated summary: <strong id="reportsGeneratedAt">Not generated yet</strong></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel reports-inventory-panel">
             <div class="panel-header">
               <h3><i class="fa-solid fa-flask-vial"></i> Inventory by Blood Type</h3>
             </div>
@@ -642,16 +661,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        <div class="panel full-width">
-          <div class="panel-header">
-            <h3><i class="fa-solid fa-clock-rotate-left"></i> Reporting Timestamp</h3>
-          </div>
-          <div class="panel-body">
-            <p style="font-size:.84rem;color:var(--gray-600);">Last generated summary: <strong
-                id="reportsGeneratedAt">Not generated yet</strong></p>
           </div>
         </div>
 
@@ -1357,7 +1366,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="/supabase-client.js?v=20260915allbloodtypes"></script>
-    <script src="/scripts/pages/admin-dashboard.js?v=20260915allbloodtypes"></script>
+    <script src="/scripts/pages/admin-dashboard.js?v=20260915simplestatus"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

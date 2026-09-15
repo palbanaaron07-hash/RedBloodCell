@@ -13,7 +13,7 @@ assert.equal(context.getDonorRequestEligibility(donor).eligible, true);
 for (const status of ['registered', 'checked_in', 'deferred', 'incomplete']) assert.equal(context.getDonorRequestEligibility({ ...donor, donor_status: status }).eligible, false);
 assert.equal(context.getDonorRequestEligibility({ ...donor, availability_status: 'unavailable' }).eligible, false);
 assert.equal(context.getDonorRequestEligibility({ ...donor, last_donation_date: new Date().toISOString().slice(0, 10) }).eligible, false);
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 assert.match(source, /onclick="viewMatchingRequest\(/);
 assert.match(source, /No open, verified requests you can help with right now/);
 assert.match(source, /request_type === 'replacement'/);

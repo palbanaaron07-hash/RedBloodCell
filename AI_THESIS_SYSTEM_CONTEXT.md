@@ -166,10 +166,10 @@ The system uses a unified landing implementation:
 | `register.html` | Four-step account registration | Supabase-backed with best-effort PHP/MySQL sync |
 | `login.html` | Login and role-based routing | Supabase primary; PHP fallback |
 | `forgot-password.html` | Email OTP password-reset flow | Supabase Edge Function; PHP credential sync if applicable |
-| `patient_dashboard.html` | Patient and donor self-service portal | Mostly Supabase-backed; some fixed/local features |
+| `account_dashboard.html` | Patient and donor self-service portal | Mostly Supabase-backed; some fixed/local features |
 | `donor_registration.html` | Adds donor capability/profile to signed-in account | Supabase RPC-backed |
-| `patient_donor_map.html` | Privacy-safe Bohol donor-zone map | Supabase RPC with fixed sample fallback |
-| `patient_notifications.html` | Full notification interface | Browser-local read/deleted state and fixed page items |
+| `recipient_donor_map.html` | Privacy-safe Bohol donor-zone map | Supabase RPC with fixed sample fallback |
+| `account_notifications.html` | Full notification interface | Browser-local read/deleted state and fixed page items |
 | `admin_dashboard.html` | Admin operations, reports, requests, donors, inventory | Mainly Supabase-backed; some fixed/local features |
 
 ---
@@ -203,7 +203,7 @@ The system uses a unified landing implementation:
 5. After Supabase login, the system resolves the profile:
    - Known/database-backed admin -> admin profile;
    - Otherwise -> linked patient/donor profiles and combined roles.
-6. Admins are routed to `admin_dashboard.html`; other authenticated roles are routed to `patient_dashboard.html`.
+6. Admins are routed to `admin_dashboard.html`; other authenticated roles are routed to `account_dashboard.html`.
 7. Protected pages call `requireAdmin()` or `requireAuth()` and redirect to login if access is missing.
 
 ### 4.3 Activating a second role
@@ -784,9 +784,9 @@ VeinDrop is a web-based blood bank management prototype that focuses on account-
 Use these repository files to verify or update this context:
 
 - `supabase-client.js` — shared client API, authentication, role/profile linking, requests, inventory, realtime, and donor lifecycle;
-- `patient_dashboard.html` — patient/donor portal behavior and request UI;
+- `account_dashboard.html` — patient/donor portal behavior and request UI;
 - `admin_dashboard.html` — admin processes, request state machine, fulfillment, reports, and notifications;
-- `patient_donor_map.html` — detailed donor-zone filtering and privacy behavior;
+- `recipient_donor_map.html` — detailed donor-zone filtering and privacy behavior;
 - `donor_registration.html`, `register.html`, `login.html`, `forgot-password.html` — account flows;
 - `supabase/migrations/202604040001_blood_bank_fresh_schema.sql` — additive base schema;
 - `supabase/migrations/202608240001_multi_role_accounts.sql` — current multi-role links and privacy-safe RPCs;

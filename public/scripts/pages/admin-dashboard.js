@@ -42,6 +42,8 @@ let currentAdminContext = { userId: '', email: '', fullName: '' };
 let requestTransitionState = { requestId: null, targetStatus: '', oldStatus: '' };
 let reportsTrendPeriod = 'month';
 let reportsTrendChart = null;
+let reportsTrendPayload = null;
+let reportsRefreshPromise = null;
 let overviewMiniLineChart = null;
 let overviewMiniBarChart = null;
 let reportsRealtimeChannel = null;
@@ -157,7 +159,7 @@ function navigateToSection(sectionName) {
   if (sectionName === 'requests') {
     refreshRequestsSection();
   } else if (sectionName === 'donors') {
-    refreshDonorTable();
+    loadDonors();
   } else if (sectionName === 'inventory') {
     refreshInventorySection();
   } else if (sectionName === 'dashboard') {
@@ -165,6 +167,8 @@ function navigateToSection(sectionName) {
     refreshOverviewPanels();
   } else if (sectionName === 'drives') {
     refreshBloodDrives();
+  } else if (sectionName === 'reports') {
+    refreshReportsSection();
   }
 
   // Close mobile sidebar and clear all menu-open state
@@ -462,6 +466,11 @@ async function loadReportsTrendSeries(period) {
       .gte('request_date', startIso)
   ]);
 
+  if (donorResult?.error || requestResult?.error) {
+    const messages = [donorResult?.error?.message, requestResult?.error?.message].filter(Boolean);
+    throw new Error(messages.join(' ') || 'Unable to load report activity.');
+  }
+
   const donorRows = Array.isArray(donorResult?.data) ? donorResult.data : [];
   const requestRows = Array.isArray(requestResult?.data) ? requestResult.data : [];
 
@@ -492,7 +501,7 @@ async function loadReportsTrendSeries(period) {
 
 function renderReportsTrendChart(seriesPayload) {
   const canvas = document.getElementById('reportsTrendChart');
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (!canvas || typeof Chart === 'undefined') return false;
 
   const datasets = [
     {
@@ -531,7 +540,8 @@ function renderReportsTrendChart(seriesPayload) {
     reportsTrendChart.data.labels = seriesPayload.axis.labels;
     reportsTrendChart.data.datasets = datasets;
     reportsTrendChart.update();
-    return;
+    reportsTrendChart.resize();
+    return true;
   }
 
   reportsTrendChart = new Chart(canvas, {
@@ -574,17 +584,53 @@ function renderReportsTrendChart(seriesPayload) {
       }
     }
   });
+  return true;
 }
 
-async function refreshReportsTrendChart() {
+function setReportsChartState(message = '', state = '') {
+  const status = document.getElementById('reportsChartState');
+  if (!status) return;
+
+  if (!message) {
+    status.hidden = true;
+    status.className = 'reports-chart-state';
+    return;
+  }
+
+  const icon = state === 'loading'
+    ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>'
+    : (state === 'error' ? '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' : '<i class="fa-solid fa-chart-line" aria-hidden="true"></i>');
+  status.hidden = false;
+  status.className = `reports-chart-state${state === 'error' ? ' error' : ''}`;
+  status.innerHTML = `${icon}<span>${escapeHtml(message)}</span>`;
+}
+
+async function refreshReportsTrendChart({ showLoading = true } = {}) {
   const chartEl = document.getElementById('reportsTrendChart');
-  if (!chartEl) return;
+  if (!chartEl) return null;
+
+  if (showLoading && !reportsTrendChart) {
+    setReportsChartState('Loading report activity...', 'loading');
+  }
 
   try {
     const payload = await loadReportsTrendSeries(reportsTrendPeriod);
-    renderReportsTrendChart(payload);
+    reportsTrendPayload = payload;
+    const rendered = renderReportsTrendChart(payload);
+    if (!rendered) {
+      throw new Error('The chart library could not be loaded. Check your internet connection and reload the page.');
+    }
+
+    const activityCount = [...payload.donorsSeries, ...payload.requestsSeries, ...payload.fulfilledSeries]
+      .reduce((sum, value) => sum + (Number(value) || 0), 0);
+    setReportsChartState(activityCount > 0 ? '' : `No donor or request activity found for this ${getReportPeriodLabel(reportsTrendPeriod).toLowerCase()} view.`);
+
+    requestAnimationFrame(() => reportsTrendChart?.resize());
+    return payload;
   } catch (error) {
     console.error('Failed to refresh reports trend chart:', error);
+    setReportsChartState(error?.message || 'Unable to load report activity.', 'error');
+    return null;
   }
 }
 
@@ -606,7 +652,11 @@ function scheduleRealtimeReportsRefresh() {
     clearTimeout(reportsRealtimeTimer);
   }
   reportsRealtimeTimer = setTimeout(() => {
-    refreshReportsTrendChart();
+    if (activeSection === 'reports') {
+      refreshReportsSection();
+    } else {
+      refreshReportsTrendChart({ showLoading: false });
+    }
   }, 500);
 }
 
@@ -661,6 +711,10 @@ function getDriveStatusBadge(status) {
   if (key === 'urgent') return '<span class="badge urgent">Urgent Recruitment</span>';
   if (key === 'scheduled') return '<span class="badge processing">Scheduled</span>';
   return '<span class="badge pending">Recruiting</span>';
+}
+
+function getReportPeriodLabel(period) {
+  return ({ day: 'Day', month: 'Month', quarter: 'Quarter', annual: 'Annual' })[period] || 'Month';
 }
 
 function formatDriveTime(value) {
@@ -886,6 +940,233 @@ function initBloodDrivesRealtime() {
     .subscribe();
 }
 
+function getReportsSnapshot() {
+  const requests = Array.isArray(requestsSectionCache) ? requestsSectionCache : [];
+  const donors = Array.isArray(donorCache) ? donorCache : [];
+  const inventoryRows = getInventoryRowsWithAllTypes();
+  const statusCounts = {
+    pending: 0,
+    approved: 0,
+    needs_clarification: 0,
+    rejected: 0,
+    cancelled: 0,
+    fulfilled: 0
+  };
+
+  requests.forEach((row) => {
+    const normalized = normalizeRequestStatus(row.status);
+    if (Object.prototype.hasOwnProperty.call(statusCounts, normalized)) {
+      statusCounts[normalized] += 1;
+    }
+  });
+
+  const totalRequests = requests.length;
+  const totalUnits = inventoryRows.reduce((sum, row) => sum + (Number(row.units_available) || 0), 0);
+  const inventoryCapacity = INVENTORY_TARGET_UNITS * 8;
+
+  return {
+    totalDonors: donors.length,
+    totalRequests,
+    fulfilled: statusCounts.fulfilled,
+    fulfillmentRate: totalRequests > 0 ? Math.round((statusCounts.fulfilled / totalRequests) * 100) : 0,
+    totalUnits,
+    inventoryCoverage: inventoryCapacity > 0 ? Math.min(100, Math.round((totalUnits / inventoryCapacity) * 100)) : 0,
+    inventoryRows,
+    statusCounts
+  };
+}
+
+function getSimplifiedRequestStatusRows(statusCounts) {
+  const counts = statusCounts || {};
+  return [
+    {
+      label: 'Awaiting Completion',
+      count: (counts.pending || 0) + (counts.approved || 0) + (counts.needs_clarification || 0)
+    },
+    { label: 'Fulfilled', count: counts.fulfilled || 0 },
+    {
+      label: 'Closed',
+      count: (counts.rejected || 0) + (counts.cancelled || 0)
+    }
+  ];
+}
+
+async function refreshReportsSection() {
+  if (reportsRefreshPromise) return reportsRefreshPromise;
+
+  const exportButton = document.getElementById('exportReportsBtn');
+  const exportStatus = document.getElementById('reportsExportStatus');
+  if (exportButton) exportButton.disabled = true;
+  if (exportStatus) exportStatus.textContent = 'Refreshing report data...';
+
+  reportsRefreshPromise = (async () => {
+    const [donorsResult, requestsResult, inventoryResult, trendPayload] = await Promise.all([
+      listDonors(),
+      getOverviewRecentRequests(1000),
+      getInventoryDashboardData(),
+      refreshReportsTrendChart()
+    ]);
+
+    const errors = [];
+    if (donorsResult?.error) errors.push(donorsResult.error.message || 'donors');
+    else if (Array.isArray(donorsResult?.data)) donorCache = donorsResult.data;
+
+    if (requestsResult?.error) errors.push(requestsResult.error.message || 'requests');
+    else if (Array.isArray(requestsResult?.data)) requestsSectionCache = requestsResult.data;
+
+    if (inventoryResult?.error) errors.push(inventoryResult.error.message || 'inventory');
+    else if (Array.isArray(inventoryResult?.data?.by_type)) inventoryByTypeCache = inventoryResult.data.by_type;
+
+    renderReportsSection();
+    if (reportsTrendChart) requestAnimationFrame(() => reportsTrendChart.resize());
+
+    if (errors.length) {
+      if (exportStatus) exportStatus.textContent = 'Some report data could not be refreshed.';
+      console.error('Reports refresh completed with errors:', errors);
+      return false;
+    }
+
+    if (trendPayload) reportsTrendPayload = trendPayload;
+    if (exportStatus) exportStatus.textContent = '';
+    return true;
+  })().catch((error) => {
+    console.error('Failed to refresh reports:', error);
+    if (exportStatus) exportStatus.textContent = 'Could not refresh report data.';
+    return false;
+  }).finally(() => {
+    reportsRefreshPromise = null;
+    if (exportButton) exportButton.disabled = false;
+  });
+
+  return reportsRefreshPromise;
+}
+
+function buildReportsPrintDocument() {
+  const snapshot = getReportsSnapshot();
+  const generatedAt = new Date();
+  const periodLabel = getReportPeriodLabel(reportsTrendPeriod);
+  const statusRows = getSimplifiedRequestStatusRows(snapshot.statusCounts)
+    .map((row) => `<tr><td>${escapeHtml(row.label)}</td><td class="number">${formatNumber(row.count)}</td></tr>`)
+    .join('');
+
+  const inventoryRows = snapshot.inventoryRows.map((row) => {
+    const units = Number(row.units_available) || 0;
+    const level = getInventoryLevelClass(units);
+    const label = level === 'critical' ? 'Critical' : (level === 'low' ? 'Low' : 'Adequate');
+    return `<tr><td><strong>${escapeHtml(row.blood_type || '-')}</strong></td><td class="number">${formatNumber(units)}</td><td><span class="level ${escapeHtml(level)}">${label}</span></td></tr>`;
+  }).join('');
+
+  const trendRows = reportsTrendPayload?.axis?.labels?.length
+    ? reportsTrendPayload.axis.labels.map((label, index) => `<tr>
+        <td>${escapeHtml(label)}</td>
+        <td class="number">${formatNumber(reportsTrendPayload.donorsSeries[index] || 0)}</td>
+        <td class="number">${formatNumber(reportsTrendPayload.requestsSeries[index] || 0)}</td>
+        <td class="number">${formatNumber(reportsTrendPayload.fulfilledSeries[index] || 0)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" class="empty">No activity recorded for this reporting period.</td></tr>';
+
+  const overviewRows = [
+    ['Total donors', formatNumber(snapshot.totalDonors), 'Profiles in registry'],
+    ['Total requests', formatNumber(snapshot.totalRequests), 'Requests tracked'],
+    ['Fulfillment rate', `${snapshot.fulfillmentRate}%`, `${formatNumber(snapshot.fulfilled)} request(s) fulfilled`],
+    ['Inventory units', formatNumber(snapshot.totalUnits), 'Across all blood types'],
+    ['Inventory coverage', `${snapshot.inventoryCoverage}%`, 'Against configured target']
+  ].map(([metric, value, note]) => `<tr><td>${escapeHtml(metric)}</td><td class="number"><strong>${escapeHtml(value)}</strong></td><td>${escapeHtml(note)}</td></tr>`).join('');
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BloodConnect Report Summary</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f5f9; color: #172033; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .toolbar { max-width: 1100px; margin: 20px auto 0; display: flex; justify-content: flex-end; }
+    .print-button { border: 0; border-radius: 9px; padding: 10px 16px; color: #fff; background: #8b0000; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .report { max-width: 1100px; margin: 16px auto 28px; padding: 42px; background: #fff; box-shadow: 0 12px 34px rgba(15, 23, 42, .12); }
+    .header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 3px solid #8b0000; }
+    .brand { color: #8b0000; font-size: 13px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: 7px 0 5px; color: #172033; font-size: 28px; line-height: 1.15; }
+    .subtitle, .metadata { margin: 0; color: #667085; font-size: 13px; line-height: 1.6; }
+    .metadata { min-width: 210px; text-align: right; }
+    .metadata strong { color: #344054; }
+    .sections { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .section { margin-top: 24px; break-inside: avoid; }
+    .section.wide { grid-column: 1 / -1; }
+    h2 { margin: 0 0 11px; color: #172033; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 10px 12px; color: #667085; background: #f8fafc; border-bottom: 1px solid #dbe3ed; font-size: 10px; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
+    td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .level { display: inline-block; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 800; }
+    .level.critical { background: #fef2f2; color: #b91c1c; }
+    .level.low { background: #fff7ed; color: #c2410c; }
+    .level.adequate { background: #ecfdf5; color: #047857; }
+    .empty { color: #667085; text-align: center; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; color: #98a2b3; font-size: 10px; text-align: center; }
+    .overview td:last-child { color: #667085; font-size: 11px; }
+    @media (max-width: 760px) { .report { margin: 0; padding: 24px; } .header { display: block; } .metadata { margin-top: 16px; text-align: left; } .sections { display: block; } }
+    @media print { @page { size: A4; margin: 12mm; } body { background: #fff; } .toolbar { display: none; } .report { max-width: none; margin: 0; padding: 0; box-shadow: none; } .section { margin-top: 18px; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button class="print-button" onclick="window.print()">Print / Save as PDF</button></div>
+  <main class="report">
+    <header class="header">
+      <div><div class="brand">BloodConnect</div><h1>Operational Report Summary</h1><p class="subtitle">Blood donation and inventory performance overview</p></div>
+      <p class="metadata"><strong>Generated:</strong> ${escapeHtml(generatedAt.toLocaleString('en-US'))}<br><strong>Activity view:</strong> ${escapeHtml(periodLabel)}</p>
+    </header>
+    <div class="sections">
+      <section class="section wide overview"><h2>Report Overview</h2><table><thead><tr><th>Metric</th><th class="number">Value</th><th>Details</th></tr></thead><tbody>${overviewRows}</tbody></table></section>
+      <section class="section"><h2>Request Status Breakdown</h2><table><thead><tr><th>Status</th><th class="number">Requests</th></tr></thead><tbody>${statusRows}</tbody></table></section>
+      <section class="section"><h2>Inventory by Blood Type</h2><table><thead><tr><th>Blood Type</th><th class="number">Units</th><th>Level</th></tr></thead><tbody>${inventoryRows}</tbody></table></section>
+      <section class="section wide"><h2>${escapeHtml(periodLabel)} Activity Trend</h2><table><thead><tr><th>Period</th><th class="number">Donors</th><th class="number">Requests</th><th class="number">Fulfilled</th></tr></thead><tbody>${trendRows}</tbody></table></section>
+    </div>
+    <footer class="footer">Generated by BloodConnect · Web-Based Blood Donation &amp; Inventory Management System</footer>
+  </main>
+</body>
+</html>`;
+}
+
+async function exportReportsSummary() {
+  const button = document.getElementById('exportReportsBtn');
+  const status = document.getElementById('reportsExportStatus');
+  const buttonLabel = button?.querySelector('span');
+  const previewWindow = window.open('', '_blank');
+
+  if (button) button.disabled = true;
+  if (buttonLabel) buttonLabel.textContent = 'Preparing...';
+  if (status) status.textContent = 'Updating data before export...';
+
+  try {
+    if (!previewWindow) throw new Error('Your browser blocked the report preview. Allow pop-ups for this page and try again.');
+    previewWindow.document.write('<title>Preparing BloodConnect report...</title><p style="font-family:system-ui;padding:24px">Preparing your report...</p>');
+    previewWindow.document.close();
+
+    const refreshed = await refreshReportsSection();
+    if (!refreshed) throw new Error('The latest report data could not be loaded.');
+
+    previewWindow.document.open();
+    previewWindow.document.write(buildReportsPrintDocument());
+    previewWindow.document.close();
+    previewWindow.focus();
+    setTimeout(() => previewWindow.print(), 350);
+    if (status) status.textContent = 'Print dialog opened — choose “Save as PDF” to export.';
+    setTimeout(() => {
+      if (status?.textContent.startsWith('Print dialog opened')) status.textContent = '';
+    }, 3500);
+  } catch (error) {
+    console.error('Failed to export reports summary:', error);
+    if (previewWindow && !previewWindow.closed) previewWindow.close();
+    if (status) status.textContent = error?.message || 'Could not export the summary.';
+  } finally {
+    if (button) button.disabled = false;
+    if (buttonLabel) buttonLabel.textContent = 'Export Summary';
+  }
+}
+
 document.getElementById('scheduleDriveBtn')?.addEventListener('click', openScheduleDriveModal);
 document.getElementById('closeScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
 document.getElementById('cancelScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
@@ -942,26 +1223,15 @@ function renderReportsSection() {
   document.getElementById('reportsInventoryCoverageNote').textContent =
     totalUnits > 0 ? `${formatNumber(totalUnits)} total unit/s across all types` : 'No inventory data yet';
 
-  const statusRows = [
-    { key: 'pending', label: 'Pending' },
-    { key: 'approved', label: 'Approved' },
-    { key: 'needs_clarification', label: 'Needs Clarification' },
-    { key: 'rejected', label: 'Rejected' },
-    { key: 'cancelled', label: 'Cancelled by Requester' },
-    { key: 'fulfilled', label: 'Fulfilled' }
-  ].map((item) => {
-    const count = statusCounts[item.key] || 0;
-    const share = totalRequests > 0 ? `${Math.round((count / totalRequests) * 100)}%` : '0%';
-    return { ...item, count, share };
-  }).filter((row) => includesQuery([row.label, row.count, row.share], query));
+  const statusRows = getSimplifiedRequestStatusRows(statusCounts)
+    .filter((row) => includesQuery([row.label, row.count], query));
 
   if (!statusRows.length) {
-    requestBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-400);padding:32px;">No request report rows match the current search.</td></tr>';
+    requestBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:32px;">No request report rows match the current search.</td></tr>';
   } else {
     requestBody.innerHTML = statusRows.map((row) => `<tr>
           <td>${escapeHtml(row.label)}</td>
           <td>${formatNumber(row.count)}</td>
-          <td>${escapeHtml(row.share)}</td>
         </tr>`).join('');
   }
 
@@ -3574,6 +3844,7 @@ if (globalSearchInput) {
 }
 
 setupReportsPeriodFilters();
+document.getElementById('exportReportsBtn')?.addEventListener('click', exportReportsSummary);
 
 window.addEventListener('beforeunload', () => {
   if (reportsRealtimeTimer) {

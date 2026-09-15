@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Blood Donation Response & Screening Instructions - VeinDrop</title>
-  <link rel="icon" href="assets/veindrop-mark.svg" type="image/svg+xml" />
+  <title>Blood Donation Response & Screening Instructions - BloodConnect</title>
+  <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -20,14 +20,14 @@
   <!-- Header Bar -->
   <header class="pledge-header">
     <div class="header-container">
-      <a href="patient_dashboard.html#section-community" class="header-back-btn" id="headerBackBtn" title="Back to Requests" aria-label="Back to Requests">
+      <a href="account_dashboard.html#section-community" class="header-back-btn" id="headerBackBtn" title="Back to Requests" aria-label="Back to Requests">
         <i class="fa-solid fa-arrow-left-long"></i>
       </a>
 
       <div class="header-brand">
-        <img src="assets/veindrop-mark.svg" alt="VeinDrop" class="brand-logo" onerror="this.style.display='none'" />
+        <img src="assets/bloodconnect-mark.svg" alt="BloodConnect" class="brand-logo" onerror="this.style.display='none'" />
         <div class="brand-text">
-          <span class="brand-title">VeinDrop</span>
+          <span class="brand-title">BloodConnect</span>
           <span class="brand-subtitle">Donor Response Portal</span>
         </div>
       </div>
@@ -211,7 +211,7 @@
 
         <!-- Action Bar Step 1 -->
         <div class="step-actions-bar">
-          <a href="patient_dashboard.html#section-community" class="btn-secondary-outline">
+          <a href="account_dashboard.html#section-community" class="btn-secondary-outline">
             <i class="fa-solid fa-xmark"></i> Cancel & Return
           </a>
           <button type="button" class="btn-primary-action" id="btnProceedStep2" onclick="goToStep(2)">
@@ -382,7 +382,7 @@
             <span class="success-tag">Donation Pledge Confirmed</span>
             <h1 class="success-title">Thank You, Life Saver!</h1>
             <p class="success-subtitle">
-              Your pledge has been registered in the VeinDrop network. The blood bank coordinator and recipient family have been alerted. Please follow the official medical screening guidelines below for your donation appointment.
+              Your pledge has been registered in the BloodConnect network. The blood bank coordinator and recipient family have been alerted. Please follow the official medical screening guidelines below for your donation appointment.
             </p>
           </div>
         </div>
@@ -391,9 +391,9 @@
         <div class="donation-pass-container" id="printableDonationPass">
           <div class="pass-header">
             <div class="pass-brand">
-              <img src="assets/veindrop-mark.svg" alt="VeinDrop" class="pass-logo" onerror="this.style.display='none'" />
+              <img src="assets/bloodconnect-mark.svg" alt="BloodConnect" class="pass-logo" onerror="this.style.display='none'" />
               <div>
-                <div class="pass-system-name">VeinDrop Blood Network</div>
+                <div class="pass-system-name">BloodConnect Blood Network</div>
                 <div class="pass-doc-title">Official Blood Donation Referral Pass</div>
               </div>
             </div>
@@ -458,7 +458,7 @@
           <button type="button" class="btn-pass-action copy-btn" onclick="copyPassDetails()">
             <i class="fa-solid fa-copy"></i> Copy Details to Clipboard
           </button>
-          <a href="patient_dashboard.html" class="btn-pass-action return-btn">
+          <a href="account_dashboard.html" class="btn-pass-action return-btn">
             <i class="fa-solid fa-house"></i> Return to Dashboard
           </a>
         </div>
@@ -482,7 +482,7 @@
                 <ul class="timeline-list">
                   <li><strong>Valid ID Required:</strong> Bring 1 government-issued photo ID (Driver's License, PhilHealth, UMID, Passport, National ID, School/Company ID).</li>
                   <li><strong>Donor History Form:</strong> Complete the standard Department of Health (DOH) confidential health questionnaire honestly.</li>
-                  <li><strong>Pass Verification:</strong> Present your VeinDrop Donation Pass reference code to priority triage.</li>
+                  <li><strong>Pass Verification:</strong> Present your BloodConnect Donation Pass reference code to priority triage.</li>
                 </ul>
               </div>
             </div>
@@ -591,7 +591,7 @@
             </div>
             <div class="support-actions">
               <a href="tel:09123456789" class="btn-support-call"><i class="fa-solid fa-phone"></i> Call Blood Center</a>
-              <a href="patient_dashboard.html" class="btn-support-done"><i class="fa-solid fa-check"></i> I'm Ready / Done</a>
+              <a href="account_dashboard.html" class="btn-support-done"><i class="fa-solid fa-check"></i> I'm Ready / Done</a>
             </div>
           </div>
         </div>
@@ -611,7 +611,7 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-client.js?v=20260915supportpreferences"></script>
-  <script src="/scripts/pages/donor-pledge-details.js?v=20260915supportpreferences"></script>
+  <script src="/scripts/pages/donor-pledge-details.js?v=20260915bloodconnect"></script>
 </body>
 
 

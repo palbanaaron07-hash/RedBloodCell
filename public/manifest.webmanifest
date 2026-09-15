@@ -1,6 +1,6 @@
 {
-  "name": "VeinDrop Blood Bank",
-  "short_name": "VeinDrop",
+  "name": "BloodConnect Blood Bank",
+  "short_name": "BloodConnect",
   "description": "Privacy-first blood donor matching and request management.",
   "start_url": "/",
   "scope": "/",

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const patient = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const patient = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const card = patient.slice(patient.indexOf('function renderRequestCard('), patient.indexOf('let pendingBloodReceipt'));
 assert.match(card, /const canComplete = !isReplacement/);
 const receipt = patient.slice(patient.indexOf('function markBloodReceived('), patient.indexOf('function closeBloodReceivedDialog'));

@@ -104,11 +104,11 @@ Browser / installed PWA
 | `register.html` | Recipient/donor registration |
 | `login.html` | Login and role routing |
 | `forgot-password.html` | OTP password recovery |
-| `patient_dashboard.html` | Recipient overview, requests, community feed, donor center |
+| `account_dashboard.html` | Recipient overview, requests, community feed, donor center |
 | `donor_registration.html` | Add donor capability |
 | `donor_pledge_details.html` | Donor response/screening instructions |
-| `patient_donor_map.html` | Privacy-conscious donor-area map |
-| `patient_notifications.html` | Notification history |
+| `recipient_donor_map.html` | Privacy-conscious donor-area map |
+| `account_notifications.html` | Notification history |
 | `admin_dashboard.html` | Coordinator requests, donors, inventory, reports |
 
 ### Edge Functions
@@ -132,7 +132,7 @@ Browser / installed PWA
 3. Supabase Auth creates the identity; an RPC links the selected domain profile when a session is available.
 4. The browser tries a best-effort PHP/MySQL registration copy. Failure does not undo Supabase registration.
 5. Login tries Supabase first. A valid domain admin may be bootstrapped into Auth. Invalid Supabase credentials may fall back to PHP.
-6. Admins route to `admin_dashboard.html`; other roles route to `patient_dashboard.html`.
+6. Admins route to `admin_dashboard.html`; other roles route to `account_dashboard.html`.
 
 ### Password recovery
 

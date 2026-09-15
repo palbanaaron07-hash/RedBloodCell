@@ -36,7 +36,7 @@ assert.equal(refreshed, true);
 assert.equal(resetView, true);
 assert.doesNotMatch(source, /typeSelect\.value = 'compatible'/);
 assert.doesNotMatch(source, /locEl\.value = recipientArea/);
-const html = fs.readFileSync(new URL('../patient_donor_map.html', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../recipient_donor_map.html', import.meta.url), 'utf8');
 assert.match(html, /id="filterBloodType" value="all"/);
 assert.match(html, /id="bloodTypeDisplay">All Blood Types/);
 assert.match(html, /<button[^>]*id="btnClearFilters"/);

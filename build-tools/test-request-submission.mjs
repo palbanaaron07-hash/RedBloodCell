@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const start = source.indexOf("document.getElementById('requestForm').addEventListener");
 const end = source.indexOf("document.getElementById('editRequestForm').addEventListener", start);
 const code = 'let requestSubmissionPending = false;\n' + source.slice(start, end);

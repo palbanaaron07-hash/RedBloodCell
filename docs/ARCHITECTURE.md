@@ -21,9 +21,13 @@ The following are compatibility surfaces and should not be renamed without an ex
 
 - root HTML filenames and their query/hash navigation;
 - `/api/*.php` endpoint paths;
-- `/supabase-client.js`, `/patient_notifications.js`, and PWA asset URLs;
+- `/supabase-client.js`, `/account_notifications.js`, and PWA asset URLs;
 - Supabase Edge Function names;
 - database objects already referenced by deployed clients.
+
+The September 2026 recipient/donor route migration renamed the canonical account pages and assets. The old
+`patient_*.html` routes remain redirect aliases so deployed bookmarks, query strings, and hash navigation continue
+to work.
 
 Internal page logic may be split further as long as script order, global functions used by inline event attributes, and initialization timing remain unchanged.
 
@@ -35,7 +39,7 @@ Internal page logic may be split further as long as script order, global functio
 - `public/supabase-client.js`: shared compatibility facade for authentication and domain operations.
 - root CSS files: stable stylesheets used by operational pages; they remain at their existing URLs for compatibility.
 
-The remaining small inline script in `patient_dashboard.html` is intentionally kept in the document head because it applies the stored theme before rendering and prevents a flash of the wrong theme.
+The remaining small inline script in `account_dashboard.html` is intentionally kept in the document head because it applies the stored theme before rendering and prevents a flash of the wrong theme.
 
 ## Data ownership
 

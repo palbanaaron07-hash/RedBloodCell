@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
+  <title>Account Dashboard - BloodConnect</title>
+  <script>
+    (() => {
+      const initialSection = window.location.hash.replace('#section-', '');
+      const validSections = ['dashboard', 'requests', 'drives', 'donor', 'profile'];
+      if (validSections.includes(initialSection)) {
+        document.documentElement.dataset.initialSection = initialSection;
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@400;600;700;800&display=swap" />
+  <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/account_dashboard.css?v=20260915capacitylabelsfix" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="/recipient_donor_mobile_nav.css?v=20260907fix" />
+  <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
+  <link rel="stylesheet" href="/request-form.css?v=20260914replacementfields" />
+  <link rel="stylesheet" href="/recipient-overview.css?v=20260913a" />
+  <link rel="stylesheet" href="/mobile-request-cards.css?v=20260914e" />
+  <link rel="stylesheet" href="/blood-received-dialog.css?v=20260913a" />
+</head>
+
+<body>
+
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="header-dropdown-overlay" id="headerDropdownOverlay"></div>
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon" aria-hidden="true">
+        <img src="assets/bloodconnect-mark.svg" alt="" />
+      </div>
+      <div class="sidebar-brand-text">
+        <h2>BloodConnect</h2>
+        <small id="portalRoleLabel">Recipient &amp; Donor Portal</small>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <p class="nav-section-title">Menu</p>
+
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <i class="fa-solid fa-house"></i>
+        <span class="nav-item-label">Home</span>
+      </a>
+      <a href="#" class="nav-item" data-section="requests" id="navMyRequests">
+        <i class="fa-solid fa-hand-holding-medical"></i>
+        <span class="nav-item-label">Requests</span>
+        <span class="nav-badge" id="requestBadge">0</span>
+      </a>
+      <a href="recipient_donor_map.html" class="nav-item" title="Open donor map">
+        <i class="fa-solid fa-map-location-dot"></i>
+        <span class="nav-item-label">Donor Map</span>
+      </a>
+      <a href="#" class="nav-item" data-section="drives">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span class="nav-item-label">Blood Drives</span>
+      </a>
+
+      <p class="nav-section-title">Account</p>
+
+      <a href="#" class="nav-item" data-section="profile">
+        <i class="fa-solid fa-user"></i>
+        <span class="nav-item-label">My Profile</span>
+      </a>
+      <a href="#" class="nav-item" id="sidebarLogoutNavItem" onclick="openLogoutModal(event)">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span class="nav-item-label">Log Out</span>
+      </a>
+    </nav>
+    <button type="button" class="sidebar-logout" title="Log out" id="logoutBtn" onclick="openLogoutModal(event)"
+      aria-label="Log out">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </button>
+
+  </aside>
+
+  <!-- ==================== MAIN ==================== -->
+  <!-- ==================== MAIN ==================== -->
+  <div class="main">
+
+    <!-- HEADER -->
+    <header class="header">
+      <button class="header-toggle" id="menuToggle" aria-label="Toggle sidebar">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="header-title">
+        <h1>Recipient Overview</h1>
+      </div>
+
+      <div class="header-actions">
+        <div class="notification-wrap">
+          <button type="button" class="header-btn" id="notificationBtn" title="Notifications" aria-expanded="false"
+            aria-haspopup="true">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-dot"></span>
+          </button>
+          <div class="notification-panel" id="notificationPanel" role="menu" aria-label="Notifications">
+            <div class="notification-head">
+              <strong>Notifications</strong>
+              <span id="notificationPreviewCount">0 new</span>
+            </div>
+            <div class="notification-list">
+              <a class="notification-item" data-notification-id="match-found" href="recipient_donor_map.html">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <div>
+                  <strong>Match found</strong>
+                  <p>Compatible donors are available in Bohol.</p>
+                </div>
+              </a>
+              <a class="notification-item" data-notification-id="request-approved"
+                href="account_dashboard.html#section-requests">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                  <strong>Request approved</strong>
+                  <p>Your request for 2 units of A+ blood has been approved.</p>
+                </div>
+              </a>
+              <a class="notification-item" data-notification-id="blood-drive-reminder"
+                href="account_dashboard.html#section-drives">
+                <i class="fa-solid fa-calendar-check"></i>
+                <div>
+                  <strong>Blood drive reminder</strong>
+                  <p>A blood drive near Tagbilaran City starts this weekend.</p>
+                </div>
+              </a>
+              <a class="notification-item" data-notification-id="request-submitted"
+                href="account_dashboard.html#section-requests">
+                <i class="fa-solid fa-file-circle-check"></i>
+                <div>
+                  <strong>Request submitted</strong>
+                  <p>Your blood request was submitted successfully.</p>
+                </div>
+              </a>
+              <a class="notification-item" data-notification-id="request-fulfilled"
+                href="account_dashboard.html#section-requests">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+                <div>
+                  <strong>Request fulfilled</strong>
+                  <p>Your previous blood request has been marked as fulfilled.</p>
+                </div>
+              </a>
+            </div>
+            <a class="notification-view-all" href="account_notifications.html">
+              <span>View all notifications</span>
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <div class="header-profile-wrap">
+          <button type="button" class="header-profile" id="headerProfileBtn" onclick="toggleHeaderDropdown(event)">
+            <div class="header-profile-avatar" id="headerInitials" aria-hidden="true"><i class="fa-solid fa-user"></i>
+            </div>
+            <div class="header-profile-info">
+              <strong id="headerNameDisplay">Patient</strong>
+              <span id="headerRoleDisplay">Patient</span>
+            </div>
+            <i class="fa-solid fa-chevron-down" style="font-size: .7rem; margin-left: 4px; opacity: .6;"></i>
+          </button>
+          <div class="header-dropdown" id="headerProfileDropdown">
+            <div class="dropdown-header">
+              <strong id="dropdownFullName">Patient</strong>
+              <span id="dropdownEmail">patient@email.com</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" onclick="openProfileFromDropdown(event)">
+              <i class="fa-solid fa-user"></i> My Profile
+            </button>
+            <button type="button" class="dropdown-item logout" onclick="openLogoutModal(event)">
+              <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+
+
+      <!-- ===== SECTION: HOME / DONOR CENTER ===== -->
+      <div class="page-section active" id="section-dashboard">
+        <p id="accountOverviewLoading" role="status" aria-live="polite">Loading your overview…</p>
+
+        <section id="recipientOverviewState" class="recipient-overview" aria-labelledby="recipientOverviewTitle" hidden>
+          <h2 id="recipientOverviewTitle">Your blood request hub</h2>
+          <p>Submit a request, follow its progress, or explore donors on the community map.</p>
+          <div class="recipient-overview-actions">
+            <a class="card recipient-overview-link" href="#section-requests">
+              <i class="fa-solid fa-hand-holding-medical" aria-hidden="true"></i>
+              <div><h3>Blood requests</h3><p>Create a request or check your existing requests.</p></div>
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </a>
+            <a class="card recipient-overview-link" href="recipient_donor_map.html">
+              <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+              <div><h3>Community donor map</h3><p>Explore eligible donors by blood type and area.</p></div>
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+        </section>
+
+        <div class="card donor-enrollment-card" id="donorEnrollmentState" hidden>
+          <div class="donor-enrollment-icon" aria-hidden="true"><i class="fa-solid fa-heart-pulse"></i></div>
+          <div>
+            <p class="panel-kicker">Optional · Use your existing account</p>
+            <h3>Want to become a donor?</h3>
+            <p>Add a donor profile to your existing account. You can still request blood.
+              Registration does not confirm donation eligibility.</p>
+          </div>
+          <a class="btn-primary donor-enrollment-action"
+            href="donor_registration.html?return=account_dashboard.html%23section-dashboard">
+            <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Register as a Donor
+          </a>
+          <p class="form-msg error donor-setup-message" id="donorSetupMessage" hidden></p>
+        </div>
+
+        <div id="donorDashboardState" hidden>
+          <section class="stats-row donor-stats-row" aria-label="Donor overview">
+            <div class="stat-card green stat-card-passive donor-status-card" id="donorEligibilityCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-shield-heart"></i></div><p class="stat-label">Eligibility</p></div>
+              <div class="stat-body">
+                <h2 class="stat-number donor-stat-text" id="donorEligibilityStat">--</h2>
+                <p class="stat-sub" id="donorEligibilitySub">Checking status</p>
+              </div>
+            </div>
+            <div class="stat-card blue stat-card-passive donor-status-card" id="donorAvailabilityCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-tower-broadcast"></i></div><p class="stat-label">Availability</p></div>
+              <div class="stat-body">
+                <h2 class="stat-number donor-stat-text" id="donorAvailabilityStat">--</h2>
+                <p class="stat-sub" id="donorAvailabilitySub">Your current setting</p>
+              </div>
+            </div>
+            <div class="stat-card red stat-card-passive donor-status-card" id="donorLastDonationCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-clock-rotate-left"></i></div><p class="stat-label">Last donation</p></div>
+              <div class="stat-body">
+                <h2 class="stat-number donor-stat-text" id="donorLastDonationStat">--</h2>
+                <p class="stat-sub" id="donorLastDonationSub">Recorded donation</p>
+              </div>
+            </div>
+            <div class="stat-card violet stat-card-passive donor-status-card" id="donorNextEligibleCard">
+              <div class="donor-stat-head"><div class="stat-ring"><i class="fa-solid fa-calendar-day"></i></div><p class="stat-label">Next eligible</p></div>
+              <div class="stat-body">
+                <h2 class="stat-number donor-stat-text" id="donorNextEligibleStat">--</h2>
+                <p class="stat-sub" id="donorNextEligibleSub">Based on the 56-day recovery period</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="bento donor-dashboard-grid">
+            <div class="card">
+              <div class="card-head">
+                <h3><i class="fa-solid fa-id-card"></i> Donor Profile</h3>
+                <span class="badge registered" id="donorLifecycleBadge">Registered</span>
+              </div>
+              <div class="card-body donor-profile-body">
+                <div class="donor-profile-primary">
+                  <span class="profile-blood-badge"><i class="fa-solid fa-droplet"></i> <strong
+                      id="donorBloodType">--</strong></span>
+                  <div>
+                    <strong id="donorProfileName">Donor</strong>
+                    <span id="donorProfileId">Donor ID --</span>
+                  </div>
+                </div>
+                <div class="donor-availability-control">
+                  <div>
+                    <strong>Available for donor requests</strong>
+                    <span id="donorAvailabilityHelp">Receive donor appeals when you meet eligibility requirements.</span>
+                  </div>
+                  <button type="button" class="availability-toggle" id="donorAvailabilityToggle" aria-pressed="false"
+                    onclick="toggleMyDonorAvailability()">
+                    <span></span><strong>Off</strong>
+                  </button>
+                </div>
+                <div class="donor-availability-control"
+                  style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+                  <div>
+                    <strong><i class="fa-solid fa-map-location-dot"
+                        style="color:var(--rose-400,#fb7185);margin-right:4px;"></i> Allow map visibility</strong>
+                    <span id="donorMapPrivacyHelp"
+                      style="display:block;font-size:0.75rem;color:var(--slate-400,#94a3b8);">Show your approximate area only when available, medically approved, and location verified.</span>
+                  </div>
+                  <button type="button" class="availability-toggle" id="donorMapVisibilityToggle" aria-pressed="false"
+                    onclick="toggleMyDonorMapVisibility()">
+                    <span></span><strong>Off</strong>
+                  </button>
+                </div>
+                <div class="form-msg" id="donorDashboardMessage" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> My Donation History</h3>
+                <span class="badge registered" id="donorHistoryCountBadge">0 recorded</span>
+              </div>
+              <div class="card-body">
+                <div class="donor-activity-list" id="donorDonationHistory">
+                  <p class="donor-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading donation history...
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card span-2 donor-matches-panel">
+              <div class="card-head">
+                <h3><i class="fa-solid fa-hand-holding-droplet"></i> Requests You Can Help With</h3>
+                <span class="badge approved" id="donorMatchCount">0 matches</span>
+              </div>
+              <div class="card-body">
+                <div class="request-list" id="donorMatchingRequests">
+                  <p class="donor-empty-state">Loading compatible requests...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- end section-dashboard -->
+
+      <!-- ===== SECTION: BLOOD REQUESTS ===== -->
+      <div class="page-section" id="section-requests">
+
+        <!-- Top Quick Create Request Banner (matching layout) -->
+        <div class="blood-request-create-bar">
+          <div class="quick-user-avatar" id="requestsQuickAvatar">
+            <span id="requestsQuickInitial">U</span>
+          </div>
+          <span class="quick-prompt-text">Blood needed?</span>
+          <button type="button" class="btn-quick-create-request" onclick="openRequestModal()">
+            Create Request
+          </button>
+        </div>
+
+        <!-- Tab Switcher: Community Feed vs My Requests -->
+        <div class="requests-view-tabs" role="tablist">
+          <button type="button" class="req-tab-btn active" id="tabCommunityRequests"
+            onclick="switchRequestsTab('community')" role="tab" aria-selected="true">
+            <i class="fa-solid fa-users"></i> Community Requests (<span id="communityCount">0</span>)
+          </button>
+          <button type="button" class="req-tab-btn" id="tabMyRequests" onclick="switchRequestsTab('my')" role="tab"
+            aria-selected="false">
+            <i class="fa-solid fa-file-waveform"></i> My Requests (<span id="myRequestsCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Community Requests Feed -->
+        <div class="requests-tab-content active" id="communityRequestsTabContent">
+          <!-- Community Filter Bar -->
+          <div class="tab-filter-bar">
+            <div class="filter-dropdown" id="filterDropdown">
+              <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox"
+                aria-expanded="false" title="Filter requests">
+                <i class="fa-solid fa-sliders"></i>
+                <span id="selectedFilterText">All Requests</span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div class="filter-menu" id="filterMenu" role="listbox">
+                <button class="filter-item active" data-request-filter="all" role="option">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>All Requests</span>
+                </button>
+                <button class="filter-item" data-request-filter="urgent" role="option">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>Urgent Only</span>
+                </button>
+                <button class="filter-item" data-request-filter="A+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>A+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="A-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>A- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="B+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>B+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="B-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>B- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="AB+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>AB+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="AB-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>AB- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="O+" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>O+ Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="O-" role="option">
+                  <i class="fa-solid fa-droplet"></i>
+                  <span>O- Needed</span>
+                </button>
+                <button class="filter-item" data-request-filter="hidden" role="option">
+                  <i class="fa-solid fa-eye-slash"></i>
+                  <span>Hidden Requests (<span id="hiddenCount">0</span>)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="community-request-feed" id="communityRequestFeed">
+            <p style="text-align:center;color:var(--slate-400);padding:32px 0;"><i
+                class="fa-solid fa-spinner fa-spin"></i> Loading community blood requests...</p>
+          </div>
+        </div>
+
+        <!-- My Requests Tab Content -->
+        <div class="requests-tab-content" id="myRequestsTabContent" hidden>
+
+          <!-- My Requests Header & Filter Bar -->
+          <div class="tab-filter-bar"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
+            <h3
+              style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-hand-holding-medical" style="color: var(--accent);"></i> My Submitted Requests
+            </h3>
+            <div class="filter-dropdown" id="myFilterDropdown">
+              <button class="filter-trigger" id="myFilterTrigger" type="button" aria-haspopup="listbox"
+                aria-expanded="false" title="Filter your requests">
+                <i class="fa-solid fa-sliders"></i>
+                <span id="selectedMyFilterText">All Requests</span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div class="filter-menu" id="myFilterMenu" role="listbox">
+                <button class="filter-item my-filter-item active" data-my-filter="all" role="option">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>All Requests</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="active" role="option">
+                  <i class="fa-solid fa-tower-broadcast"></i>
+                  <span>Active / Urgent</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="covered" role="option">
+                  <i class="fa-solid fa-people-group"></i>
+                  <span>Pledged / Covered</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="fulfilled" role="option">
+                  <i class="fa-solid fa-heart-circle-check"></i>
+                  <span>Completed / Fulfilled</span>
+                </button>
+                <button class="filter-item my-filter-item" data-my-filter="expired" role="option">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span>Expired</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Requests Feed (Standalone cards, matching Community Requests) -->
+          <div class="community-request-feed" id="requestList">
+            <p style="text-align:center;color:var(--slate-400);padding:24px 0;">Loading requests...</p>
+          </div>
+        </div>
+
+      </div>
+      <!-- end section-requests -->
+
+
+
+      <!-- ===== SECTION: MY PROFILE ===== -->
+      <div class="page-section" id="section-profile">
+
+        <div class="bento">
+          <!-- Profile Card -->
+          <div class="card">
+            <div class="card-head profile-card-head">
+              <h3><i class="fa-solid fa-user"></i> Personal Information</h3>
+              <button type="button" class="profile-edit-btn" onclick="openProfileModal()"
+                aria-label="Edit profile information">
+                <span class="profile-edit-icon" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
+                <span>Edit Profile</span>
+              </button>
+            </div>
+            <div class="profile-snap">
+              <button type="button" class="profile-avatar-lg profile-photo-trigger" id="profileInitials"
+                aria-label="Change profile picture" title="Change profile picture">
+                <span class="profile-avatar-content" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
+                <span class="profile-avatar-camera" aria-hidden="true"><i class="fa-solid fa-camera"></i></span>
+              </button>
+              <div class="profile-name" id="profileName">Patient</div>
+              <div class="profile-email" id="profileEmail">patient@email.com</div>
+              <div class="profile-blood-badge" id="profileBloodBadge">
+                <i class="fa-solid fa-droplet"></i> <span id="profileBloodType">-</span>
+              </div>
+              <div class="profile-meta">
+                <div class="profile-meta-row">
+                  <span class="meta-label"><i class="fa-solid fa-phone"></i> Phone</span>
+                  <span class="meta-value" id="profilePhone">-</span>
+                </div>
+                <div class="profile-meta-row">
+                  <span class="meta-label"><i class="fa-solid fa-venus-mars"></i> Gender</span>
+                  <span class="meta-value" id="profileGender">-</span>
+                </div>
+                <div class="profile-meta-row">
+                  <span class="meta-label"><i class="fa-solid fa-location-dot"></i> Address</span>
+                  <span class="meta-value" id="profileAddress">-</span>
+                </div>
+                <div class="profile-meta-row">
+                  <span class="meta-label"><i class="fa-solid fa-calendar"></i> Member Since</span>
+                  <span class="meta-value" id="profileSince">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blood Compatibility Info -->
+          <div class="card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-droplet"></i> Blood Info</h3>
+            </div>
+            <div class="card-body">
+              <div style="text-align:center; padding: 16px 0 20px;">
+                <div class="profile-blood-badge" id="profileBloodBadge2" style="font-size:1.5rem; padding: 12px 28px;">
+                  <i class="fa-solid fa-droplet"></i> <span id="profileBloodType2">-</span>
+                </div>
+              </div>
+
+              <div class="compat" id="compatSection2"
+                style="display:none; margin-top:0; border-top: 1px solid var(--slate-100); padding-top: 16px;">
+                <p class="compat-label">You can receive blood from</p>
+                <div class="compat-tags" id="compatTags2"></div>
+              </div>
+
+              <div class="compat" id="donateTo" style="display:none; margin-top:0;">
+                <p class="compat-label">You can donate to</p>
+                <div class="compat-tags" id="donateToTags"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- end section-profile -->
+
+
+
+      <!-- ===== SECTION: BLOOD DRIVES ===== -->
+      <div class="page-section" id="section-drives">
+
+        <div class="panel full-width drives-panel">
+          <div class="panel-header">
+            <h3><i class="fa-solid fa-vial"></i> Campaign Calendar</h3>
+            <div class="drive-panel-actions">
+              <button type="button" class="missed-drives-toggle" id="missedDrivesToggle" onclick="toggleMissedDrives()">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Past Blood Drives
+                <span id="missedDrivesCount">0</span>
+              </button>
+            </div>
+          </div>
+          <div class="drive-card-grid" id="drivesTableBody">
+            <p class="drive-empty">Loading drive plans...</p>
+          </div>
+        </div>
+
+      </div>
+      <!-- end section-drives -->
+
+    </div>
+    <!-- end .content -->
+
+    <!-- ===== REQUEST BLOOD MODAL ===== -->
+    <div class="modal-overlay" id="requestModal" role="dialog" aria-modal="true" aria-labelledby="requestFormTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="requestFormTitle"><i class="fa-solid fa-file-medical"></i> Create Blood Request</h3>
+          <button type="button" class="modal-close" aria-label="Close request form" onclick="closeRequestModal()">&times;</button>
+        </div>
+        <form id="requestForm" class="modal-body">
+          <p class="request-form-intro">Tell us what is needed so a coordinator can review your request. <span>Fields marked * are required.</span></p>
+          <fieldset class="request-form-section">
+            <legend>1. Request type</legend>
+          <div class="form-group">
+            <label for="requestType">What kind of help is needed? <span class="req">*</span></label>
+            <select name="request_type" id="requestType" aria-describedby="requestTypeHelp" required>
+              <option value="" disabled selected>Select request type</option>
+              <option value="replacement">Hospital Replacement Request</option>
+              <option value="emergency_donor">Emergency Donor Assistance</option>
+            </select>
+            <div id="requestTypeHelp" class="request-type-help"><p><strong>Hospital replacement:</strong> Stays active until the required replacement units are confirmed, or the request is cancelled or closed.</p><p><strong>Emergency assistance:</strong> Expires automatically after 72 hours because urgent patient needs can change quickly.</p></div>
+          </div>
+          </fieldset>
+          <fieldset class="request-form-section">
+            <legend id="requestRequirementsLegend">2. Blood requirements</legend>
+          <p id="replacementRequirementsNote" class="replacement-requirements-note" hidden><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Any eligible blood type may help with replacement. Enter only the number of replacement units requested by the hospital.</p>
+          <div class="form-row" id="requestBloodRequirementsRow">
+            <div class="form-group" id="requestBloodTypeGroup">
+              <label for="requestBloodType">Blood type <span class="req">*</span></label>
+              <select name="blood_type" id="requestBloodType" required>
+                <option value="" disabled selected>Select blood type</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="requestUnits"><span id="requestUnitsLabel">Units needed</span> <span class="req">*</span></label>
+              <input id="requestUnits" type="number" name="units_needed" min="1" max="20" value="1" required />
+            </div>
+          </div>
+          <div class="form-row" id="requestTimingRow">
+            <div class="form-group" id="requestUrgencyGroup">
+              <label for="requestUrgency">Urgency <span class="req">*</span></label>
+              <select id="requestUrgency" name="urgency" required>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="requestNeededTime">When is it needed? <span class="optional">Optional</span></label>
+              <input id="requestNeededTime" type="text" name="needed_time" placeholder="e.g. Today, by 3 PM" />
+            </div>
+          </div>
+          </fieldset>
+          <fieldset class="request-form-section">
+            <legend>3. Hospital &amp; request details</legend>
+          <div class="form-group">
+            <label for="requestHospital">Hospital / donation location <span class="req">*</span></label>
+            <input id="requestHospital" type="text" name="hospital" placeholder="Hospital or facility name and city" required />
+          </div>
+          <div class="form-group">
+            <label for="requestReference">Hospital reference number <span class="req">*</span></label>
+            <input id="requestReference" type="text" name="hospital_reference" maxlength="100" placeholder="Request or replacement slip number" required />
+          </div>
+          <div class="form-group">
+            <label for="requestNotes">Reason for request <span class="req">*</span></label>
+            <textarea id="requestNotes" name="notes" placeholder="Briefly explain the need and any donation instructions." aria-describedby="requestNotesHelp"
+              required></textarea>
+            <small id="requestNotesHelp">Avoid including private patient information in this description.</small>
+          </div>
+          </fieldset>
+          <fieldset class="request-form-section request-verification-support">
+            <legend>4. Verification support <span class="optional">Optional</span></legend>
+            <p class="verification-support-intro">These details help the Blood Donation Coordinator verify your request. They are not shown on the community feed.</p>
+            <div class="form-group">
+              <label for="requestFacilityContact">Facility contact number <span class="optional">Optional</span></label>
+              <input id="requestFacilityContact" type="tel" name="facility_contact" maxlength="120" placeholder="Official facility number, if available" />
+            </div>
+            <div class="form-group">
+              <span class="request-field-label" id="requestDocumentLabel">Supporting document <span class="optional">Optional</span></span>
+              <input id="requestSupportingDocument" class="request-file-input" type="file" name="supporting_document"
+                accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+                aria-labelledby="requestDocumentLabel requestDocumentName" aria-describedby="requestDocumentHelp" />
+              <label class="request-attachment-picker" id="requestDocumentPicker" for="requestSupportingDocument">
+                <span class="request-attachment-icon" aria-hidden="true"><i class="fa-solid fa-paperclip"></i></span>
+                <span class="request-attachment-copy">
+                  <strong>Attach supporting document</strong>
+                  <span id="requestDocumentName">No document attached</span>
+                </span>
+                <i class="fa-solid fa-chevron-right request-attachment-chevron" aria-hidden="true"></i>
+              </label>
+              <small id="requestDocumentHelp">Hospital request, referral, or replacement document. JPG, PNG, or PDF up to 20 MB. Only you and authorized coordinators can view it.</small>
+            </div>
+          </fieldset>
+          <p class="request-review-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your request appears in My Requests after saving. It becomes public after coordinator approval.</p>
+          <div id="requestMsg" class="form-msg" role="status" aria-live="polite"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== EDIT REQUEST MODAL ===== -->
+    <div class="modal-overlay" id="editRequestModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-pen-to-square"></i> Edit Blood Request</h3>
+          <button class="modal-close" onclick="closeEditRequestModal()">&times;</button>
+        </div>
+        <form id="editRequestForm" class="modal-body">
+          <input type="hidden" id="editReqId" />
+          <input type="hidden" id="editReqType" name="request_type" />
+          <div class="form-row">
+            <div class="form-group" id="editReqBloodTypeGroup">
+              <label>Blood Type Needed <span class="req">*</span></label>
+              <select id="editReqBloodType" name="blood_type" required>
+                <option value="" disabled>Select blood type</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group" id="editReqUnitsGroup">
+              <label>Units Needed <span class="req">*</span></label>
+              <input type="number" id="editReqUnits" name="units_needed" min="1" max="20" value="1" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" id="editReqUrgencyGroup">
+              <label>Urgency <span class="req">*</span></label>
+              <select id="editReqUrgency" name="urgency" required>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Donation Point / Hospital</label>
+              <input type="text" id="editReqHospital" name="hospital" placeholder="e.g. Philippine General Hospital" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Time &amp; Date Needed</label>
+            <input type="text" id="editReqNeededTime" name="needed_time"
+              placeholder="e.g. As soon as possible, or Sep 12, 2026 at 10:00 AM" />
+          </div>
+          <div class="form-group">
+            <label>Description / Reason for Request <span class="req">*</span></label>
+            <textarea id="editReqNotes" name="notes" rows="3"
+              placeholder="Brief description of the patient's condition..." required></textarea>
+          </div>
+          <div id="editReqMsg" class="form-msg"></div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            <button type="button" class="btn-cancel" onclick="closeEditRequestModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== REQUEST DELETE / CANCELLATION CONFIRMATION MODAL ===== -->
+    <div class="modal-overlay" id="deleteRequestModal">
+      <div class="modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="deleteReqTitle"
+        style="max-width: 420px; width: 92%;">
+        <div class="modal-header">
+          <h3 id="deleteReqTitle"><i id="requestActionTitleIcon" class="fa-solid fa-trash" style="color: var(--accent, #800000);"></i> <span id="requestActionTitle">Delete Blood Request</span></h3>
+          <button type="button" class="modal-close" onclick="closeDeleteRequestModal()"
+            aria-label="Close delete modal">&times;</button>
+        </div>
+        <div class="modal-body delete-confirm-body" style="text-align: center; padding: 24px 20px;">
+          <div class="delete-warning-icon"
+            style="width: 56px; height: 56px; border-radius: 50%; background: #ffe3e3; color: var(--accent, #800000); display: grid; place-items: center; font-size: 1.5rem; margin: 0 auto 16px auto;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h4 id="requestActionHeading" style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Delete this request?</h4>
+          <p id="requestActionMessage" style="font-size: 0.9rem; color: #64748b; margin: 0; line-height: 1.5;">This permanently removes the request and cannot be undone.</p>
+        </div>
+        <div class="modal-footer"
+          style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #f1f5f9;">
+          <button type="button" class="btn-cancel" onclick="closeDeleteRequestModal()">Cancel</button>
+          <button type="button" class="btn-submit" id="confirmDeleteReqBtn"
+            style="background: var(--accent, #800000); border-color: var(--accent, #800000); color: #ffffff;">Yes, delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== COMMUNITY REQUEST DETAIL MODAL ===== -->
+    <dialog id="bloodReceivedDialog" aria-labelledby="bloodReceivedTitle" aria-describedby="bloodReceivedQuestion bloodReceivedGuidance">
+      <div class="receipt-dialog-header">
+        <span class="receipt-dialog-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></span>
+        <h3 id="bloodReceivedTitle">Confirm Blood Received</h3>
+      </div>
+      <div class="receipt-dialog-body">
+        <p id="bloodReceivedQuestion">Has the patient received the blood needed for this request?</p>
+        <p id="bloodReceivedRequestLabel" class="receipt-request-label"></p>
+        <p id="bloodReceivedGuidance" class="receipt-guidance"></p>
+        <p id="bloodReceivedMessage" role="status" aria-live="polite"></p>
+      </div>
+      <div class="receipt-dialog-actions">
+        <button type="button" id="cancelBloodReceived" autofocus>Not Yet</button>
+        <button type="button" id="confirmBloodReceived">Confirm Blood Received</button>
+      </div>
+    </dialog>
+    <div class="modal-overlay" id="communityRequestDetailModal">
+      <div class="modal community-detail-modal-box">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-hand-holding-heart"></i> Blood Request Details</h3>
+          <button class="modal-close" onclick="closeCommunityRequestDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body community-detail-modal-body" id="communityRequestDetailBody">
+          <!-- Dynamically injected -->
+        </div>
+        <div class="modal-footer community-detail-modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeCommunityRequestDetailModal()">Close</button>
+          <button type="button" class="btn-submit btn-pledge-help" id="btnPledgeHelp" onclick="handlePledgeHelp()">
+            <i class="fa-solid fa-heart-pulse"></i> Respond / Offer Blood Donation
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REQUEST NOTE VIEW MODAL ===== -->
+    <div class="modal-overlay" id="requestNoteModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="requestNoteTitle"><i class="fa-solid fa-note-sticky"></i> Admin note</h3>
+          <button class="modal-close" onclick="closeRequestNoteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="requestNoteContent" style="white-space:pre-wrap; padding: 6px 2px; color:var(--slate-700);"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeRequestNoteModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BLOOD DRIVE DETAILS MODAL ===== -->
+    <div class="modal-overlay" id="driveDetailsModal">
+      <div class="modal drive-details-modal">
+        <div class="modal-header">
+          <h3 id="driveDetailsTitle"><i class="fa-solid fa-vial"></i> Blood drive details</h3>
+          <button class="modal-close" onclick="closeDriveDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="driveDetailsContent" class="drive-details-content"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeDriveDetailsModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EDIT PROFILE MODAL ===== -->
+    <div class="modal-overlay" id="profileModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-user-pen"></i> Edit Profile</h3>
+          <button class="modal-close" onclick="closeProfileModal()">&times;</button>
+        </div>
+        <form id="profileForm" class="modal-body">
+          <div class="profile-photo-editor">
+            <div class="profile-photo-preview" id="profilePhotoPreview" aria-label="Profile photo preview">
+              <span id="profilePhotoPreviewInitials">P</span>
+            </div>
+            <div class="profile-photo-controls">
+              <strong>Profile picture</strong>
+              <span>Choose a photo or take one with your camera.</span>
+              <div class="profile-photo-actions">
+                <button type="button" class="profile-photo-btn" id="chooseProfilePhotoBtn">
+                  <i class="fa-regular fa-image" aria-hidden="true"></i> Choose file
+                </button>
+                <button type="button" class="profile-photo-btn" id="takeProfilePhotoBtn">
+                  <i class="fa-solid fa-camera" aria-hidden="true"></i> Open camera
+                </button>
+              </div>
+              <input class="visually-hidden" id="profilePhotoFileInput" type="file"
+                accept="image/jpeg,image/png,image/webp" />
+              <input class="visually-hidden" id="profilePhotoCameraInput" type="file" accept="image/*" capture="user" />
+            </div>
+          </div>
+
+          <div class="form-row profile-name-row">
+            <div class="form-group">
+              <label>First Name <span class="req">*</span></label>
+              <input type="text" name="first_name" id="profileFirstNameInput" required />
+            </div>
+            <div class="form-group">
+              <label>Middle Name</label>
+              <input type="text" name="middle_name" id="profileMiddleNameInput" autocomplete="additional-name" />
+            </div>
+            <div class="form-group">
+              <label>Last Name <span class="req">*</span></label>
+              <input type="text" name="last_name" id="profileLastNameInput" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Blood Type <span class="req">*</span></label>
+              <select name="blood_type" id="profileBloodTypeInput" required>
+                <option value="" disabled selected>Select blood type</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select name="gender" id="profileGenderInput">
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other / Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" name="phone" id="profilePhoneInput" />
+            </div>
+            <div class="form-group">
+              <label>Address</label>
+              <input type="text" name="address" id="profileAddressInput" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" onclick="closeProfileModal()">Cancel</button>
+            <button type="submit" class="btn-submit" id="profileSaveBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save Changes
+            </button>
+          </div>
+          <div id="profileMsg" class="form-msg"></div>
+        </form>
+      </div>
+    </div>
+    <!-- ===== PROFILE PICTURE OPTIONS ===== -->
+    <div class="modal-overlay" id="profilePhotoModal">
+      <div class="modal profile-photo-modal" role="dialog" aria-modal="true" aria-labelledby="profilePhotoModalTitle">
+        <div class="modal-header">
+          <h3 id="profilePhotoModalTitle"><i class="fa-solid fa-camera"></i> Change Profile Picture</h3>
+          <button type="button" class="modal-close" id="closeProfilePhotoModal" aria-label="Close">&times;</button>
+        </div>
+        <div class="profile-photo-option-list">
+          <button type="button" class="profile-photo-option" id="avatarChoosePhotoBtn">
+            <i class="fa-regular fa-image" aria-hidden="true"></i>
+            <span><strong>Choose picture</strong><small>Select from your device</small></span>
+          </button>
+          <button type="button" class="profile-photo-option" id="avatarTakePhotoBtn">
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
+            <span><strong>Take photo</strong><small>Open your camera</small></span>
+          </button>
+          <input class="visually-hidden" id="quickProfilePhotoFileInput" type="file"
+            accept="image/jpeg,image/png,image/webp" />
+          <input class="visually-hidden" id="quickProfilePhotoCameraInput" type="file" accept="image/*"
+            capture="user" />
+          <button type="button" class="btn-cancel profile-photo-cancel" id="cancelProfilePhotoBtn">Cancel</button>
+          <div id="profilePhotoQuickMsg" class="form-msg" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+    <!-- ===== LOGOUT CONFIRMATION MODAL ===== -->
+    <div class="modal-overlay" id="logoutConfirmModal">
+      <div class="modal logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle"
+        aria-describedby="logoutConfirmDescription">
+        <div class="modal-header">
+          <h3 id="logoutConfirmTitle"><i class="fa-solid fa-right-from-bracket"></i> Confirm logout</h3>
+          <button type="button" class="modal-close" onclick="closeLogoutModal()"
+            aria-label="Close logout confirmation">&times;</button>
+        </div>
+        <div class="modal-body logout-confirm-body">
+          <div class="logout-warning-icon" aria-hidden="true"><i class="fa-solid fa-right-from-bracket"></i></div>
+          <h4>Log out of your account?</h4>
+          <p id="logoutConfirmDescription">You will need to sign in again to access your blood requests and profile.</p>
+        </div>
+        <div class="modal-footer logout-confirm-actions">
+          <button type="button" class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
+          <button type="button" class="btn-submit logout-confirm-action" id="confirmLogoutBtn"
+            onclick="handleConfirmLogout(event)">Yes, log out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="dashboard-footer">
+      &copy; 2026 BloodConnect - Web-Based Blood Donation &amp; Inventory Management System. All rights reserved.
+    </footer>
+
+  </div>
+  <!-- end .main -->
+
+  <div class="profile-update-toast" id="profileUpdateToast" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+    <span>Profile picture updated successfully.</span>
+  </div>
+
+  <nav class="mobile-bottom-nav" aria-label="Recipient and donor navigation">
+    <button type="button" class="mobile-nav-item active" data-mobile-section="dashboard" aria-label="Home"
+      aria-current="page">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-mobile-section="requests" aria-label="Blood requests">
+      <i class="fa-solid fa-hand-holding-medical"></i>
+      <span>Requests</span>
+    </button>
+    <button type="button" class="mobile-nav-search" id="mobileDonorSearchBtn" aria-label="Search donors on map">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span>Search</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-mobile-section="drives" aria-label="Blood drives">
+      <i class="fa-solid fa-calendar-days"></i>
+      <span>Drives</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-mobile-section="profile" aria-label="Profile">
+      <i class="fa-solid fa-user"></i>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+  <!-- ==================== JS ==================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js?v=20260915blooddrives"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/scripts/pages/account-dashboard.js?v=20260915bloodconnect"></script>
+  <script src="/pull-to-refresh.js?v=20260906n" defer></script>
+</body>
+
+</html>

@@ -1277,6 +1277,62 @@ img {
   grid-column: 1 / -1;
 }
 
+/* Reports: keep the concise status and timestamp cards aligned as a left-side stack. */
+.reports-detail-grid {
+  align-items: stretch;
+}
+
+.reports-detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-width: 0;
+}
+
+.reports-status-panel .data-table th,
+.reports-status-panel .data-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.reports-status-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.reports-status-panel .table-wrap,
+.reports-status-panel .data-table {
+  flex: 1;
+}
+
+.reports-status-panel .table-wrap {
+  display: flex;
+}
+
+.reports-status-panel .data-table {
+  height: 100%;
+}
+
+.reports-timestamp-panel .panel-header {
+  padding: 14px 18px;
+}
+
+.reports-timestamp-panel .panel-body {
+  padding: 14px 18px;
+}
+
+.reports-timestamp-panel {
+  flex: 0 0 auto;
+}
+
+.reports-timestamp-panel p {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: .82rem;
+}
+
 /* ============================================================
    PANEL / CARD
    ============================================================ */
@@ -1357,6 +1413,47 @@ img {
 .reports-chart-wrap canvas {
   width: 100% !important;
   height: 320px !important;
+}
+
+.reports-chart-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--gray-500);
+  font-size: .84rem;
+  background: rgba(255, 255, 255, .82);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.reports-chart-state[hidden] {
+  display: none;
+}
+
+.reports-chart-state.error {
+  color: #b91c1c;
+}
+
+.reports-export-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.reports-export-status {
+  min-height: 1em;
+  color: var(--gray-500);
+  font-size: .78rem;
+}
+
+#exportReportsBtn:disabled {
+  cursor: wait;
+  opacity: .72;
 }
 
 .overview-inventory-panel,
@@ -1661,6 +1758,13 @@ img {
 
 .data-table tbody tr:hover {
   background: var(--blood-mist);
+}
+
+/* Keep report totals directly below their column heading. */
+.data-table:has(#reportsRequestBreakdownBody) th:nth-child(2),
+#reportsRequestBreakdownBody td:nth-child(2) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Donor cell */

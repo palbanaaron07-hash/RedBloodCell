@@ -1,4 +1,4 @@
-const CACHE_NAME = 'veindrop-pwa-v21';
+const CACHE_NAME = 'bloodconnect-pwa-v24';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,6 +8,9 @@ const APP_SHELL = [
   '/register.html',
   '/forgot-password.html',
   '/donor_registration.html',
+  '/account_dashboard.html',
+  '/recipient_donor_map.html',
+  '/account_notifications.html',
   '/patient_dashboard.html',
   '/patient_donor_map.html',
   '/patient_notifications.html',
@@ -15,7 +18,8 @@ const APP_SHELL = [
   '/manifest.webmanifest',
   '/pull-to-refresh.js',
   '/supabase-client.js',
-  '/patient_notifications.js'
+  '/account_notifications.js',
+  '/legacy-route-redirect.js'
 ];
 
 function cacheSuccessfulResponse(request, response) {

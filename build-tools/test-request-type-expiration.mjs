@@ -4,9 +4,9 @@ import fs from 'node:fs';
 const migration = fs.readFileSync(new URL('../supabase/migrations/202609130009_request_type_expiration_lifecycle.sql', import.meta.url), 'utf8');
 const confirmationMigration = fs.readFileSync(new URL('../supabase/migrations/202609130003_replacement_donation_confirmations.sql', import.meta.url), 'utf8');
 const client = fs.readFileSync(new URL('../public/supabase-client.js', import.meta.url), 'utf8');
-const patient = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const patient = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const admin = fs.readFileSync(new URL('../public/scripts/pages/admin-dashboard.js', import.meta.url), 'utf8');
-const html = fs.readFileSync(new URL('../patient_dashboard.html', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../account_dashboard.html', import.meta.url), 'utf8');
 
 for (const rule of [
   'alter column expires_at drop not null',

@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const client = fs.readFileSync(new URL('../public/supabase-client.js', import.meta.url), 'utf8');
-const patient = fs.readFileSync(new URL('../public/scripts/pages/patient-dashboard.js', import.meta.url), 'utf8');
+const patient = fs.readFileSync(new URL('../public/scripts/pages/account-dashboard.js', import.meta.url), 'utf8');
 const admin = fs.readFileSync(new URL('../public/scripts/pages/admin-dashboard.js', import.meta.url), 'utf8');
-const patientHtml = fs.readFileSync(new URL('../patient_dashboard.html', import.meta.url), 'utf8');
+const patientHtml = fs.readFileSync(new URL('../account_dashboard.html', import.meta.url), 'utf8');
 const adminHtml = fs.readFileSync(new URL('../admin_dashboard.html', import.meta.url), 'utf8');
 const sql = fs.readFileSync(new URL('../supabase/migrations/202609130004_private_request_verification_support.sql', import.meta.url), 'utf8');
 const privacySql = fs.readFileSync(new URL('../supabase/migrations/202609130005_request_verification_privacy_followup.sql', import.meta.url), 'utf8');

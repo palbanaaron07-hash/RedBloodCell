@@ -155,7 +155,7 @@
                     if (role === 'admin') {
                       window.location.href = 'admin_dashboard.html';
                     } else {
-                      window.location.href = 'patient_dashboard.html';
+                      window.location.href = 'account_dashboard.html';
                     }
                   }, 600);
                   return;
@@ -184,7 +184,7 @@
           if (role === 'admin') {
             window.location.href = 'admin_dashboard.html';
           } else {
-            window.location.href = 'patient_dashboard.html';
+            window.location.href = 'account_dashboard.html';
           }
         }, 600);
 
