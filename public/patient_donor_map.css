@@ -1031,7 +1031,7 @@ button {
   transform: rotate(-45deg);
   background: var(--accent, #800000);
   border: 2.5px solid #fff;
-  box-shadow: inset 0 -2px 6px rgba(0,0,0,0.2);
+  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Text centered inside the diamond, counter-rotated to be upright */
@@ -1045,13 +1045,14 @@ button {
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 0.72rem;
-  font-weight: 900;
+  font-size: 0.82rem;
+  font-weight: 800;
   font-family: 'DM Sans', system-ui, sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   line-height: 1;
   user-select: none;
   pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* Tail triangle at the bottom */
@@ -1086,7 +1087,7 @@ button {
     1px -1px 0 #fff,
     -1px 1px 0 #fff,
     1px 1px 0 #fff,
-    0 2px 4px rgba(0,0,0,0.08);
+    0 2px 4px rgba(0, 0, 0, 0.08);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   pointer-events: none;

@@ -2832,6 +2832,92 @@ async function scheduleBloodDrive(payload) {
   }
 }
 
+async function updateBloodDrive(payload) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const values = payload || {};
+  const driveId = Number(values.drive_id || values.id);
+  if (!Number.isInteger(driveId) || driveId <= 0) {
+    return { data: null, error: { message: 'Invalid blood drive ID.' } };
+  }
+
+  try {
+    const { data, error } = await bloodBank().rpc('update_blood_drive', {
+      p_drive_id: driveId,
+      p_drive_name: values.drive_name,
+      p_drive_date: values.date || values.drive_date,
+      p_start_time: values.start_time || null,
+      p_end_time: values.end_time || null,
+      p_venue: values.venue,
+      p_address: values.address || null,
+      p_target_units: Number(values.target_units),
+      p_focus_type: values.focus_type || 'All',
+      p_status: values.status || 'scheduled',
+      p_notes: values.notes || null
+    });
+
+    if (!error) {
+      return {
+        data: data && typeof data === 'object' ? { ...data, date: data.drive_date } : data,
+        error: null
+      };
+    }
+
+    // Fallback to direct update if RPC is not yet created in existing instance
+    const { data: directData, error: directErr } = await bloodBank()
+      .from('blood_drive')
+      .update({
+        drive_name: String(values.drive_name || '').trim(),
+        drive_date: values.date || values.drive_date,
+        start_time: values.start_time || null,
+        end_time: values.end_time || null,
+        venue: String(values.venue || '').trim(),
+        address: values.address ? String(values.address).trim() : null,
+        target_units: Number(values.target_units),
+        focus_type: values.focus_type || 'All',
+        status: values.status || 'scheduled',
+        notes: values.notes ? String(values.notes).trim() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('drive_id', driveId)
+      .select('*')
+      .maybeSingle();
+
+    return directErr
+      ? { data: null, error: mapError(error || directErr, 'Failed to update the blood drive.') }
+      : {
+        data: directData ? { ...directData, date: directData.drive_date } : directData,
+        error: null
+      };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while updating the blood drive.' } };
+  }
+}
+
+async function deleteBloodDrive(driveId) {
+  if (!SUPABASE_CONFIGURED) return configError();
+  const id = Number(driveId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return { data: null, error: { message: 'Invalid blood drive ID.' } };
+  }
+
+  try {
+    const { data, error } = await bloodBank().rpc('delete_blood_drive', { p_drive_id: id });
+    if (!error) return { data, error: null };
+
+    // Fallback to direct delete if RPC is not yet created in existing instance
+    const { error: directErr } = await bloodBank()
+      .from('blood_drive')
+      .delete()
+      .eq('drive_id', id);
+
+    return directErr
+      ? { data: null, error: mapError(error || directErr, 'Failed to delete the blood drive.') }
+      : { data: { success: true, drive_id: id }, error: null };
+  } catch (_) {
+    return { data: null, error: { message: 'Network error while deleting the blood drive.' } };
+  }
+}
+
 async function listMyBloodDriveRegistrations() {
   if (!SUPABASE_CONFIGURED) return configError();
   try {

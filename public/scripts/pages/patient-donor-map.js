@@ -1,7 +1,7 @@
-const BOHOL_CENTER = [9.9300, 124.1600];
+const BOHOL_CENTER = [9.8500, 124.1800];
 const BOHOL_BOUNDS = [
-  [9.15, 123.45],
-  [10.65, 124.85]
+  [9.35, 123.55],
+  [10.45, 124.75]
 ];
 const BLOOD_TYPES = ['Compatible', 'All', 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 const RECEIVE_FROM = {
@@ -103,23 +103,88 @@ function escapeHtml(value) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+//  Comprehensive Bohol municipality & city resolution helper
+// ──────────────────────────────────────────────────────────────────────
+function findZoneForLocation(rawAddress) {
+  if (!rawAddress || typeof rawAddress !== 'string') return null;
+  const str = rawAddress.trim().toLowerCase();
+  if (!str) return null;
+
+  // 1. Specific aliases and multi-word towns first
+  if (str.includes('tagbilaran')) {
+    return ZONES.find((z) => z.area === 'Tagbilaran City') || null;
+  }
+  if (str.includes('jetafe') || str.includes('getafe')) {
+    return ZONES.find((z) => z.area === 'Getafe') || null;
+  }
+  if (str.includes('pitogo') || str.includes('carlos p') || str.includes('c.p.g') || str.includes('cpg')) {
+    return ZONES.find((z) => z.area === 'Pres. Carlos P. Garcia') || null;
+  }
+  if (str.includes('garcia hernandez') || str.includes('garcia-hernandez')) {
+    return ZONES.find((z) => z.area === 'Garcia Hernandez') || null;
+  }
+  if (str.includes('sierra bullones') || str.includes('sierra-bullones')) {
+    return ZONES.find((z) => z.area === 'Sierra Bullones') || null;
+  }
+  if (str.includes('bien unido') || str.includes('bien-unido')) {
+    return ZONES.find((z) => z.area === 'Bien Unido') || null;
+  }
+  if (str.includes('san isidro')) {
+    return ZONES.find((z) => z.area === 'San Isidro') || null;
+  }
+  if (str.includes('san miguel')) {
+    return ZONES.find((z) => z.area === 'San Miguel') || null;
+  }
+
+  // 2. Check all remaining zones sorted by name length descending
+  const sortedZones = [...ZONES].sort((a, b) => b.area.length - a.area.length);
+  for (const zone of sortedZones) {
+    const cleanName = zone.area.toLowerCase().replace(/\bcity\b/g, '').trim();
+    if (!cleanName) continue;
+    const regex = new RegExp(`\\b${cleanName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(str)) {
+      return zone;
+    }
+  }
+
+  // 3. Substring match fallback for partial matches
+  for (const zone of sortedZones) {
+    const cleanName = zone.area.toLowerCase().replace(/\bcity\b/g, '').trim();
+    if (cleanName && cleanName.length >= 4 && str.includes(cleanName)) {
+      return zone;
+    }
+  }
+
+  return null;
+}
+
+// ──────────────────────────────────────────────────────────────────────
 //  Detect the recipient's Bohol municipality from their profile address
 // ──────────────────────────────────────────────────────────────────────
 function detectRecipientArea(prof) {
-  const raw = String(
-    prof?.map_area || prof?.address || prof?.city || ''
-  ).trim();
-  if (!raw) return null;
+  if (!prof) return null;
 
-  const normalized = normalizeBoholArea(raw);
+  const candidates = [
+    prof.map_area,
+    prof.address,
+    prof.city,
+    prof.patient_profile?.address,
+    prof.patient_profile?.map_area,
+    prof.donor_profile?.map_area,
+    prof.donor_profile?.address,
+    prof.user_metadata?.address,
+    prof.user_metadata?.city,
+    prof.user_metadata?.map_area
+  ];
 
-  // Try to match against known ZONES
-  const match = ZONES.find((z) => {
-    const zName = z.area.toLowerCase();
-    return normalized.includes(zName) || zName.includes(normalized);
-  });
+  for (const cand of candidates) {
+    if (cand && typeof cand === 'string' && cand.trim()) {
+      const zone = findZoneForLocation(cand);
+      if (zone) return zone.area;
+    }
+  }
 
-  return match ? match.area : null;
+  return null;
 }
 
 function getSelectedBloodTypes() {
@@ -150,6 +215,8 @@ function getSelectedAvailability() {
 }
 
 function normalizeBoholArea(raw) {
+  const zone = findZoneForLocation(raw);
+  if (zone) return zone.area.toLowerCase();
   return String(raw || '')
     .trim()
     .toLowerCase()
@@ -158,12 +225,11 @@ function normalizeBoholArea(raw) {
 }
 
 function donorZoneIndex(donor) {
-  const area = normalizeBoholArea(donor?.map_area || donor?.area || donor?.city || '');
-  const areaIndex = ZONES.findIndex((zone) => {
-    const zName = zone.area.toLowerCase();
-    return area.includes(zName) || zName.includes(area);
-  });
-  if (areaIndex >= 0) return areaIndex;
+  const zone = findZoneForLocation(donor?.map_area || donor?.area || donor?.city || donor?.address || '');
+  if (zone) {
+    const idx = ZONES.findIndex((z) => z.area === zone.area);
+    if (idx >= 0) return idx;
+  }
 
   // Hash fallback zone for unknown location in Bohol
   const value = String(donor?.id || donor?.donor_id || donor?.blood_type || 'donor');
@@ -216,13 +282,19 @@ function isDonorMatchingFilters(donor, allowedTypes, filterLocation, filterAvail
 
   // 4. Location filter
   if (filterLocation !== 'all') {
-    const targetLoc = normalizeBoholArea(filterLocation);
-    const donorArea = normalizeBoholArea(donor?.map_area || donor?.area || donor?.city || '');
-    const zoneObj = ZONES[donorZoneIndex(donor)];
-    const zoneName = zoneObj?.area?.toLowerCase() || '';
+    const targetZone = findZoneForLocation(filterLocation);
+    const donorZoneIdx = donorZoneIndex(donor);
+    const donorZone = ZONES[donorZoneIdx];
 
-    const matchesArea = donorArea.includes(targetLoc) || zoneName.includes(targetLoc);
-    if (!matchesArea) return false;
+    if (targetZone) {
+      if (donorZone?.area !== targetZone.area) return false;
+    } else {
+      const targetLoc = filterLocation.toLowerCase().trim();
+      const donorArea = String(donor?.map_area || donor?.area || donor?.city || donor?.address || '').toLowerCase();
+      if (!donorArea.includes(targetLoc) && !(donorZone?.area.toLowerCase().includes(targetLoc))) {
+        return false;
+      }
+    }
   }
 
   return true;
@@ -353,53 +425,55 @@ function renderTownLabels() {
 
 // ──────────────────────────────────────────────────────────────────────
 //  Render individual blood-type pin markers (one per donor).
-//  Pins in one area use screen-pixel offsets, so they stay separated at every zoom.
+//  Uses fixed geographic lat/lng offsets so pins never move on zoom.
 // ──────────────────────────────────────────────────────────────────────
 function renderDonorPins(filteredDonors) {
-  // Clear old donor markers
   donorMarkers.forEach((m) => m.remove());
   donorMarkers = [];
 
-  // Track how many pins per zone to apply offset jitter
-  const zoneOffsetCounters = new Map();
-
+  // Group donors by zone first so we can fan them out deterministically
+  const zoneDonors = new Map();
   filteredDonors.forEach((donor) => {
     const idx = donorZoneIndex(donor);
     const zone = ZONES[idx];
     if (!zone) return;
+    const list = zoneDonors.get(zone.area) || [];
+    list.push(donor);
+    zoneDonors.set(zone.area, list);
+  });
 
-    const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '?';
+  zoneDonors.forEach((donors) => {
+    const total = donors.length;
+    donors.forEach((donor, i) => {
+      const idx = donorZoneIndex(donor);
+      const zone = ZONES[idx];
+      const bloodType = String(donor?.blood_type || '').trim().toUpperCase() || '?';
 
-    // Jitter offset so multiple pins in same zone don't overlap
-    const key = zone.area;
-    const count = zoneOffsetCounters.get(key) || 0;
-    zoneOffsetCounters.set(key, count + 1);
+      // Fixed geographic offsets (~500-700 m) — anchored to the earth, never drift on zoom
+      let lat = zone.lat;
+      let lng = zone.lng;
+      if (total > 1) {
+        const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
+        const radiusLat = 0.0055;  // ~610 m north-south
+        const radiusLng = 0.0065;  // ~620 m east-west at Bohol latitude
+        lat = zone.lat + Math.sin(angle) * radiusLat;
+        lng = zone.lng + Math.cos(angle) * radiusLng;
+      }
 
-    // Fan pins out in screen pixels rather than fixed map degrees. This prevents
-    // same-area pins from collapsing together as the map is zoomed.
-    const ring = count === 0 ? 0 : Math.floor((count - 1) / 6) + 1;
-    const angle = count === 0 ? 0 : ((count - 1) % 6) * 60 * (Math.PI / 180);
-    const radius = ring * 44;
-    const centerPoint = map.project([zone.lat, zone.lng], map.getZoom());
-    const pinPoint = L.point(
-      centerPoint.x + Math.cos(angle) * radius,
-      centerPoint.y + Math.sin(angle) * radius
-    );
-    const pinLatLng = map.unproject(pinPoint, map.getZoom());
+      const marker = L.marker([lat, lng], {
+        icon: makeDonorPinIcon(bloodType),
+        zIndexOffset: 500
+      }).addTo(map);
 
-    const marker = L.marker(pinLatLng, {
-      icon: makeDonorPinIcon(bloodType),
-      zIndexOffset: 500
-    }).addTo(map);
+      marker.bindPopup(renderDonorPinPopup(donor, zone), {
+        className: 'donor-map-popup',
+        maxWidth: 280,
+        minWidth: 200,
+        offset: [0, -38]
+      });
 
-    marker.bindPopup(renderDonorPinPopup(donor, zone), {
-      className: 'donor-map-popup',
-      maxWidth: 280,
-      minWidth: 200,
-      offset: [0, 0]
+      donorMarkers.push(marker);
     });
-
-    donorMarkers.push(marker);
   });
 }
 
@@ -410,42 +484,9 @@ function clearDonorDisplay() {
   donorAreaSummaryMarkers = [];
 }
 
-function shouldShowAreaSummaries() {
-  const isBroadBloodTypeSearch = getSelectedBloodTypes().length > 1;
-  return isBroadBloodTypeSearch && map.getZoom() < 12;
-}
-
-function renderAreaSummaries(filteredDonors) {
-  const donorsByZone = new Map();
-  filteredDonors.forEach((donor) => {
-    const zone = ZONES[donorZoneIndex(donor)];
-    if (!zone) return;
-    const entry = donorsByZone.get(zone.area) || { zone, donors: [], bloodTypes: new Set() };
-    entry.donors.push(donor);
-    entry.bloodTypes.add(String(donor?.blood_type || '?').trim().toUpperCase());
-    donorsByZone.set(zone.area, entry);
-  });
-
-  donorAreaSummaryMarkers = Array.from(donorsByZone.values()).map(({ zone, donors, bloodTypes }) => {
-    const types = Array.from(bloodTypes).sort();
-    const marker = L.marker([zone.lat, zone.lng], {
-      icon: makeAreaSummaryIcon(donors.length, types),
-      zIndexOffset: 520,
-      title: `${zone.area}: ${donors.length} donor/s`
-    }).addTo(map);
-    marker.on('click', () => {
-      map.flyTo([zone.lat, zone.lng], Math.max(13, map.getZoom() + 2), { duration: 0.55 });
-    });
-    return marker;
-  });
-}
-
+// Always show every donor as an individual blood-type pin at every zoom level.
 function renderDonorDisplay(filteredDonors) {
   clearDonorDisplay();
-  if (shouldShowAreaSummaries()) {
-    renderAreaSummaries(filteredDonors);
-    return;
-  }
   renderDonorPins(filteredDonors);
 }
 
@@ -605,7 +646,7 @@ function clearAllFilters() {
   if (locSelect) locSelect.value = 'all';
 
   showAreaChip(null);
-  if (map) map.setView(BOHOL_CENTER, 10);
+  if (map) map.setView(BOHOL_CENTER, 10.1);
 
   updateFilterPickerDisplays();
   searchDonors(true);
@@ -615,11 +656,12 @@ window.clearAllFilters = clearAllFilters;
 function initMap() {
   map = L.map('donorMap', {
     center: BOHOL_CENTER,
-    zoom: 10,
-    minZoom: 9,
+    zoom: 10.1,
+    zoomSnap: 0.1,
+    minZoom: 9.8,
     maxZoom: 16,
     maxBounds: BOHOL_BOUNDS,
-    maxBoundsViscosity: 0.6,
+    maxBoundsViscosity: 0.8,
     zoomControl: false,
     attributionControl: false
   });
@@ -632,7 +674,7 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   map.on('zoomend', () => {
-    if (displayedDonors.length) renderDonorDisplay(displayedDonors);
+    // Pins are geographically anchored; no re-render needed on zoom
   });
 
   renderHospitals();
@@ -643,15 +685,24 @@ function initMap() {
 
 // Bind event listeners
 document.getElementById('locateButton')?.addEventListener('click', () => {
+  const locateBtn = document.getElementById('locateButton');
+  locateBtn?.classList.add('locating');
+  setTimeout(() => locateBtn?.classList.remove('locating'), 800);
+
+  // If recipientArea is not yet detected, try detecting it now from current profile
+  if (!recipientArea && profile) {
+    recipientArea = detectRecipientArea(profile);
+  }
+
   if (recipientArea) {
-    // Re-center on recipient's area
-    const zone = ZONES.find((z) => z.area === recipientArea);
+    const zone = ZONES.find((z) => z.area.toLowerCase() === recipientArea.toLowerCase()) || findZoneForLocation(recipientArea);
     if (zone) {
-      map?.flyTo([zone.lat, zone.lng], 13, { duration: 0.6 });
+      map?.flyTo([zone.lat, zone.lng], 13, { duration: 0.8 });
       return;
     }
   }
-  map?.flyTo(BOHOL_CENTER, 10, { duration: 0.6 });
+
+  map?.flyTo(BOHOL_CENTER, 10.1, { duration: 0.8 });
 });
 
 // Bottom filter buttons

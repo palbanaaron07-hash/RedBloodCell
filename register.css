@@ -587,18 +587,31 @@ body.page-leave {
   color: #941c29;
 }
 
+.input-wrapper.location-combobox input,
 .location-combobox input {
-  padding-right: 44px;
+  padding-left: 44px !important;
+  padding-right: 44px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.input-wrapper.location-combobox input::placeholder,
+.location-combobox input::placeholder {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 0.92rem;
 }
 
 .location-picker-toggle {
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: 6px;
   z-index: 11;
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   place-items: center;
   transform: translateY(-50%);

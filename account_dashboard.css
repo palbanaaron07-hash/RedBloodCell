@@ -6060,3 +6060,72 @@ html[data-initial-section="help"] #section-help {
     justify-content: center;
   }
 }
+
+
+/* ============================================================
+   SKELETON LOADING SYSTEM
+   Shimmer-based placeholders for all account dashboard sections
+   ============================================================ */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 37%, #f0f0f0 63%);
+  background-size: 1200px 100%;
+  animation: skeleton-shimmer 1.4s infinite linear;
+  border-radius: 8px;
+  display: block;
+}
+.skeleton-text    { height: 14px; border-radius: 6px; }
+.skeleton-text-sm { height: 11px; border-radius: 5px; }
+.skeleton-text-lg { height: 20px; border-radius: 6px; }
+.skeleton-text-xl { height: 28px; border-radius: 8px; }
+.skeleton-circle  { border-radius: 50%; }
+.skeleton-pill    { border-radius: 999px; }
+
+.skeleton-overview { display: flex; flex-direction: column; gap: 20px; }
+.skeleton-greeting { display: flex; flex-direction: column; gap: 10px; }
+.skeleton-stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 14px; }
+.skeleton-stat-card { background:#fff; border-radius:var(--radius,14px); padding:18px 20px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-sm); }
+.skeleton-action-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.skeleton-action-card { background:#fff; border-radius:var(--radius,14px); padding:18px 20px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow-sm); }
+.skeleton-donor-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; margin-bottom:18px; }
+.skeleton-donor-stat-card { background:#fff; border-radius:var(--radius,14px); padding:16px 18px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-sm); }
+.skeleton-request-card { background:#fff; border-radius:var(--radius,14px); padding:18px 20px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-sm); margin-bottom:14px; }
+.skeleton-request-header { display:flex; align-items:center; gap:12px; }
+.skeleton-request-pills { display:flex; gap:8px; flex-wrap:wrap; }
+.skeleton-drive-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.skeleton-drive-card { background:#fff; border-radius:var(--radius,14px); padding:18px 20px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-sm); }
+.skeleton-profile-block { display:flex; flex-direction:column; align-items:center; gap:12px; padding:28px 20px 16px; }
+.skeleton-profile-meta { display:flex; flex-direction:column; gap:12px; width:100%; padding:0 4px; }
+.skeleton-profile-meta-row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.skeleton-history-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f3f4f6; }
+
+@media (max-width: 600px) {
+  .skeleton-stat-cards   { grid-template-columns: 1fr 1fr; }
+  .skeleton-action-cards { grid-template-columns: 1fr; }
+  .skeleton-drive-grid   { grid-template-columns: 1fr; }
+}
+
+/* Ensure hidden elements are strictly hidden regardless of layout display properties */
+[hidden],
+.skeleton-profile-block[hidden],
+#profileLoadingSkeleton[hidden],
+#compatLoadingSkeleton[hidden],
+#accountOverviewLoading[hidden],
+#communitySkeletonHolder[hidden],
+#myRequestsSkeletonHolder[hidden],
+#drivesSkeletonHolder[hidden] {
+  display: none !important;
+}
+
+/* Input validation styles */
+.form-group input.is-invalid,
+.form-group select.is-invalid,
+.form-group textarea.is-invalid {
+  border-color: var(--accent, #800000) !important;
+  box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.12) !important;
+}

@@ -734,6 +734,43 @@ function formatDriveTime(value) {
   return `${hours % 12 || 12}:${match[2]} ${period}`;
 }
 
+// Drive sort state
+let drivesSortField = 'date';
+let drivesSortAsc = true;
+
+function applyDrivesSort(drives) {
+  return [...drives].sort((a, b) => {
+    let va, vb;
+    switch (drivesSortField) {
+      case 'name':
+        va = String(a.drive_name || '').toLowerCase();
+        vb = String(b.drive_name || '').toLowerCase();
+        break;
+      case 'target':
+        va = Number(a.target_units || 0);
+        vb = Number(b.target_units || 0);
+        break;
+      case 'registered':
+        va = Number(a.registered_donors || 0);
+        vb = Number(b.registered_donors || 0);
+        break;
+      case 'status':
+        va = String(a.status || '').toLowerCase();
+        vb = String(b.status || '').toLowerCase();
+        break;
+      case 'date':
+      default:
+        va = a.driveDate ? a.driveDate.getTime() : 0;
+        vb = b.driveDate ? b.driveDate.getTime() : 0;
+        break;
+    }
+    if (va < vb) return drivesSortAsc ? -1 : 1;
+    if (va > vb) return drivesSortAsc ? 1 : -1;
+    return 0;
+  });
+}
+
+
 function renderBloodDrivesSection() {
   const tableBody = document.getElementById('drivesTableBody');
   const readinessList = document.getElementById('drivesReadinessList');
@@ -780,12 +817,14 @@ function renderBloodDrivesSection() {
     drive.registered_donors
   ], query));
 
-  if (!filteredDrives.length) {
+  const sortedDrives = applyDrivesSort(filteredDrives);
+
+  if (!sortedDrives.length) {
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:32px;">No drive records match the current search.</td></tr>';
   } else {
-    tableBody.innerHTML = filteredDrives.map((drive) => {
-      return `<tr>
-            <td>${escapeHtml(drive.drive_name)}<br><small style="color:var(--gray-400);">${escapeHtml(drive.drive_id)}</small></td>
+    tableBody.innerHTML = sortedDrives.map((drive) => {
+      return `<tr class="clickable-row" data-drive-id="${escapeHtml(drive.drive_id)}" tabindex="0" role="button" title="Click to view details for ${escapeHtml(drive.drive_name)}">
+            <td><strong>${escapeHtml(drive.drive_name)}</strong></td>
             <td>${escapeHtml(formatDateShort(drive.date))}${drive.start_time || drive.end_time ? `<br><small style="color:var(--gray-400);">${escapeHtml([formatDriveTime(drive.start_time), formatDriveTime(drive.end_time)].filter(Boolean).join(' - '))}</small>` : ''}</td>
             <td>${escapeHtml(drive.venue)}</td>
             <td>${formatNumber(drive.target_units)}</td>
@@ -861,21 +900,37 @@ function getLocalDateInputValue(date = new Date()) {
 }
 
 function openScheduleDriveModal() {
+  const form = document.getElementById('scheduleDriveForm');
   const modal = document.getElementById('scheduleDriveModal');
   const dateInput = document.getElementById('driveDate');
   const msg = document.getElementById('scheduleDriveMsg');
+  const submitBtn = document.getElementById('saveScheduleDriveBtn');
+
+  if (form) {
+    // Keep default values if freshly opened
+    if (!form.dataset.initialized) {
+      form.dataset.initialized = 'true';
+    }
+  }
+
   if (dateInput) {
-    dateInput.min = getLocalDateInputValue();
-    if (!dateInput.value) dateInput.value = getLocalDateInputValue();
+    const today = getLocalDateInputValue();
+    dateInput.min = today;
+    if (!dateInput.value) dateInput.value = today;
   }
   const startTimeInput = document.getElementById('driveStartTime');
   const endTimeInput = document.getElementById('driveEndTime');
   if (startTimeInput && !startTimeInput.value) startTimeInput.value = '08:00';
   if (endTimeInput && !endTimeInput.value) endTimeInput.value = '17:00';
+  const targetUnitsInput = document.getElementById('driveTargetUnits');
+  if (targetUnitsInput && !targetUnitsInput.value) targetUnitsInput.value = '30';
+
   if (msg) {
     msg.textContent = '';
     msg.className = 'form-msg';
   }
+  if (submitBtn) submitBtn.disabled = false;
+
   modal?.classList.add('active');
   document.body.classList.add('modal-open');
   setTimeout(() => document.getElementById('driveName')?.focus(), 50);
@@ -891,44 +946,148 @@ async function handleScheduleDriveSubmit(event) {
   const form = event.currentTarget;
   const msg = document.getElementById('scheduleDriveMsg');
   const submitBtn = document.getElementById('saveScheduleDriveBtn');
-  const formData = new FormData(form);
-  const startTime = String(formData.get('start_time') || '');
-  const endTime = String(formData.get('end_time') || '');
 
-  if (!startTime || !endTime) {
-    msg.textContent = 'Start time and end time are required.';
-    msg.className = 'form-msg error';
+  // Trigger native browser validity checks
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const formData = new FormData(form);
+  const driveName = String(formData.get('drive_name') || '').trim();
+  const driveDate = String(formData.get('drive_date') || '').trim();
+  const targetUnits = Number(formData.get('target_units'));
+  const startTime = String(formData.get('start_time') || '').trim();
+  const endTime = String(formData.get('end_time') || '').trim();
+  const venue = String(formData.get('venue') || '').trim();
+  const address = String(formData.get('address') || '').trim();
+  const focusType = String(formData.get('focus_type') || 'All').trim();
+  const notes = String(formData.get('notes') || '').trim();
+
+  const minDate = getLocalDateInputValue();
+
+  if (!driveName) {
+    if (msg) {
+      msg.textContent = 'Drive name is required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveName');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (!driveDate) {
+    if (msg) {
+      msg.textContent = 'Drive date is required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveDate');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (driveDate < minDate) {
+    if (msg) {
+      msg.textContent = 'Drive date cannot be in the past.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveDate');
+    input?.focus();
+    return;
+  }
+
+  if (!targetUnits || isNaN(targetUnits) || targetUnits < 1 || targetUnits > 10000) {
+    if (msg) {
+      msg.textContent = 'Target donor slots must be a valid number between 1 and 10,000.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveTargetUnits');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (!startTime) {
+    if (msg) {
+      msg.textContent = 'Start time is required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveStartTime');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (!endTime) {
+    if (msg) {
+      msg.textContent = 'End time is required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveEndTime');
+    input?.focus();
+    input?.reportValidity?.();
     return;
   }
 
   if (endTime <= startTime) {
-    msg.textContent = 'End time must be later than start time.';
-    msg.className = 'form-msg error';
+    if (msg) {
+      msg.textContent = 'End time must be later than start time.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('driveEndTime')?.focus();
+    return;
+  }
+
+  if (!venue) {
+    if (msg) {
+      msg.textContent = 'Venue or collection site is required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveVenue');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (!notes) {
+    if (msg) {
+      msg.textContent = 'Donor instructions are required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('driveNotes');
+    input?.focus();
+    input?.reportValidity?.();
     return;
   }
 
   submitBtn.disabled = true;
-  msg.textContent = 'Scheduling the drive and notifying donors...';
-  msg.className = 'form-msg info';
+  if (msg) {
+    msg.textContent = 'Scheduling the drive and notifying donors...';
+    msg.className = 'form-msg info';
+  }
 
   const payload = {
-    drive_name: String(formData.get('drive_name') || '').trim(),
-    date: String(formData.get('drive_date') || ''),
+    drive_name: driveName,
+    date: driveDate,
     start_time: startTime || null,
     end_time: endTime || null,
-    venue: String(formData.get('venue') || '').trim(),
-    address: String(formData.get('address') || '').trim(),
-    target_units: Number(formData.get('target_units')),
-    focus_type: String(formData.get('focus_type') || 'All'),
-    notes: String(formData.get('notes') || '').trim()
+    venue: venue,
+    address: address,
+    target_units: targetUnits,
+    focus_type: focusType || 'All',
+    notes: notes
   };
 
   try {
     const { data, error } = await scheduleBloodDrive(payload);
     if (error) throw new Error(error.message);
     const notified = Number(data?.notified_count || 0);
-    msg.textContent = `Drive scheduled successfully. ${formatNumber(notified)} donor${notified === 1 ? '' : 's'} notified.`;
-    msg.className = 'form-msg success';
+    if (msg) {
+      msg.textContent = `Drive scheduled successfully. ${formatNumber(notified)} donor${notified === 1 ? '' : 's'} notified.`;
+      msg.className = 'form-msg success';
+    }
 
     // Activity log
     recordAdminActivity({
@@ -942,10 +1101,455 @@ async function handleScheduleDriveSubmit(event) {
     await refreshBloodDrives();
     setTimeout(closeScheduleDriveModal, 1500);
   } catch (error) {
-    msg.textContent = error?.message || 'Failed to schedule the blood drive.';
-    msg.className = 'form-msg error';
+    if (msg) {
+      msg.textContent = error?.message || 'Failed to schedule the blood drive.';
+      msg.className = 'form-msg error';
+    }
   } finally {
     submitBtn.disabled = false;
+  }
+}
+
+let currentSelectedDriveId = null;
+
+function getDriveTimingInfo(dateStr) {
+  if (!dateStr) return { label: 'Scheduled', className: '', icon: 'fa-calendar-check' };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return { label: 'Happening Today', className: 'timing-today', icon: 'fa-bolt' };
+  if (diffDays === 1) return { label: 'Tomorrow', className: '', icon: 'fa-calendar-day' };
+  if (diffDays > 1 && diffDays <= 7) return { label: `In ${diffDays} days`, className: '', icon: 'fa-calendar-days' };
+  if (diffDays > 7) return { label: `In ${Math.ceil(diffDays / 7)} weeks`, className: '', icon: 'fa-calendar-week' };
+  if (diffDays === -1) return { label: 'Yesterday', className: '', icon: 'fa-clock-rotate-left' };
+  return { label: `${Math.abs(diffDays)} days ago`, className: '', icon: 'fa-clock-rotate-left' };
+}
+
+function openAdminDriveDetails(driveId) {
+  const id = Number(driveId);
+  const drive = BLOOD_DRIVE_PLAN.find((d) => Number(d.drive_id || d.id) === id);
+  if (!drive) return;
+
+  currentSelectedDriveId = id;
+  const modal = document.getElementById('adminDriveDetailModal');
+  const body = document.getElementById('adminDriveDetailBody');
+  const menu = document.getElementById('driveDetailMenu');
+  const menuBtn = document.getElementById('driveDetailMenuBtn');
+
+  if (menu) menu.classList.remove('active');
+  if (menuBtn) {
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.classList.remove('active');
+  }
+
+  const targetUnits = Math.max(1, Number(drive.target_units || 30));
+  const registeredDonors = Math.max(0, Number(drive.registered_donors || 0));
+  const openSlots = Math.max(0, targetUnits - registeredDonors);
+  const percentFilled = Math.min(100, Math.round((registeredDonors / targetUnits) * 100));
+  const timeFormatted = [formatDriveTime(drive.start_time), formatDriveTime(drive.end_time)].filter(Boolean).join(' – ') || 'All day';
+  const notesText = drive.notes ? String(drive.notes).trim() : '';
+  const timing = getDriveTimingInfo(drive.date);
+  const focusLabel = drive.focus_type && drive.focus_type !== 'All' ? `${drive.focus_type} Type Focus` : 'All Blood Types';
+
+  if (body) {
+    body.innerHTML = `
+      <!-- Hero Campaign Card -->
+      <div class="drive-hero-card">
+        <div class="drive-hero-top">
+          <div class="drive-hero-chips">
+            <span class="drive-id-chip"><i class="fa-solid fa-hashtag"></i> Drive #${escapeHtml(drive.drive_id)}</span>
+            <span class="drive-timing-chip ${timing.className}"><i class="fa-solid ${timing.icon}"></i> ${escapeHtml(timing.label)}</span>
+          </div>
+          <div>${getDriveStatusBadge(drive.status)}</div>
+        </div>
+        <h4 class="drive-hero-title">${escapeHtml(drive.drive_name)}</h4>
+        <div class="drive-hero-schedule">
+          <span><i class="fa-solid fa-calendar-days"></i> ${escapeHtml(formatDateShort(drive.date))}</span>
+          <span><i class="fa-solid fa-clock"></i> ${escapeHtml(timeFormatted)}</span>
+        </div>
+      </div>
+
+      <!-- 3 Metrics Cards -->
+      <div class="drive-stats-grid">
+        <div class="drive-stat-card">
+          <div class="drive-stat-card-icon stat-icon-target">
+            <i class="fa-solid fa-bullseye"></i>
+          </div>
+          <div class="drive-stat-card-info">
+            <span class="drive-stat-card-label">Target Slots</span>
+            <strong class="drive-stat-card-val">${formatNumber(targetUnits)}</strong>
+            <span class="drive-stat-card-unit">slots planned</span>
+          </div>
+        </div>
+
+        <div class="drive-stat-card">
+          <div class="drive-stat-card-icon stat-icon-registered">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div class="drive-stat-card-info">
+            <span class="drive-stat-card-label">Registered Donors</span>
+            <strong class="drive-stat-card-val stat-val-registered">${formatNumber(registeredDonors)}</strong>
+            <span class="drive-stat-card-unit">${registeredDonors === 1 ? 'donor signed up' : 'donors signed up'}</span>
+          </div>
+        </div>
+
+        <div class="drive-stat-card">
+          <div class="drive-stat-card-icon stat-icon-open">
+            <i class="fa-solid fa-user-clock"></i>
+          </div>
+          <div class="drive-stat-card-info">
+            <span class="drive-stat-card-label">Open Slots</span>
+            <strong class="drive-stat-card-val stat-val-open">${formatNumber(openSlots)}</strong>
+            <span class="drive-stat-card-unit">${openSlots === 1 ? 'slot available' : 'slots available'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location and Focus Type Grid -->
+      <div class="drive-info-grid">
+        <div class="drive-info-card">
+          <div class="drive-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+          <div class="drive-info-content">
+            <span class="drive-info-label">Venue / Site</span>
+            <strong class="drive-info-val">${escapeHtml(drive.venue || 'Facility / Site')}</strong>
+            <span class="drive-info-sub">${drive.address ? escapeHtml(drive.address) : '<span style="font-style:italic;color:#9ca3af;">No street address specified</span>'}</span>
+          </div>
+        </div>
+
+        <div class="drive-info-card">
+          <div class="drive-info-icon"><i class="fa-solid fa-droplet"></i></div>
+          <div class="drive-info-content">
+            <span class="drive-info-label">Focus Blood Type</span>
+            <span class="blood-focus-badge"><i class="fa-solid fa-heart-pulse"></i> ${escapeHtml(focusLabel)}</span>
+            <span class="drive-info-sub">${drive.focus_type === 'All' ? 'All eligible donors may participate' : `Prioritizing ${escapeHtml(drive.focus_type)} donors`}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instructions Section -->
+      <div class="drive-instructions-card">
+        <div class="drive-instructions-header">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span>Donor Instructions</span>
+        </div>
+        ${notesText ? `<p class="drive-instructions-body">${escapeHtml(notesText)}</p>` : `<p class="drive-instructions-empty">No special instructions provided for this drive campaign.</p>`}
+      </div>
+
+      <!-- Audit Metadata Footer -->
+      <div class="drive-audit-bar">
+        <span>Campaign Status: <strong style="text-transform:capitalize; color:var(--gray-800);">${escapeHtml(drive.status || 'scheduled')}</strong></span>
+        <span>${drive.updated_at ? `Updated ${escapeHtml(formatRelativeTime(drive.updated_at))}` : `Created ${escapeHtml(formatDateShort(drive.created_at || drive.date))}`}</span>
+      </div>
+    `;
+  }
+
+  modal?.classList.add('active');
+  document.body.classList.add('modal-open');
+}
+
+function closeAdminDriveDetails() {
+  const modal = document.getElementById('adminDriveDetailModal');
+  const menu = document.getElementById('driveDetailMenu');
+  const menuBtn = document.getElementById('driveDetailMenuBtn');
+  if (menu) menu.classList.remove('active');
+  if (menuBtn) {
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.classList.remove('active');
+  }
+  modal?.classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+function toggleDriveDetailMenu(forceState) {
+  const menu = document.getElementById('driveDetailMenu');
+  const menuBtn = document.getElementById('driveDetailMenuBtn');
+  if (!menu) return;
+  const isCurrentlyActive = menu.classList.contains('active');
+  const nextState = typeof forceState === 'boolean' ? forceState : !isCurrentlyActive;
+  menu.classList.toggle('active', nextState);
+  if (menuBtn) {
+    menuBtn.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+    menuBtn.classList.toggle('active', nextState);
+  }
+}
+
+function openEditDriveModal(driveId) {
+  const id = Number(driveId || currentSelectedDriveId);
+  const drive = BLOOD_DRIVE_PLAN.find((d) => Number(d.drive_id || d.id) === id);
+  if (!drive) return;
+
+  currentSelectedDriveId = id;
+  toggleDriveDetailMenu(false);
+
+  const modal = document.getElementById('editDriveModal');
+  const idInput = document.getElementById('editDriveId');
+  const nameInput = document.getElementById('editDriveName');
+  const dateInput = document.getElementById('editDriveDate');
+  const targetUnitsInput = document.getElementById('editDriveTargetUnits');
+  const startTimeInput = document.getElementById('editDriveStartTime');
+  const endTimeInput = document.getElementById('editDriveEndTime');
+  const venueInput = document.getElementById('editDriveVenue');
+  const addressInput = document.getElementById('editDriveAddress');
+  const focusTypeInput = document.getElementById('editDriveFocusType');
+  const statusInput = document.getElementById('editDriveStatus');
+  const notesInput = document.getElementById('editDriveNotes');
+  const msg = document.getElementById('editDriveMsg');
+
+  if (idInput) idInput.value = drive.drive_id;
+  if (nameInput) nameInput.value = drive.drive_name || '';
+  if (dateInput) {
+    const rawDate = drive.date || drive.drive_date;
+    dateInput.value = rawDate ? new Date(rawDate).toISOString().slice(0, 10) : '';
+  }
+  if (targetUnitsInput) targetUnitsInput.value = drive.target_units || 30;
+  if (startTimeInput) startTimeInput.value = drive.start_time ? drive.start_time.slice(0, 5) : '08:00';
+  if (endTimeInput) endTimeInput.value = drive.end_time ? drive.end_time.slice(0, 5) : '17:00';
+  if (venueInput) venueInput.value = drive.venue || '';
+  if (addressInput) addressInput.value = drive.address || '';
+  if (focusTypeInput) focusTypeInput.value = drive.focus_type || 'All';
+  if (statusInput) statusInput.value = String(drive.status || 'scheduled').toLowerCase();
+  if (notesInput) notesInput.value = drive.notes || '';
+
+  if (msg) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+
+  modal?.classList.add('active');
+  document.body.classList.add('modal-open');
+  setTimeout(() => nameInput?.focus(), 50);
+}
+
+function closeEditDriveModal() {
+  document.getElementById('editDriveModal')?.classList.remove('active');
+  if (!document.getElementById('adminDriveDetailModal')?.classList.contains('active')) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+async function handleEditDriveSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const msg = document.getElementById('editDriveMsg');
+  const submitBtn = document.getElementById('saveEditDriveBtn');
+
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const formData = new FormData(form);
+  const driveId = Number(formData.get('drive_id'));
+  const driveName = String(formData.get('drive_name') || '').trim();
+  const driveDate = String(formData.get('drive_date') || '').trim();
+  const targetUnits = Number(formData.get('target_units'));
+  const startTime = String(formData.get('start_time') || '').trim();
+  const endTime = String(formData.get('end_time') || '').trim();
+  const venue = String(formData.get('venue') || '').trim();
+  const address = String(formData.get('address') || '').trim();
+  const focusType = String(formData.get('focus_type') || 'All').trim();
+  const status = String(formData.get('status') || 'scheduled').trim();
+  const notes = String(formData.get('notes') || '').trim();
+
+  if (!driveName) {
+    if (msg) {
+      msg.textContent = 'Drive name is required.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('editDriveName')?.focus();
+    return;
+  }
+
+  if (!driveDate) {
+    if (msg) {
+      msg.textContent = 'Drive date is required.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('editDriveDate')?.focus();
+    return;
+  }
+
+  if (!targetUnits || isNaN(targetUnits) || targetUnits < 1 || targetUnits > 10000) {
+    if (msg) {
+      msg.textContent = 'Target donor slots must be a valid number between 1 and 10,000.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('editDriveTargetUnits')?.focus();
+    return;
+  }
+
+  if (startTime && endTime && endTime <= startTime) {
+    if (msg) {
+      msg.textContent = 'End time must be later than start time.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('editDriveEndTime')?.focus();
+    return;
+  }
+
+  if (!venue) {
+    if (msg) {
+      msg.textContent = 'Venue or collection site is required.';
+      msg.className = 'form-msg error';
+    }
+    document.getElementById('editDriveVenue')?.focus();
+    return;
+  }
+
+  if (!notes) {
+    if (msg) {
+      msg.textContent = 'Donor instructions are required.';
+      msg.className = 'form-msg error';
+    }
+    const input = document.getElementById('editDriveNotes');
+    input?.focus();
+    input?.reportValidity?.();
+    return;
+  }
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (msg) {
+    msg.textContent = 'Saving changes...';
+    msg.className = 'form-msg info';
+  }
+
+  const payload = {
+    drive_id: driveId,
+    drive_name: driveName,
+    date: driveDate,
+    start_time: startTime || null,
+    end_time: endTime || null,
+    venue: venue,
+    address: address,
+    target_units: targetUnits,
+    focus_type: focusType || 'All',
+    status: status,
+    notes: notes
+  };
+
+  try {
+    const { error } = await updateBloodDrive(payload);
+    if (error) throw new Error(error.message);
+
+    if (msg) {
+      msg.textContent = 'Blood drive updated successfully.';
+      msg.className = 'form-msg success';
+    }
+
+    recordAdminActivity({
+      category: 'drives',
+      action: 'Updated Blood Drive',
+      target: payload.drive_name || 'Blood Drive',
+      details: `${formatDateShort(payload.date)} · ${payload.venue} · Status: ${payload.status}`
+    });
+
+    await refreshBloodDrives();
+
+    // If details modal is currently open, refresh it with updated values
+    if (document.getElementById('adminDriveDetailModal')?.classList.contains('active')) {
+      openAdminDriveDetails(driveId);
+    }
+
+    setTimeout(closeEditDriveModal, 1200);
+  } catch (error) {
+    if (msg) {
+      msg.textContent = error?.message || 'Failed to update the blood drive.';
+      msg.className = 'form-msg error';
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function openDeleteDriveConfirm(driveId) {
+  const id = Number(driveId || currentSelectedDriveId);
+  const drive = BLOOD_DRIVE_PLAN.find((d) => Number(d.drive_id || d.id) === id);
+  if (!drive) return;
+
+  currentSelectedDriveId = id;
+  toggleDriveDetailMenu(false);
+
+  const modal = document.getElementById('deleteDriveConfirmModal');
+  const detailsEl = document.getElementById('deleteDriveConfirmDetails');
+  const msg = document.getElementById('deleteDriveMsg');
+  const confirmBtn = document.getElementById('confirmDeleteDriveBtn');
+
+  if (detailsEl) {
+    detailsEl.innerHTML = `
+      <strong style="color:var(--blood-dark); font-size:1rem; display:block; margin-bottom:4px;">${escapeHtml(drive.drive_name)}</strong>
+      <div style="font-size:.84rem; color:var(--gray-600); line-height:1.4;">
+        <span><i class="fa-solid fa-calendar"></i> ${escapeHtml(formatDateShort(drive.date))}</span> &bull; 
+        <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(drive.venue)}</span>
+      </div>
+      <div style="font-size:.8rem; color:var(--blood-rich); margin-top:6px; font-weight:600;">
+        ${Number(drive.registered_donors || 0)} registered donor(s) currently linked
+      </div>
+    `;
+  }
+
+  if (msg) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+  if (confirmBtn) confirmBtn.disabled = false;
+
+  modal?.classList.add('active');
+  document.body.classList.add('modal-open');
+}
+
+function closeDeleteDriveConfirm() {
+  document.getElementById('deleteDriveConfirmModal')?.classList.remove('active');
+  if (!document.getElementById('adminDriveDetailModal')?.classList.contains('active')) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+async function handleConfirmDeleteDrive() {
+  if (!currentSelectedDriveId) return;
+  const driveId = currentSelectedDriveId;
+  const drive = BLOOD_DRIVE_PLAN.find((d) => Number(d.drive_id || d.id) === driveId);
+  const driveName = drive?.drive_name || 'Blood Drive';
+
+  const msg = document.getElementById('deleteDriveMsg');
+  const confirmBtn = document.getElementById('confirmDeleteDriveBtn');
+
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (msg) {
+    msg.textContent = 'Deleting blood drive...';
+    msg.className = 'form-msg info';
+  }
+
+  try {
+    const { error } = await deleteBloodDrive(driveId);
+    if (error) throw new Error(error.message);
+
+    if (msg) {
+      msg.textContent = 'Blood drive deleted successfully.';
+      msg.className = 'form-msg success';
+    }
+
+    recordAdminActivity({
+      category: 'drives',
+      action: 'Deleted Blood Drive',
+      target: driveName,
+      details: `Drive ID #${driveId} deleted by coordinator`
+    });
+
+    await refreshBloodDrives();
+    setTimeout(() => {
+      closeDeleteDriveConfirm();
+      closeAdminDriveDetails();
+    }, 1000);
+  } catch (error) {
+    if (msg) {
+      msg.textContent = error?.message || 'Failed to delete the blood drive.';
+      msg.className = 'form-msg error';
+    }
+  } finally {
+    if (confirmBtn) confirmBtn.disabled = false;
   }
 }
 
@@ -1199,8 +1803,136 @@ document.getElementById('scheduleDriveBtn')?.addEventListener('click', openSched
 document.getElementById('closeScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
 document.getElementById('cancelScheduleDriveBtn')?.addEventListener('click', closeScheduleDriveModal);
 document.getElementById('scheduleDriveForm')?.addEventListener('submit', handleScheduleDriveSubmit);
+document.getElementById('scheduleDriveForm')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && event.target && event.target.tagName === 'INPUT') {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select, textarea, button[type="submit"]'));
+    const index = inputs.indexOf(event.target);
+    if (index >= 0 && index < inputs.length - 1) {
+      inputs[index + 1].focus();
+    } else {
+      form.requestSubmit();
+    }
+  }
+});
+document.getElementById('scheduleDriveForm')?.addEventListener('input', () => {
+  const msg = document.getElementById('scheduleDriveMsg');
+  if (msg && msg.classList.contains('error')) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+});
 document.getElementById('scheduleDriveModal')?.addEventListener('click', (event) => {
   if (event.target === event.currentTarget) closeScheduleDriveModal();
+});
+
+// Campaign calendar row click to open drive details
+const drivesTableBodyEl = document.getElementById('drivesTableBody');
+drivesTableBodyEl?.addEventListener('click', (event) => {
+  const row = event.target.closest('tr.clickable-row');
+  if (row && row.dataset.driveId) {
+    openAdminDriveDetails(row.dataset.driveId);
+  }
+});
+drivesTableBodyEl?.addEventListener('keydown', (event) => {
+  if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('tr.clickable-row')) {
+    event.preventDefault();
+    if (event.target.dataset.driveId) {
+      openAdminDriveDetails(event.target.dataset.driveId);
+    }
+  }
+});
+
+// Sort controls
+function updateDrivesSortDirBtn() {
+  const btn = document.getElementById('drivesSortDir');
+  if (!btn) return;
+  const isText = ['name', 'status'].includes(drivesSortField);
+  if (drivesSortAsc) {
+    btn.innerHTML = isText ? '<i class="fa-solid fa-arrow-up-a-z"></i>' : '<i class="fa-solid fa-arrow-up-1-9"></i>';
+    btn.setAttribute('aria-label', 'Currently ascending – click for descending');
+    btn.title = 'Ascending';
+  } else {
+    btn.innerHTML = isText ? '<i class="fa-solid fa-arrow-down-z-a"></i>' : '<i class="fa-solid fa-arrow-down-9-1"></i>';
+    btn.setAttribute('aria-label', 'Currently descending – click for ascending');
+    btn.title = 'Descending';
+  }
+}
+
+document.getElementById('drivesSortBy')?.addEventListener('change', (e) => {
+  drivesSortField = e.target.value;
+  updateDrivesSortDirBtn();
+  renderBloodDrivesSection();
+});
+
+document.getElementById('drivesSortDir')?.addEventListener('click', () => {
+  drivesSortAsc = !drivesSortAsc;
+  updateDrivesSortDirBtn();
+  renderBloodDrivesSection();
+});
+
+
+// Drive details modal listeners
+document.getElementById('closeDriveDetailBtn')?.addEventListener('click', closeAdminDriveDetails);
+document.getElementById('closeDriveDetailFooterBtn')?.addEventListener('click', closeAdminDriveDetails);
+document.getElementById('adminDriveDetailModal')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeAdminDriveDetails();
+});
+
+// Three-dots dropdown menu
+document.getElementById('driveDetailMenuBtn')?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleDriveDetailMenu();
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.drive-menu-wrapper')) {
+    toggleDriveDetailMenu(false);
+  }
+});
+
+// Edit drive triggers
+document.getElementById('driveMenuEditBtn')?.addEventListener('click', () => openEditDriveModal(currentSelectedDriveId));
+document.getElementById('driveDetailQuickEditBtn')?.addEventListener('click', () => openEditDriveModal(currentSelectedDriveId));
+
+// Delete drive triggers
+document.getElementById('driveMenuDeleteBtn')?.addEventListener('click', () => openDeleteDriveConfirm(currentSelectedDriveId));
+document.getElementById('driveDetailQuickDeleteBtn')?.addEventListener('click', () => openDeleteDriveConfirm(currentSelectedDriveId));
+
+// Edit modal listeners
+document.getElementById('closeEditDriveBtn')?.addEventListener('click', closeEditDriveModal);
+document.getElementById('cancelEditDriveBtn')?.addEventListener('click', closeEditDriveModal);
+document.getElementById('editDriveForm')?.addEventListener('submit', handleEditDriveSubmit);
+document.getElementById('editDriveForm')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && event.target && event.target.tagName === 'INPUT') {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select, textarea, button[type="submit"]'));
+    const index = inputs.indexOf(event.target);
+    if (index >= 0 && index < inputs.length - 1) {
+      inputs[index + 1].focus();
+    } else {
+      form.requestSubmit();
+    }
+  }
+});
+document.getElementById('editDriveForm')?.addEventListener('input', () => {
+  const msg = document.getElementById('editDriveMsg');
+  if (msg && msg.classList.contains('error')) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+});
+document.getElementById('editDriveModal')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeEditDriveModal();
+});
+
+// Delete confirmation listeners
+document.getElementById('closeDeleteDriveConfirmBtn')?.addEventListener('click', closeDeleteDriveConfirm);
+document.getElementById('cancelDeleteDriveBtn')?.addEventListener('click', closeDeleteDriveConfirm);
+document.getElementById('confirmDeleteDriveBtn')?.addEventListener('click', handleConfirmDeleteDrive);
+document.getElementById('deleteDriveConfirmModal')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeDeleteDriveConfirm();
 });
 
 function renderReportsSection() {
@@ -1539,15 +2271,13 @@ async function refreshOverviewStats() {
 
   setOverviewUrgentPendingKpi(pendingUrgent);
 
-  const totalRequestsCount = requestsSectionCache.length > 0
-    ? requestsSectionCache.length
-    : Number(data.requests_count ?? data.pending_requests_count ?? 0);
-  const hasPending = requestsSectionCache.length > 0
-    ? requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending')
-    : Number(data.pending_requests_count || 0) > 0;
+  const pendingRequestsCount = requestsSectionCache.length > 0
+    ? requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length
+    : Number(data.pending_requests_count ?? 0);
+  const hasPending = pendingRequestsCount > 0;
 
   setSidebarBadge('donors', donorsCount);
-  setSidebarBadge('requests', totalRequestsCount, hasPending);
+  setSidebarBadge('requests', pendingRequestsCount, hasPending);
 
   updateOverviewMiniStats();
   renderReportsSection();
@@ -1623,7 +2353,8 @@ async function refreshOverviewRequestsPanel() {
   if (requestsSectionCache.length === 0 && overviewRequestsCache.length > 0) {
     requestsSectionCache = overviewRequestsCache;
   }
-  setSidebarBadge('requests', requestsSectionCache.length, requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending'));
+  const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
+  setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
 
   const pendingUrgentFromStats = Number(
     latestOverviewStats?.pending_urgent_requests ??
@@ -1954,7 +2685,8 @@ async function refreshRequestsSection() {
   }
 
   requestsSectionCache = Array.isArray(data) ? data : [];
-  setSidebarBadge('requests', requestsSectionCache.length, requestsSectionCache.some((r) => normalizeRequestStatus(r.status) === 'pending'));
+  const pendingRequestsCount = requestsSectionCache.filter((r) => normalizeRequestStatus(r.status) === 'pending').length;
+  setSidebarBadge('requests', pendingRequestsCount, pendingRequestsCount > 0);
   updateRequestsStatsCards(requestsSectionCache);
   renderRequestsSection();
   buildOverviewActivityCache();
@@ -3065,13 +3797,37 @@ let donorFilter = 'all';
 let donorBloodTypeFilter = 'all';
 
 function openAddDonorModal() {
-  document.getElementById('addDonorModal').classList.add('active');
+  const modal = document.getElementById('addDonorModal');
+  const form = document.getElementById('addDonorForm');
+  const msg = document.getElementById('addDonorMsg');
+  const dobInput = document.getElementById('addDonorDob');
+
+  if (form) form.reset();
+  if (msg) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
+  if (dobInput) {
+    dobInput.max = new Date().toISOString().split('T')[0];
+    dobInput.min = '1920-01-01';
+  }
+
+  modal?.classList.add('active');
+  document.body.classList.add('modal-open');
+  setTimeout(() => document.getElementById('addDonorFirstName')?.focus(), 50);
 }
+
 function closeAddDonorModal() {
-  document.getElementById('addDonorModal').classList.remove('active');
-  document.getElementById('addDonorForm').reset();
-  document.getElementById('addDonorMsg').textContent = '';
-  document.getElementById('addDonorMsg').className = 'form-msg';
+  const modal = document.getElementById('addDonorModal');
+  modal?.classList.remove('active');
+  document.body.classList.remove('modal-open');
+  const form = document.getElementById('addDonorForm');
+  const msg = document.getElementById('addDonorMsg');
+  if (form) form.reset();
+  if (msg) {
+    msg.textContent = '';
+    msg.className = 'form-msg';
+  }
 }
 
 function isDonorEligibleForMap(donor) {
@@ -3920,46 +4676,199 @@ async function submitDefer() {
 }
 window.submitDefer = submitDefer;
 
-document.getElementById('addDonorForm').addEventListener('submit', async (e) => {
+// Real-time phone sanitizer for Add Donor modal
+const addDonorPhoneEl = document.getElementById('addDonorPhone');
+addDonorPhoneEl?.addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+});
+
+document.getElementById('addDonorForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const msg = document.getElementById('addDonorMsg');
   const form = e.target;
-  const formData = new FormData(form);
-  const body = {};
-  formData.forEach((v, k) => body[k] = v);
+  const msg = document.getElementById('addDonorMsg');
+  const submitBtn = document.getElementById('saveAddDonorBtn') || form.querySelector('button[type="submit"]');
 
-  msg.textContent = 'Adding donor...';
-  msg.className = 'form-msg info';
+  const firstNameInput = document.getElementById('addDonorFirstName') || form.querySelector('[name="first_name"]');
+  const middleNameInput = document.getElementById('addDonorMiddleName') || form.querySelector('[name="middle_name"]');
+  const lastNameInput = document.getElementById('addDonorLastName') || form.querySelector('[name="last_name"]');
+  const emailInput = document.getElementById('addDonorEmail') || form.querySelector('[name="email"]');
+  const bloodTypeSelect = document.getElementById('addDonorBloodType') || form.querySelector('[name="blood_type"]');
+  const phoneInput = document.getElementById('addDonorPhone') || form.querySelector('[name="phone"]');
+  const genderSelect = document.getElementById('addDonorGender') || form.querySelector('[name="gender"]');
+  const dobInput = document.getElementById('addDonorDob') || form.querySelector('[name="date_of_birth"]');
+  const addressInput = document.getElementById('addDonorAddress') || form.querySelector('[name="address"]');
 
-  try {
-    const { data, error } = await addDonor(body);
+  const firstName = String(firstNameInput?.value || '').trim();
+  const middleName = String(middleNameInput?.value || '').trim();
+  const lastName = String(lastNameInput?.value || '').trim();
+  const email = String(emailInput?.value || '').trim().toLowerCase();
+  const bloodType = String(bloodTypeSelect?.value || '').trim();
+  const phone = String(phoneInput?.value || '').trim();
+  const gender = String(genderSelect?.value || '').trim();
+  const dob = String(dobInput?.value || '').trim();
+  const address = String(addressInput?.value || '').trim();
 
-    if (error) {
-      msg.textContent = error.message || 'Failed to add donor.';
+  const namePattern = /^[a-zA-ZÀ-ÿ\s'.-]{2,60}$/;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  const showError = (message, element) => {
+    if (msg) {
+      msg.textContent = message;
       msg.className = 'form-msg error';
+    }
+    if (element) {
+      element.focus();
+      element.classList.add('input-error');
+      setTimeout(() => element.classList.remove('input-error'), 3000);
+    }
+  };
+
+  // 1. First Name validation
+  if (!firstName) {
+    showError('First name is required.', firstNameInput);
+    return;
+  }
+  if (!namePattern.test(firstName)) {
+    showError('First name must contain letters, hyphens, and spaces only (2–60 chars).', firstNameInput);
+    return;
+  }
+
+  // 2. Middle Name validation (optional)
+  if (middleName && !/^[a-zA-ZÀ-ÿ\s'.-]{1,60}$/.test(middleName)) {
+    showError('Middle name can only contain letters, hyphens, and spaces.', middleNameInput);
+    return;
+  }
+
+  // 3. Last Name validation
+  if (!lastName) {
+    showError('Last name is required.', lastNameInput);
+    return;
+  }
+  if (!namePattern.test(lastName)) {
+    showError('Last name must contain letters, hyphens, and spaces only (2–60 chars).', lastNameInput);
+    return;
+  }
+
+  // 4. Email validation
+  if (!email) {
+    showError('Email address is required.', emailInput);
+    return;
+  }
+  if (!emailPattern.test(email)) {
+    showError('Please enter a valid email address (e.g. name@domain.com).', emailInput);
+    return;
+  }
+
+  // 5. Blood Type validation
+  if (!bloodType || !validBloodTypes.includes(bloodType)) {
+    showError('Please select a valid blood type.', bloodTypeSelect);
+    return;
+  }
+
+  // 6. Phone validation (optional, but if filled must be exactly 11 digits starting with 09)
+  if (phone) {
+    if (!/^09\d{9}$/.test(phone)) {
+      showError('Phone number must be an 11-digit Philippine mobile number starting with 09 (e.g. 09151234567).', phoneInput);
+      return;
+    }
+  }
+
+  // 7. Birthdate validation (optional, but if filled must be realistic & age >= 16)
+  if (dob) {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (isNaN(birthDate.getTime()) || birthDate > today || birthDate.getFullYear() < 1920) {
+      showError('Please enter a valid birthdate (must not be in the future).', dobInput);
       return;
     }
 
-    msg.textContent = 'Donor added successfully!';
-    msg.className = 'form-msg success';
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age < 16) {
+      showError('Donor must be at least 16 years old to register for blood donation.', dobInput);
+      return;
+    }
+    if (age > 75) {
+      showError('Please check birthdate. Donor age must be 75 years or under.', dobInput);
+      return;
+    }
+  }
+
+  // 8. Gender validation (optional)
+  if (gender && !['male', 'female', 'other'].includes(gender)) {
+    showError('Please select a valid gender option.', genderSelect);
+    return;
+  }
+
+  // 9. Address validation (optional)
+  if (address && address.length > 255) {
+    showError('Address must not exceed 255 characters.', addressInput);
+    return;
+  }
+
+  const payload = {
+    first_name: firstName,
+    middle_name: middleName || null,
+    last_name: lastName,
+    email: email,
+    blood_type: bloodType,
+    contact_number: phone || null,
+    phone: phone || null,
+    gender: gender || null,
+    date_of_birth: dob || null,
+    address: address || null
+  };
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding Donor...';
+  }
+  if (msg) {
+    msg.textContent = 'Adding donor...';
+    msg.className = 'form-msg info';
+  }
+
+  try {
+    const { data, error } = await addDonor(payload);
+
+    if (error) {
+      showError(error.message || 'Failed to add donor.', null);
+      return;
+    }
+
+    if (msg) {
+      msg.textContent = 'Donor added successfully!';
+      msg.className = 'form-msg success';
+    }
 
     // Activity log
-    const _adName = [body.first_name, body.last_name].filter(Boolean).join(' ') || 'New Donor';
+    const _adName = [payload.first_name, payload.last_name].filter(Boolean).join(' ') || 'New Donor';
     recordAdminActivity({
       category: 'donors',
       action: 'Manually Added Donor',
       target: _adName,
-      details: `Blood type: ${body.blood_type || '?'} · Contact: ${body.email || body.contact_number || 'N/A'}`
+      details: `Blood type: ${payload.blood_type || '?'} · Contact: ${payload.email || payload.contact_number || 'N/A'}`
     });
 
     form.reset();
-    loadDonors();
+    await loadDonors();
     refreshOverviewStats();
     refreshOverviewPanels();
     setTimeout(closeAddDonorModal, 1200);
   } catch (err) {
-    msg.textContent = 'Network error. Please try again.';
-    msg.className = 'form-msg error';
+    showError('Network error. Please try again.', null);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Donor';
+    }
   }
 });
 
@@ -4877,9 +5786,26 @@ function _saveActivityLogs() {
 
 function _initActivityEngine() {
   const stored = _loadActivityLogs();
-  activityLogsCache = stored;
-  activityLogsNextId = stored.length > 0
-    ? Math.max(...stored.map(e => Number(e.id) || 0)) + 1
+  // Filter out duplicate session starts caused by rapid page reloads
+  const cleaned = [];
+  let lastSessionTs = 0;
+  for (const item of stored) {
+    if (item.action === 'Admin Session Started') {
+      const itemTs = new Date(item.timestamp).getTime();
+      if (lastSessionTs && Math.abs(lastSessionTs - itemTs) < 4 * 60 * 60 * 1000) {
+        continue;
+      }
+      lastSessionTs = itemTs;
+    }
+    cleaned.push(item);
+  }
+
+  activityLogsCache = cleaned;
+  if (cleaned.length !== stored.length) {
+    _saveActivityLogs();
+  }
+  activityLogsNextId = cleaned.length > 0
+    ? Math.max(...cleaned.map(e => Number(e.id) || 0)) + 1
     : 1;
 }
 _initActivityEngine();
@@ -4965,7 +5891,17 @@ function _applyActivityFilters() {
   });
 }
 
+let activityShowAllLogs = false;
+
+function togglePastActivityLogs() {
+  activityShowAllLogs = !activityShowAllLogs;
+  _renderActivityTable();
+  _updateActivityFilterSummary();
+}
+window.togglePastActivityLogs = togglePastActivityLogs;
+
 function filterActivityLogs() {
+  activityShowAllLogs = false;
   _applyActivityFilters();
   _renderActivityTable();
   _updateActivityFilterSummary();
@@ -4983,13 +5919,41 @@ window.clearActivityFilters = clearActivityFilters;
 
 function _updateActivityFilterSummary() {
   const el = document.getElementById('activityFilterSummary');
-  if (!el) return;
+  const footer = document.getElementById('activityTableFooter');
+  const toggleText = document.getElementById('togglePastActivityLogsText');
+  const toggleIcon = document.getElementById('togglePastActivityLogsIcon');
+
   const total = activityLogsFiltered.length;
   const all = activityLogsCache.length;
-  if (total === all || all === 0) {
-    el.textContent = all === 0 ? 'No activity recorded yet. Start using the dashboard to generate logs.' : `Showing all ${formatNumber(all)} activity log entries.`;
-  } else {
-    el.textContent = `Showing ${formatNumber(total)} of ${formatNumber(all)} entries matching current filters.`;
+
+  if (el) {
+    if (total === 0) {
+      el.textContent = all === 0 ? 'No activity recorded yet. Start using the dashboard to generate logs.' : 'No activity log entries match the current filters.';
+    } else if (activityShowAllLogs) {
+      el.textContent = `Showing all ${formatNumber(total)} activity log entries${total < all ? ' matching current filters' : ''}.`;
+    } else if (total > 10) {
+      el.textContent = `Showing latest 10 of ${formatNumber(total)} activity log entries${total < all ? ' matching current filters' : ''}.`;
+    } else if (total === all) {
+      el.textContent = `Showing ${formatNumber(total)} activity log entr${total === 1 ? 'y' : 'ies'}.`;
+    } else {
+      el.textContent = `Showing ${formatNumber(total)} of ${formatNumber(all)} entries matching current filters.`;
+    }
+  }
+
+  if (footer) {
+    if (total <= 10) {
+      footer.style.display = 'none';
+    } else {
+      footer.style.display = 'flex';
+      if (activityShowAllLogs) {
+        if (toggleText) toggleText.textContent = 'Show Less (Top 10)';
+        if (toggleIcon) toggleIcon.className = 'fa-solid fa-chevron-up';
+      } else {
+        const remaining = total - 10;
+        if (toggleText) toggleText.textContent = `Show Past Logs (${remaining} older entr${remaining === 1 ? 'y' : 'ies'})`;
+        if (toggleIcon) toggleIcon.className = 'fa-solid fa-clock-rotate-left';
+      }
+    }
   }
 }
 
@@ -5015,7 +5979,10 @@ function _renderActivityTable() {
     return;
   }
 
-  tbody.innerHTML = activityLogsFiltered.map(e => {
+  // Display top 10 or all depending on activityShowAllLogs
+  const displayed = activityShowAllLogs ? activityLogsFiltered : activityLogsFiltered.slice(0, 10);
+
+  tbody.innerHTML = displayed.map(e => {
     const meta = ACTIVITY_CATEGORY_META[e.category] || { label: e.category, cls: 'session' };
     const ts = new Date(e.timestamp);
     const tsStr = Number.isNaN(ts.getTime()) ? '-' : ts.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
@@ -5029,7 +5996,7 @@ function _renderActivityTable() {
       <td><span class="activity-badge ${escapeHtml(meta.cls)}">${escapeHtml(meta.label)}</span></td>
       <td><span class="activity-action-name">${escapeHtml(e.action)}</span></td>
       <td>${e.target ? `<span class="activity-target-pill">${escapeHtml(e.target)}</span>` : '<span style="color:var(--slate-400,#94a3b8);">—</span>'}</td>
-      <td style="max-width:220px;word-break:break-word;">${escapeHtml(e.details) || '<span style="color:var(--slate-400,#94a3b8);">—</span>'}</td>
+      <td class="activity-details-cell">${escapeHtml(e.details) || '<span style="color:var(--slate-400,#94a3b8);">—</span>'}</td>
       <td><span class="activity-actor-tag">${escapeHtml(e.actor)}</span></td>
     </tr>`;
   }).join('');
@@ -5065,7 +6032,7 @@ function exportActivityLogsCsv() {
   }
 
   const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['Timestamp', 'Category', 'Action', 'Target', 'Details', 'Coordinator'];
+  const header = ['Timestamp', 'Category', 'Action', 'Subject / Target', 'Details', 'Coordinator'];
   const csvLines = [
     header.join(','),
     ...rows.map(e => [
@@ -5089,16 +6056,21 @@ function exportActivityLogsCsv() {
 }
 window.exportActivityLogsCsv = exportActivityLogsCsv;
 
-// ---- Session login record ----
+// ---- Session login record (once per browser session, never on page refresh) ----
 (function recordSessionLogin() {
+  const SESSION_FLAG = 'bc_admin_session_logged';
+  if (sessionStorage.getItem(SESSION_FLAG)) return;
+
   setTimeout(() => {
+    if (sessionStorage.getItem(SESSION_FLAG)) return;
+    sessionStorage.setItem(SESSION_FLAG, 'true');
     recordAdminActivity({
       category: 'session',
       action: 'Admin Session Started',
       target: '',
       details: `Logged in as ${currentAdminContext?.email || 'coordinator'}`
     });
-  }, 3500); // after admin context is populated
+  }, 3500);
 })();
 
 // ==================== END ACTIVITY LOGS ENGINE ====================

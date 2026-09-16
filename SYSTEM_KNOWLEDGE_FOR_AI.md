@@ -1,6 +1,6 @@
 # VeinDrop System Knowledge Base for Thesis-Writing AI
 
-> Repository snapshot reviewed: September 14, 2026  
+> Repository snapshot reviewed: September 15, 2026  
 > For use with Claude, ChatGPT, Gemini, or another AI assistant
 
 ## Instructions to the AI assistant
@@ -19,15 +19,22 @@ Treat this file as the primary factual context for the project.
 
 **Name:** VeinDrop  
 **Type:** Responsive multi-page web application and installable Progressive Web Application (PWA).  
-**Purpose:** Coordinate blood requests and donor participation, manage donor lifecycles, provide privacy-conscious donor discovery, record replacement donations, send in-app notifications, and support administrative inventory/reporting tasks.
+**Purpose:** Coordinate blood requests and donor participation, manage donor lifecycles, provide privacy-conscious donor discovery, record replacement donations, schedule blood drives, send in-app notifications, and support administrative inventory/reporting tasks.
 
 VeinDrop connects recipients, registered donors, and authorized Blood Donation Coordinators. A recipient creates an emergency donor request or a hospital replacement-donor request. A coordinator privately checks evidence before publishing it. Eligible donors can receive alerts, view matching requests, and pledge. Emergency requests expire after 72 hours and can be closed when the recipient confirms receipt. Replacement campaigns remain open until enough facility-confirmed replacement donations are recorded or the requester cancels.
 
 The repository also retains an older inventory-oriented admin workflow. It must not be confused with the newer community coordination model, which explicitly says the coordinator does not own or issue a treating hospital's inventory.
 
+### September 15, 2026 update summary
+
+- Canonical recipient routes were renamed from `patient_*` to `account_*` and `recipient_*`; old `patient_*.html` files now redirect while preserving query strings and hash navigation.
+- Blood drives are no longer only fixed dashboard content. A migration adds database-backed blood-drive scheduling, donor registration, and in-app donor alerts.
+- Donor pledges can record private support preferences such as meals, travel, allowance, or screening support; only the donor and request owner should see them.
+- Account dashboard, notification, donor map, and admin dashboard scripts/styles were split and polished, with architecture checks updated for the new route names.
+
 ### Thesis-safe description
 
-VeinDrop is a web-based blood donation coordination and management prototype supporting authenticated recipient and donor accounts, multi-role profiles, coordinator verification, privacy-conscious donor discovery, compatibility-based appeals, pledges, replacement-donation confirmation, notifications, donor/request lifecycle tracking, and administrative monitoring. Supabase is the primary backend; PHP/MySQL remains for legacy compatibility. The system assists coordination and records management but does not replace clinical screening, laboratory compatibility testing, or licensed facility procedures.
+VeinDrop is a web-based blood donation coordination and management prototype supporting authenticated recipient and donor accounts, multi-role profiles, coordinator verification, privacy-conscious donor discovery, compatibility-based appeals, pledges, donor support preferences, blood-drive scheduling/registration, replacement-donation confirmation, notifications, donor/request lifecycle tracking, and administrative monitoring. Supabase is the primary backend; PHP/MySQL remains for legacy compatibility. The system assists coordination and records management but does not replace clinical screening, laboratory compatibility testing, or licensed facility procedures.
 
 ## 2. Actors
 
@@ -47,17 +54,18 @@ The interface increasingly says **recipient**, while the database uses `patient`
 - Read request and pledge notifications;
 - Browse verified community requests (their own requests are excluded from the public feed);
 - Respond to another request if they also have an eligible donor profile;
+- View donor support preferences attached to pledges for their own request;
 - Confirm receipt and close an active emergency request.
 
 A recipient cannot directly complete a replacement campaign. It completes through itemized facility-confirmed donations recorded by a coordinator.
 
 ### Donor
 
-Can register/activate a donor profile, manage availability, view eligibility and donation history, receive donor appeals, see matching verified requests, and pledge one unit. Registration is not medical approval.
+Can register/activate a donor profile, manage availability, view eligibility and donation history, receive donor appeals, see matching verified requests, pledge support, state limited non-medical support preferences, and register for scheduled blood drives. Registration is not medical approval.
 
 ### Blood Donation Coordinator / admin
 
-Can access the protected dashboard; review private request evidence; verify, clarify, or reject requests; publish verified requests; notify eligible donors; review pledges; record facility-confirmed replacement donations; manage donor check-in, medical approval, deferral, donation, map visibility, and inventory; and view reports/audit history.
+Can access the protected dashboard; review private request evidence; verify, clarify, or reject requests; publish verified requests; notify eligible donors; review pledges; record facility-confirmed replacement donations; schedule blood drives; manage donor check-in, medical approval, deferral, donation, map visibility, and inventory; and view reports/audit history.
 
 Preferred authorization comes from `blood_bank.admin`. Client-side fallback admin-email handling remains for compatibility and is not the ideal long-term design.
 
@@ -110,6 +118,8 @@ Browser / installed PWA
 | `recipient_donor_map.html` | Privacy-conscious donor-area map |
 | `account_notifications.html` | Notification history |
 | `admin_dashboard.html` | Coordinator requests, donors, inventory, reports |
+
+Legacy aliases `patient_dashboard.html`, `patient_donor_map.html`, and `patient_notifications.html` remain as redirect pages for compatibility. They should be described as backward-compatible routes, not separate feature screens.
 
 ### Edge Functions
 
@@ -187,7 +197,9 @@ This is donor-discovery logic, not clinical cross-matching.
 
 ### Donor pledge
 
-The RPC resolves the current donor and rechecks eligibility, verification, open state, self-request exclusion, and emergency compatibility. A partial unique index permits one active pledge per donor/request. The RPC accepts a quantity argument but currently inserts one unit. Active pledge units are summed; reaching quantity moves the community state from `active` to `covered`. The owner receives `pledge_received`. A pledge is intent, not inventory, completed donation, or confirmed receipt.
+The RPC resolves the current donor and rechecks eligibility, verification, open state, self-request exclusion, and emergency compatibility. A partial unique index permits one active pledge per donor/request. The RPC accepts a quantity argument and stores at least one pledged unit. Active pledge units are summed; reaching quantity moves the community state from `active` to `covered`. The owner receives `pledge_received`. A pledge is intent, not inventory, completed donation, or confirmed receipt.
+
+The September 15 support-preferences patch lets the donor submit a private JSON list of practical support needs or arrangements (`meals`, `travel`, `allowance`, `screening`). These are deliberately not medical self-screening answers. The donor and request owner may read them; they should not be described as public donor data.
 
 ### Emergency lifecycle
 
@@ -207,6 +219,12 @@ submitted -> pending verification campaign -> verified active campaign
 ```
 
 Replacement campaigns have no timer (`expires_at=NULL`). Any eligible blood type can pledge. Each confirmation records units, date, facility, unique reference, app/external donor source, optional donor ID, and note. Units cannot exceed the target. Reaching the target completes both campaign and request. Linked app-donor confirmations can appear in donation history. The old aggregate completion RPC is retired so confirmations must be itemized.
+
+### Blood drives
+
+Blood-drive scheduling is now database-backed. Coordinators can create a drive with name, date, time window, venue, address, target units, focus blood type, and notes. The scheduling RPC validates coordinator access, future date, target range, time ordering, and focus blood type, then creates `blood_drive` and sends deduplicated `blood_drive_scheduled` in-app notifications to eligible linked donors.
+
+Donors can register for an upcoming drive through `register_for_blood_drive()`. The RPC requires a donor profile, blocks completed/cancelled/past/full drives, upserts cancelled registrations back to registered, recalculates `registered_donors`, and marks the drive `full` when capacity is reached. Attendance remains a status value, but the repository does not yet demonstrate a complete attendance workflow.
 
 ### Owner actions
 
@@ -242,6 +260,8 @@ Older admin code includes a finite-state request workflow and greedy exact-type 
 | `blood_request` | Patient, nullable inventory, unified requester, blood/quantity/urgency, operational status, note, type, verification, hospital reference, receipt, community state/expiry |
 | `blood_inventory` | Donor links, blood type, units, stock date/status, update time, expiry, remarks, generated bag ID |
 | `donation_record` | Standard donor/inventory-linked quantity, type, date, status, notes/reason |
+| `blood_drive` | Scheduled donation campaign with date/time, venue, target units, focus blood type, status, creator, and notes |
+| `blood_drive_registration` | Donor registration/attendance status for a blood drive; unique by drive and donor |
 
 ### Additive account-unification tables
 
@@ -258,9 +278,10 @@ These preserve legacy tables during migration. The frontend still heavily uses `
 | Table | Purpose |
 |---|---|
 | `donor_pledge` | Donor response, units, status, schedule/contact/notes |
+| `donor_pledge_support_preferences` | Private practical support choices attached to a pledge |
 | `replacement_campaign` | Target, pledged and confirmed units; campaign state/timestamps |
 | `replacement_donation_confirmation` | Itemized facility-confirmed replacement donation with app/external source and audit fields |
-| `notifications` | Auth-recipient alert with request, type, title, message, read/created times |
+| `notifications` | Auth-recipient alert with request or drive, type, title, message, read/created times |
 | `request_verification_support` | Private facility/file metadata and verification method/note/verifier/time |
 | `blood_request_status_log` | Request transition audit |
 | `blood_request_notification_queue` | Undelivered outbound-message queue |
@@ -287,6 +308,8 @@ blood_request 1 -> 0..1 replacement_campaign
 blood_request 1 -> many replacement_donation_confirmation
 blood_request 1 -> many status_log and notifications
 donor 1 -> many donation_record, inventory, checkin, status_log
+donor 1 -> many blood_drive_registration <- many-to-1 blood_drive
+donor_pledge 1 -> 0..1 donor_pledge_support_preferences
 ```
 
 `blood_request.inventory_id` is nullable. A future allocation junction table would better represent one request using multiple inventory batches.
@@ -298,6 +321,7 @@ donor 1 -> many donation_record, inventory, checkin, status_log
 - Requests: `pledge_to_blood_request`, `complete_my_blood_request`, `manage_my_blood_request`, `refresh_community_request_lifecycle`.
 - Verification: `verify_blood_request`, `notify_eligible_donors`, `is_requester_donor`, `is_red_cell_compatible`.
 - Replacement: `record_replacement_donation`, `list_replacement_donations`, `refresh_replacement_confirmation_progress`.
+- Blood drives: `schedule_blood_drive`, `register_for_blood_drive`.
 - Maintenance: `canonical_blood_type`, `auto_expire_inventory`, waiting-period/status triggers.
 
 ### State values
@@ -310,6 +334,8 @@ donor 1 -> many donation_record, inventory, checkin, status_log
 | `request_type` | `replacement`, `emergency_donor`, `unsure` (legacy/migrated) |
 | Pledge | `pledged`, `cancelled` |
 | Campaign | `pending_verification`, `active`, `pledged`, `complete`, `expired`, `cancelled` |
+| Blood drive | `scheduled`, `recruiting`, `full`, `completed`, `cancelled` |
+| Blood drive registration | `registered`, `attended`, `cancelled` |
 | Verification method | `uploaded_document`, `physical_document`, `facility_confirmation`, `other` |
 | Blood types | A+, A-, B+, B-, AB+, AB-, O+, O- |
 
@@ -323,17 +349,18 @@ New sensitive tables use owner/participant/coordinator RLS and security-definer 
 2. **Compatibility/eligibility filtering:** examines donor availability, screening state, 56-day interval, self-request status, previous pledge, open/verified state, and compatibility or replacement exemption. Filtering is approximately O(d) for d donors, excluding database query costs.
 3. **Pledge aggregation:** sums active pledged units and marks coverage when total reaches request quantity. Coverage is not fulfillment.
 4. **Replacement aggregation:** sums non-voided confirmed units, prevents exceeding target, and completes at target.
-5. **Legacy greedy allocation:** deducts the smaller of each exact-type inventory row and remaining need, prioritizing linked/older stock. It is approximately O(n) after ordering but is not transactionally atomic.
+5. **Blood-drive capacity tracking:** counts active drive registrations, blocks over-capacity registration, and changes drive status to `full` when registered donors reach the target.
+6. **Legacy greedy allocation:** deducts the smaller of each exact-type inventory row and remaining need, prioritizing linked/older stock. It is approximately O(n) after ordering but is not transactionally atomic.
 
 ## 7. Feature maturity
 
 ### Substantially implemented/database-backed
 
-Authentication; multi-role profiles; profile editing; donor lifecycle/waiting rule; two request types; private evidence; evidence-gated verification; emergency expiry; non-expiring replacement campaigns; compatibility matching; community feed; pledges; itemized replacement confirmations; owner delete/cancel/receipt actions; in-app notifications; Realtime refresh; inventory/donations/reporting; privacy-conscious map; password reset; PWA shell.
+Authentication; multi-role profiles; profile editing; donor lifecycle/waiting rule; two request types; private evidence; evidence-gated verification; emergency expiry; non-expiring replacement campaigns; compatibility matching; community feed; pledges; private donor support preferences; itemized replacement confirmations; blood-drive scheduling and registration; owner delete/cancel/receipt actions; in-app notifications; Realtime refresh; inventory/donations/reporting; privacy-conscious map; password reset; PWA shell.
 
 ### Partial or deployment-dependent
 
-Applied schema state; Supabase/MySQL synchronization; best-effort audit writes; multi-write donor/inventory workflows; scheduled expiration; offline live data; approximate map distance; fallback admin emails; local profile images/UI preferences.
+Applied schema state; Supabase/MySQL synchronization; best-effort audit writes; multi-write donor/inventory workflows; scheduled expiration; blood-drive attendance tracking; offline live data; approximate map distance; fallback admin emails; local profile images/UI preferences.
 
 ### Demo-only or not end-to-end
 
@@ -369,10 +396,11 @@ npm run verify:architecture
 8. Complete or abandon the `users`/details migration so one account model is authoritative.
 9. Implement outbound notifications only with consent, retries, and delivery status.
 10. Add scheduled request/inventory expiry.
-11. Add governed cross-device profile image storage if needed.
-12. Add unit, integration, authorization, concurrency, accessibility, performance, backup/restore, and security tests.
-13. Have qualified blood-service staff validate terminology and workflows.
-14. Document production secrets, monitoring, backups, recovery, retention, and incident response.
+11. Complete blood-drive attendance/outcome recording and cancellation flows if blood drives remain in thesis scope.
+12. Add governed cross-device profile image storage if needed.
+13. Add unit, integration, authorization, concurrency, accessibility, performance, backup/restore, and security tests.
+14. Have qualified blood-service staff validate terminology and workflows.
+15. Document production secrets, monitoring, backups, recovery, retention, and incident response.
 
 ## 11. Repository source map
 
@@ -380,7 +408,7 @@ npm run verify:architecture
 - `vite.config.js`, `package.json`: build setup.
 - `public/supabase-client.js`: shared API/auth/domain facade.
 - `public/scripts/pages/*.js`: page workflows.
-- Root HTML/CSS: stable routes and UI.
+- Root HTML/CSS: stable routes and UI; `patient_*.html` files are redirect aliases for the renamed account/recipient pages.
 - `supabase/migrations/*.sql`: canonical forward schema.
 - `supabase/functions/*/index.ts`: privileged functions.
 - Root `supabase-*.sql`: manual setup/repair patches; do not apply blindly.
@@ -406,4 +434,4 @@ Write these as visible placeholders until supplied.
 
 ## 13. Reusable prompt
 
-> Help me write a thesis about VeinDrop using the attached system knowledge base as factual repository context. Separate implemented, partial, demo, and proposed features. Do not invent research data, deployment evidence, clinical validation, partnerships, or compliance. Ask for facts that are not provided. Prefer the September 14, 2026 workflow over older BloodConnect proposal text. I will now tell you which thesis section I need.
+> Help me write a thesis about VeinDrop using the attached system knowledge base as factual repository context. Separate implemented, partial, demo, and proposed features. Do not invent research data, deployment evidence, clinical validation, partnerships, or compliance. Ask for facts that are not provided. Prefer the September 15, 2026 workflow over older BloodConnect proposal text. I will now tell you which thesis section I need.

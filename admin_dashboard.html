@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Coordinator Dashboard - BloodConnect</title>
   <link rel="icon" href="assets/bloodconnect-mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/admin_dashboard.css?v=20260916reportsstretch" />
+  <link rel="stylesheet" href="/admin_dashboard.css?v=20260916donorval" />
   <link rel="stylesheet" href="/admin-request-details.css?v=20260913verification" />
   <link rel="stylesheet" href="/admin-donor-filters.css?v=20260912a" />
   <link rel="stylesheet" href="/shared-selects.css?v=20260912a" />
@@ -41,12 +41,10 @@
       <a href="#" class="nav-item" data-section="donors">
         <i class="fa-solid fa-users"></i>
         <span class="nav-item-label">Donors</span>
-        <span class="nav-badge">0</span>
       </a>
       <a href="#" class="nav-item" data-section="requests">
         <i class="fa-solid fa-hand-holding-medical"></i>
         <span class="nav-item-label">Blood Requests</span>
-        <span class="nav-badge" id="sidebarRequestsBadge">0</span>
       </a>
       <a href="#" class="nav-item" data-section="inventory">
         <i class="fa-solid fa-flask-vial"></i>
@@ -66,7 +64,6 @@
       <a href="#" class="nav-item" data-section="notifications" id="navNotifications">
         <i class="fa-solid fa-bell"></i>
         <span class="nav-item-label">Notifications</span>
-        <span class="nav-badge" id="sidebarNotifBadge">0</span>
       </a>
       <a href="#" class="nav-item" data-section="activity" id="navActivity">
         <i class="fa-solid fa-clock-rotate-left"></i>
@@ -90,11 +87,14 @@
 
       <div class="header-search" id="headerSearchWrap">
         <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
-        <input type="text" id="globalSearchInput" placeholder="Search donors, requests, inventory, or pages..." autocomplete="off" spellcheck="false" />
-        <button type="button" class="header-search-clear" id="globalSearchClearBtn" aria-label="Clear search" style="display: none;">
+        <input type="text" id="globalSearchInput" placeholder="Search donors, requests, inventory, or pages..."
+          autocomplete="off" spellcheck="false" />
+        <button type="button" class="header-search-clear" id="globalSearchClearBtn" aria-label="Clear search"
+          style="display: none;">
           <i class="fa-solid fa-xmark"></i>
         </button>
-        <div class="header-search-results" id="globalSearchResults" style="display: none;" role="listbox" aria-label="Search suggestions"></div>
+        <div class="header-search-results" id="globalSearchResults" style="display: none;" role="listbox"
+          aria-label="Search suggestions"></div>
       </div>
 
       <div class="header-actions">
@@ -306,10 +306,14 @@
               <label>Blood type
                 <select id="donorBloodTypeFilter">
                   <option value="all">All blood types</option>
-                  <option>A+</option><option>A-</option>
-                  <option>B+</option><option>B-</option>
-                  <option>AB+</option><option>AB-</option>
-                  <option>O+</option><option>O-</option>
+                  <option>A+</option>
+                  <option>A-</option>
+                  <option>B+</option>
+                  <option>B-</option>
+                  <option>AB+</option>
+                  <option>AB-</option>
+                  <option>O+</option>
+                  <option>O-</option>
                 </select>
               </label>
               <button type="button" class="panel-btn" id="clearDonorFilters" disabled>Clear filters</button>
@@ -326,7 +330,8 @@
                   <th>Status</th>
                   <th>Map</th>
                   <th>Last Donated</th>
-                  <th title="Based on the recorded donation date; medical screening is still required.">Donation Interval</th>
+                  <th title="Based on the recorded donation date; medical screening is still required.">Donation
+                    Interval</th>
                   <th>Registered</th>
                   <th>Action</th>
                 </tr>
@@ -367,7 +372,8 @@
       <div class="page-section" id="section-inventory">
 
         <div class="section-heading">
-          <button class="btn-primary" onclick="openInventoryModal()"><i class="fa-solid fa-circle-plus"></i> Add Stock</button>
+          <button class="btn-primary" onclick="openInventoryModal()"><i class="fa-solid fa-circle-plus"></i> Add
+            Stock</button>
         </div>
 
         <section class="drives-signal-board" aria-label="Inventory summary signals">
@@ -454,7 +460,8 @@
       <div class="page-section" id="section-drives">
 
         <div class="section-heading">
-          <button type="button" class="btn-primary" id="scheduleDriveBtn"><i class="fa-solid fa-calendar-plus"></i> Schedule Drive</button>
+          <button type="button" class="btn-primary" id="scheduleDriveBtn"><i class="fa-solid fa-calendar-plus"></i>
+            Schedule Drive</button>
         </div>
 
         <section class="drives-signal-board" aria-label="Blood drive summary signals">
@@ -496,8 +503,23 @@
         </section>
 
         <div class="panel full-width" style="margin-bottom:20px;">
-          <div class="panel-header">
+          <div class="panel-header drives-panel-header">
             <h3><i class="fa-solid fa-vial"></i> Campaign Calendar</h3>
+            <div class="drives-sort-controls">
+              <label for="drivesSortBy" class="drives-sort-label"><i class="fa-solid fa-arrow-up-wide-short"></i> Sort
+                by</label>
+              <select id="drivesSortBy" class="drives-sort-select">
+                <option value="date">Date Scheduled</option>
+                <option value="name">Drive Name</option>
+                <option value="target">Target Units</option>
+                <option value="registered">Registered Donors</option>
+                <option value="status">Status</option>
+              </select>
+              <button type="button" id="drivesSortDir" class="drives-sort-dir-btn" title="Toggle sort direction"
+                aria-label="Sort ascending">
+                <i class="fa-solid fa-arrow-up-a-z"></i>
+              </button>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="data-table">
@@ -611,26 +633,26 @@
         <div class="dashboard-grid reports-detail-grid" style="margin-bottom:20px;">
           <div class="reports-detail-stack">
             <div class="panel reports-status-panel">
-            <div class="panel-header">
-              <h3><i class="fa-solid fa-chart-pie"></i> Request Status Breakdown</h3>
+              <div class="panel-header">
+                <h3><i class="fa-solid fa-chart-pie"></i> Request Status Breakdown</h3>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Requests</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reportsRequestBreakdownBody">
+                    <tr>
+                      <td colspan="2" style="text-align:center;color:var(--slate-400);padding:32px;">No request data
+                        available.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Requests</th>
-                  </tr>
-                </thead>
-                <tbody id="reportsRequestBreakdownBody">
-                  <tr>
-                    <td colspan="2" style="text-align:center;color:var(--slate-400);padding:32px;">No request data
-                      available.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
             <div class="panel reports-timestamp-panel">
               <div class="panel-header">
@@ -742,7 +764,8 @@
             <button type="button" class="btn-primary" id="refreshActivityBtn" onclick="refreshActivityLogsSection()">
               <i class="fa-solid fa-arrows-rotate"></i> <span>Refresh</span>
             </button>
-            <button type="button" class="btn-primary" id="exportActivityBtn" onclick="exportActivityLogsCsv()" style="background:var(--gray-700);">
+            <button type="button" class="btn-primary" id="exportActivityBtn" onclick="exportActivityLogsCsv()"
+              style="background:var(--gray-700);">
               <i class="fa-solid fa-file-export"></i> <span>Export Log</span>
             </button>
           </div>
@@ -808,7 +831,8 @@
                   <option value="month">This Month</option>
                 </select>
               </label>
-              <button type="button" class="panel-btn" id="clearActivityFiltersBtn" onclick="clearActivityFilters()">Clear</button>
+              <button type="button" class="panel-btn" id="clearActivityFiltersBtn"
+                onclick="clearActivityFilters()">Clear</button>
             </div>
           </div>
           <p id="activityFilterSummary" class="activity-filter-summary" role="status" aria-live="polite"></p>
@@ -819,17 +843,25 @@
                   <th>Timestamp</th>
                   <th>Category</th>
                   <th>Action Performed</th>
-                  <th>Target Entity</th>
+                  <th>Subject / Target</th>
                   <th>Details &amp; Reason</th>
                   <th>Coordinator / Actor</th>
                 </tr>
               </thead>
               <tbody id="activityLogsBody">
                 <tr>
-                  <td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">Loading coordinator activity...</td>
+                  <td colspan="6" style="text-align:center;color:var(--slate-400);padding:32px;">Loading coordinator
+                    activity...</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+          <div class="activity-table-footer" id="activityTableFooter" style="display:none;">
+            <button type="button" class="btn-activity-toggle" id="togglePastActivityLogsBtn"
+              onclick="togglePastActivityLogs()">
+              <i class="fa-solid fa-clock-rotate-left" id="togglePastActivityLogsIcon"></i>
+              <span id="togglePastActivityLogsText">Show Past Logs</span>
+            </button>
           </div>
         </div>
 
@@ -846,29 +878,33 @@
           <h3><i class="fa-solid fa-user-plus"></i> Add New Donor</h3>
           <button class="modal-close" onclick="closeAddDonorModal()">&times;</button>
         </div>
-        <form id="addDonorForm" class="modal-body">
+        <form id="addDonorForm" class="modal-body" novalidate>
           <div class="form-row admin-name-row">
             <div class="form-group">
-              <label>First Name <span class="req">*</span></label>
-              <input type="text" name="first_name" required />
+              <label for="addDonorFirstName">First Name <span class="req">*</span></label>
+              <input type="text" id="addDonorFirstName" name="first_name" placeholder="e.g. Juan" maxlength="60"
+                required />
             </div>
             <div class="form-group">
-              <label>Middle Name</label>
-              <input type="text" name="middle_name" autocomplete="additional-name" />
+              <label for="addDonorMiddleName">Middle Name</label>
+              <input type="text" id="addDonorMiddleName" name="middle_name" placeholder="Optional" maxlength="60"
+                autocomplete="additional-name" />
             </div>
             <div class="form-group">
-              <label>Last Name <span class="req">*</span></label>
-              <input type="text" name="last_name" required />
+              <label for="addDonorLastName">Last Name <span class="req">*</span></label>
+              <input type="text" id="addDonorLastName" name="last_name" placeholder="e.g. Dela Cruz" maxlength="60"
+                required />
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Email <span class="req">*</span></label>
-              <input type="email" name="email" required />
+              <label for="addDonorEmail">Email <span class="req">*</span></label>
+              <input type="email" id="addDonorEmail" name="email" placeholder="e.g. juan@example.com" maxlength="100"
+                required />
             </div>
             <div class="form-group">
-              <label>Blood Type <span class="req">*</span></label>
-              <select name="blood_type" required>
+              <label for="addDonorBloodType">Blood Type <span class="req">*</span></label>
+              <select id="addDonorBloodType" name="blood_type" required>
                 <option value="">Select blood type</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
@@ -883,12 +919,13 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Phone</label>
-              <input type="text" name="phone" />
+              <label for="addDonorPhone">Phone</label>
+              <input type="tel" id="addDonorPhone" name="phone" placeholder="09XXXXXXXXX (11 digits)" maxlength="11"
+                inputmode="numeric" />
             </div>
             <div class="form-group">
-              <label>Gender</label>
-              <select name="gender">
+              <label for="addDonorGender">Gender</label>
+              <select id="addDonorGender" name="gender">
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -898,19 +935,21 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Birthdate</label>
-              <input type="date" name="date_of_birth" />
+              <label for="addDonorDob">Birthdate</label>
+              <input type="date" id="addDonorDob" name="date_of_birth" />
             </div>
             <div class="form-group">
-              <label>Address</label>
-              <input type="text" name="address" />
+              <label for="addDonorAddress">Address</label>
+              <input type="text" id="addDonorAddress" name="address" placeholder="Street, barangay, municipality"
+                maxlength="255" />
             </div>
           </div>
+          <div id="addDonorMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeAddDonorModal()">Cancel</button>
-            <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Add Donor</button>
+            <button type="submit" class="btn-submit" id="saveAddDonorBtn"><i class="fa-solid fa-plus"></i> Add
+              Donor</button>
           </div>
-          <div id="addDonorMsg" class="form-msg"></div>
         </form>
       </div>
     </div>
@@ -1000,7 +1039,8 @@
                   <option value="verified">Verified</option>
                   <option value="missing" disabled hidden>Location missing</option>
                 </select>
-                <small id="locationVerificationHelp">Confirm the area before verifying. Map visibility is controlled separately.</small>
+                <small id="locationVerificationHelp">Confirm the area before verifying. Map visibility is controlled
+                  separately.</small>
               </div>
               <div class="form-group">
                 <label for="profileMapArea">Map Area</label>
@@ -1075,19 +1115,24 @@
               <div class="sp-subtitle">Record physical examination and vital signs before blood draw.</div>
               <div class="screening-grid">
                 <div class="form-group">
-                  <label>Weight (kg) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <label>Weight (kg) <span class="req"
+                      style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
                   <input type="number" id="screenWeight" placeholder="e.g. 55" step="0.5" min="30" max="250" />
                   <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Min 50 kg for blood donation</span>
                 </div>
                 <div class="form-group">
-                  <label>Blood Pressure (mmHg) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <label>Blood Pressure (mmHg) <span class="req"
+                      style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
                   <input type="text" id="screenBp" placeholder="e.g. 120/80" />
-                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Systolic 90-140 / Diastolic 60-90</span>
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Systolic 90-140 / Diastolic
+                    60-90</span>
                 </div>
                 <div class="form-group">
-                  <label>Hemoglobin (g/dL) <span class="req" style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
+                  <label>Hemoglobin (g/dL) <span class="req"
+                      style="color:var(--danger,#ef4444); font-weight:bold;">*</span></label>
                   <input type="number" id="screenHemoglobin" placeholder="e.g. 13.5" step="0.1" min="5" max="25" />
-                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Female: &ge;12.5 | Male: &ge;13.0</span>
+                  <span class="field-hint" style="font-size:0.68rem; color:#6b7280;">Female: &ge;12.5 | Male:
+                    &ge;13.0</span>
                 </div>
                 <div class="form-group">
                   <label>Pulse Rate (bpm)</label>
@@ -1110,7 +1155,8 @@
               </div>
               <div class="form-group" style="margin-top:6px;">
                 <label>Screening Remarks / Clinical Observations</label>
-                <textarea id="screenNotes" rows="2" placeholder="e.g. Donor is well-rested, no cold/cough symptoms, cleared for blood extraction."></textarea>
+                <textarea id="screenNotes" rows="2"
+                  placeholder="e.g. Donor is well-rested, no cold/cough symptoms, cleared for blood extraction."></textarea>
               </div>
               <div class="screening-actions">
                 <button type="button" class="btn-cancel-screen" onclick="hideScreeningPanel()">Cancel</button>
@@ -1232,7 +1278,8 @@
     <div class="modal-overlay" id="requestStatusModal">
       <div class="modal" style="width:560px;">
         <div class="modal-header">
-          <h3><i class="fa-solid fa-shield-heart"></i> <span id="requestStatusModalTitle">Change Request Status</span></h3>
+          <h3><i class="fa-solid fa-shield-heart"></i> <span id="requestStatusModalTitle">Change Request Status</span>
+          </h3>
           <button class="modal-close" onclick="closeRequestStatusModal()">&times;</button>
         </div>
         <form id="requestStatusForm" class="modal-body">
@@ -1259,7 +1306,8 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeRequestStatusModal()">Cancel</button>
-            <button type="submit" class="btn-submit" id="requestStatusSubmit"><i class="fa-solid fa-check"></i> Confirm Change</button>
+            <button type="submit" class="btn-submit" id="requestStatusSubmit"><i class="fa-solid fa-check"></i> Confirm
+              Change</button>
           </div>
           <div id="requestStatusMsg" class="form-msg"></div>
         </form>
@@ -1282,7 +1330,8 @@
         </div>
         <div class="modal-footer" style="justify-content: center; gap: 12px; padding: 0 24px 24px;">
           <button type="button" class="btn-cancel" style="flex:1;" onclick="closeLogoutModal()">Cancel</button>
-          <button type="button" class="btn-submit" style="flex:1;" id="confirmLogoutBtn" onclick="handleConfirmLogout(event)">Yes,
+          <button type="button" class="btn-submit" style="flex:1;" id="confirmLogoutBtn"
+            onclick="handleConfirmLogout(event)">Yes,
             Logout</button>
         </div>
       </div>
@@ -1290,7 +1339,8 @@
 
     <!-- ===== DONOR NOT ELIGIBLE MAP POPUP MODAL ===== -->
     <div class="modal-overlay" id="donorIneligibleModal" style="z-index: 300;">
-      <div class="modal" style="width: 440px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+      <div class="modal"
+        style="width: 440px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
         <div class="modal-header" style="background: #fff1f2; border-bottom: 1px solid #fecdd3; padding: 16px 20px;">
           <h3 style="color: #be123c; display: flex; align-items: center; gap: 10px; font-size: 1.05rem; margin: 0;">
             <i class="fa-solid fa-triangle-exclamation" style="color: #e11d48; font-size: 1.15rem;"></i>
@@ -1299,21 +1349,28 @@
           <button class="modal-close" onclick="closeDonorIneligibleModal()" style="color: #9f1239;">&times;</button>
         </div>
         <div class="modal-body" style="text-align: center; padding: 28px 24px 20px;">
-          <div style="width: 56px; height: 56px; background: #ffe4e6; color: #e11d48; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 16px;">
+          <div
+            style="width: 56px; height: 56px; background: #ffe4e6; color: #e11d48; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 16px;">
             <i class="fa-solid fa-ban"></i>
           </div>
           <h4 style="margin-bottom: 10px; font-size: 1.1rem; color: #1e293b; font-weight: 700;">
             Cannot Enable Map Visibility
           </h4>
-          <p id="donorIneligibleModalMsg" style="font-size: 0.9rem; color: #475569; line-height: 1.55; margin-bottom: 16px;">
+          <p id="donorIneligibleModalMsg"
+            style="font-size: 0.9rem; color: #475569; line-height: 1.55; margin-bottom: 16px;">
             This donor is not yet eligible to donate blood and cannot be placed on the patient map.
           </p>
-          <div id="donorIneligibleModalReasonBox" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #e11d48; border-radius: 8px; padding: 12px 14px; text-align: left; font-size: 0.84rem; color: #334155; margin-bottom: 8px;">
-            <strong>Reason:</strong> <span id="donorIneligibleModalReason">Donor has not completed medical screening yet. Medical approval is required first.</span>
+          <div id="donorIneligibleModalReasonBox"
+            style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #e11d48; border-radius: 8px; padding: 12px 14px; text-align: left; font-size: 0.84rem; color: #334155; margin-bottom: 8px;">
+            <strong>Reason:</strong> <span id="donorIneligibleModalReason">Donor has not completed medical screening
+              yet. Medical approval is required first.</span>
           </div>
         </div>
-        <div class="modal-footer" style="justify-content: flex-end; padding: 12px 20px 20px; border-top: none; background: #fff;">
-          <button type="button" class="btn-primary" style="background: #e11d48; border: none; padding: 9px 20px; font-weight: 600;" onclick="closeDonorIneligibleModal()">
+        <div class="modal-footer"
+          style="justify-content: flex-end; padding: 12px 20px 20px; border-top: none; background: #fff;">
+          <button type="button" class="btn-primary"
+            style="background: #e11d48; border: none; padding: 9px 20px; font-weight: 600;"
+            onclick="closeDonorIneligibleModal()">
             <i class="fa-solid fa-check"></i> Understood
           </button>
         </div>
@@ -1329,17 +1386,31 @@
         </div>
         <div class="modal-body mobilize-donors-body">
           <section class="mobilize-request-summary" aria-label="Request summary">
-            <div class="mobilize-request-summary__person"><strong id="mobilizeRecipientName">Recipient</strong><div id="mobilizeLocationText"></div></div>
-            <div class="mobilize-request-summary__need"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span><div id="mobilizeQuantityText"></div></div>
+            <div class="mobilize-request-summary__person"><strong id="mobilizeRecipientName">Recipient</strong>
+              <div id="mobilizeLocationText"></div>
+            </div>
+            <div class="mobilize-request-summary__need"><span class="type-pill" id="mobilizeBloodTypeBadge">-</span>
+              <div id="mobilizeQuantityText"></div>
+            </div>
           </section>
           <p class="mobilize-notice">
             <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-            Only in-app alerts will be created. SMS and email delivery are not enabled. The authorized blood facility makes the final donor match and screening decision.
+            Only in-app alerts will be created. SMS and email delivery are not enabled. The authorized blood facility
+            makes the final donor match and screening decision.
           </p>
-          <div class="mobilize-match-count"><strong id="mobilizeMatchCount">0</strong><span>eligible donor(s) found</span></div>
+          <div class="mobilize-match-count"><strong id="mobilizeMatchCount">0</strong><span>eligible donor(s)
+              found</span></div>
           <div class="mobilize-donors-table-wrap">
             <table class="data-table mobilize-donors-table">
-              <thead><tr><th>Donor</th><th>Blood Type</th><th>Area</th><th>Contact</th><th>Eligibility</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Donor</th>
+                  <th>Blood Type</th>
+                  <th>Area</th>
+                  <th>Contact</th>
+                  <th>Eligibility</th>
+                </tr>
+              </thead>
               <tbody id="mobilizeDonorsTableBody"></tbody>
             </table>
           </div>
@@ -1347,33 +1418,55 @@
         </div>
         <div class="modal-footer mobilize-donors-footer">
           <button type="button" class="btn-cancel mobilize-cancel" onclick="closeMobilizeDonorsModal()">Cancel</button>
-          <button type="button" class="btn-submit mobilize-send" id="btnBroadcastAppeal" onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
+          <button type="button" class="btn-submit mobilize-send" id="btnBroadcastAppeal"
+            onclick="handleBroadcastAppeal()"><i class="fa-solid fa-bell"></i> Send In-App Alerts</button>
         </div>
       </div>
     </div>
 
     <!-- ===== ADMIN REQUEST DETAIL MODAL ===== -->
     <div class="modal-overlay" id="replacementDonationModal" style="z-index: 310;">
-      <div class="modal replacement-donation-modal" role="dialog" aria-modal="true" aria-labelledby="replacementDonationTitle">
+      <div class="modal replacement-donation-modal" role="dialog" aria-modal="true"
+        aria-labelledby="replacementDonationTitle">
         <div class="modal-header">
           <h3 id="replacementDonationTitle"><i class="fa-solid fa-clipboard-check"></i> Record Replacement Donation</h3>
-          <button type="button" class="modal-close" onclick="closeReplacementDonationModal()" aria-label="Close">&times;</button>
+          <button type="button" class="modal-close" onclick="closeReplacementDonationModal()"
+            aria-label="Close">&times;</button>
         </div>
         <form id="replacementDonationForm" class="modal-body">
           <input type="hidden" id="replacementDonationRequestId" />
-          <p class="replacement-form-guidance">Record only donations confirmed by the receiving facility. App registration is not required for external donors.</p>
+          <p class="replacement-form-guidance">Record only donations confirmed by the receiving facility. App
+            registration is not required for external donors.</p>
           <div class="replacement-progress" id="replacementDonationProgress"></div>
           <div class="form-row">
-            <div class="form-group"><label for="replacementUnits">Units confirmed <span class="req">*</span></label><input type="number" id="replacementUnits" min="1" value="1" required /></div>
-            <div class="form-group"><label for="replacementDate">Donation date <span class="req">*</span></label><input type="date" id="replacementDate" required /></div>
+            <div class="form-group"><label for="replacementUnits">Units confirmed <span
+                  class="req">*</span></label><input type="number" id="replacementUnits" min="1" value="1" required />
+            </div>
+            <div class="form-group"><label for="replacementDate">Donation date <span class="req">*</span></label><input
+                type="date" id="replacementDate" required /></div>
           </div>
-          <div class="form-group"><label for="replacementFacility">Receiving facility / blood drive <span class="req">*</span></label><input type="text" id="replacementFacility" maxlength="180" required placeholder="Facility that accepted the donation" /></div>
-          <div class="form-group"><label for="replacementReference">Facility confirmation reference <span class="req">*</span></label><input type="text" id="replacementReference" maxlength="120" required placeholder="Donation slip or facility reference number" /></div>
-          <div class="form-group"><label for="replacementDonorSource">Donor source <span class="req">*</span></label><select id="replacementDonorSource" required><option value="external">External donor (not registered in app)</option><option value="app">Registered app donor</option></select></div>
-          <div class="form-group" id="replacementAppDonorGroup" hidden><label for="replacementAppDonor">App donor <span class="req">*</span></label><select id="replacementAppDonor"><option value="">Select donor</option></select></div>
-          <div class="form-group"><label for="replacementNote">Coordinator note <span class="auto-field-label">Optional</span></label><textarea id="replacementNote" rows="2" maxlength="500" placeholder="Internal coordination note"></textarea></div>
+          <div class="form-group"><label for="replacementFacility">Receiving facility / blood drive <span
+                class="req">*</span></label><input type="text" id="replacementFacility" maxlength="180" required
+              placeholder="Facility that accepted the donation" /></div>
+          <div class="form-group"><label for="replacementReference">Facility confirmation reference <span
+                class="req">*</span></label><input type="text" id="replacementReference" maxlength="120" required
+              placeholder="Donation slip or facility reference number" /></div>
+          <div class="form-group"><label for="replacementDonorSource">Donor source <span
+                class="req">*</span></label><select id="replacementDonorSource" required>
+              <option value="external">External donor (not registered in app)</option>
+              <option value="app">Registered app donor</option>
+            </select></div>
+          <div class="form-group" id="replacementAppDonorGroup" hidden><label for="replacementAppDonor">App donor <span
+                class="req">*</span></label><select id="replacementAppDonor">
+              <option value="">Select donor</option>
+            </select></div>
+          <div class="form-group"><label for="replacementNote">Coordinator note <span
+                class="auto-field-label">Optional</span></label><textarea id="replacementNote" rows="2" maxlength="500"
+              placeholder="Internal coordination note"></textarea></div>
           <div id="replacementDonationMsg" class="form-msg" role="status" aria-live="polite"></div>
-          <div class="modal-footer"><button type="button" class="btn-cancel" onclick="closeReplacementDonationModal()">Cancel</button><button type="submit" class="btn-submit" id="saveReplacementDonation"><i class="fa-solid fa-check"></i> Record Confirmed Donation</button></div>
+          <div class="modal-footer"><button type="button" class="btn-cancel"
+              onclick="closeReplacementDonationModal()">Cancel</button><button type="submit" class="btn-submit"
+              id="saveReplacementDonation"><i class="fa-solid fa-check"></i> Record Confirmed Donation</button></div>
         </form>
       </div>
     </div>
@@ -1388,7 +1481,8 @@
           <!-- Populated by JS -->
         </div>
         <div class="modal-footer" style="justify-content: space-between;">
-          <button type="button" class="btn-cancel admin-request-detail-close" onclick="closeAdminRequestDetailModal()">Close</button>
+          <button type="button" class="btn-cancel admin-request-detail-close"
+            onclick="closeAdminRequestDetailModal()">Close</button>
           <div id="adminRequestDetailActions" class="admin-request-detail-actions"></div>
         </div>
       </div>
@@ -1396,17 +1490,21 @@
 
 
     <!-- ===== SCHEDULE BLOOD DRIVE MODAL ===== -->
-    <div class="modal-overlay" id="scheduleDriveModal" role="dialog" aria-modal="true" aria-labelledby="scheduleDriveTitle">
+    <div class="modal-overlay" id="scheduleDriveModal" role="dialog" aria-modal="true"
+      aria-labelledby="scheduleDriveTitle">
       <div class="modal" style="width:620px;">
         <div class="modal-header">
           <h3 id="scheduleDriveTitle"><i class="fa-solid fa-calendar-plus"></i> Schedule Blood Drive</h3>
-          <button type="button" class="modal-close" id="closeScheduleDriveBtn" aria-label="Close schedule form">&times;</button>
+          <button type="button" class="modal-close" id="closeScheduleDriveBtn"
+            aria-label="Close schedule form">&times;</button>
         </div>
         <form id="scheduleDriveForm" class="modal-body">
-          <p style="margin:0;color:var(--slate-500);font-size:.88rem;">Scheduling publishes the drive to the donor calendar and sends an in-app alert to registered donors.</p>
+          <p style="margin:0;color:var(--slate-500);font-size:.88rem;">Scheduling publishes the drive to the donor
+            calendar and sends an in-app alert to registered donors.</p>
           <div class="form-group">
             <label for="driveName">Drive name <span class="req">*</span></label>
-            <input type="text" id="driveName" name="drive_name" maxlength="160" placeholder="e.g. Community Lifesaver Drive" required />
+            <input type="text" id="driveName" name="drive_name" maxlength="160"
+              placeholder="e.g. Community Lifesaver Drive" required />
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -1430,7 +1528,8 @@
           </div>
           <div class="form-group">
             <label for="driveVenue">Venue <span class="req">*</span></label>
-            <input type="text" id="driveVenue" name="venue" maxlength="220" placeholder="Facility or collection site" required />
+            <input type="text" id="driveVenue" name="venue" maxlength="220" placeholder="Facility or collection site"
+              required />
           </div>
           <div class="form-group">
             <label for="driveAddress">Address</label>
@@ -1440,22 +1539,189 @@
             <label for="driveFocusType">Focus blood type</label>
             <select id="driveFocusType" name="focus_type">
               <option value="All">All blood types</option>
-              <option value="A+">A+</option><option value="A-">A-</option>
-              <option value="B+">B+</option><option value="B-">B-</option>
-              <option value="AB+">AB+</option><option value="AB-">AB-</option>
-              <option value="O+">O+</option><option value="O-">O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="driveNotes">Donor instructions</label>
-            <textarea id="driveNotes" name="notes" rows="3" maxlength="1000" placeholder="What donors should bring or know before arriving"></textarea>
+            <label for="driveNotes">Donor instructions <span class="req">*</span></label>
+            <textarea id="driveNotes" name="notes" rows="3" maxlength="1000"
+              placeholder="What donors should bring or know before arriving" required></textarea>
           </div>
           <div id="scheduleDriveMsg" class="form-msg" role="status" aria-live="polite"></div>
           <div class="modal-footer">
             <button type="button" class="btn-cancel" id="cancelScheduleDriveBtn">Cancel</button>
-            <button type="submit" class="btn-submit" id="saveScheduleDriveBtn"><i class="fa-solid fa-bell"></i> Schedule &amp; Notify Donors</button>
+            <button type="submit" class="btn-submit" id="saveScheduleDriveBtn"><i class="fa-solid fa-bell"></i> Schedule
+              &amp; Notify Donors</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- ===== BLOOD DRIVE DETAILS MODAL ===== -->
+    <div class="modal-overlay" id="adminDriveDetailModal" role="dialog" aria-modal="true"
+      aria-labelledby="adminDriveDetailTitle" style="z-index: 280;">
+      <div class="modal" style="width: 620px; max-width: 94vw;">
+        <div class="modal-header">
+          <h3 id="adminDriveDetailTitle"><i class="fa-solid fa-calendar-days"></i> Blood Drive Details</h3>
+          <button type="button" class="modal-close" id="closeDriveDetailBtn"
+            aria-label="Close drive details">&times;</button>
+        </div>
+        <div class="modal-body" id="adminDriveDetailBody" style="padding: 22px;">
+          <!-- Populated by JS -->
+        </div>
+        <div class="modal-footer" style="justify-content: space-between; align-items: center;">
+          <button type="button" class="btn-cancel" id="closeDriveDetailFooterBtn">Close</button>
+          <div style="display:flex; gap:10px; align-items: center;">
+            <button type="button" class="btn-cancel" id="driveDetailQuickDeleteBtn"
+              style="color:#dc2626; border-color:#fecaca; font-weight:600;"><i class="fa-solid fa-trash"></i>
+              Delete</button>
+            <button type="button" class="btn-submit" id="driveDetailQuickEditBtn" style="padding: 8px 18px;"><i
+                class="fa-solid fa-pen-to-square"></i> Edit Drive</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EDIT BLOOD DRIVE MODAL ===== -->
+    <div class="modal-overlay" id="editDriveModal" role="dialog" aria-modal="true" aria-labelledby="editDriveTitle"
+      style="z-index: 290;">
+      <div class="modal" style="width:620px; max-width:94vw;">
+        <div class="modal-header">
+          <h3 id="editDriveTitle"><i class="fa-solid fa-pen-to-square"></i> Edit Blood Drive</h3>
+          <button type="button" class="modal-close" id="closeEditDriveBtn" aria-label="Close edit form">&times;</button>
+        </div>
+        <form id="editDriveForm" class="modal-body">
+          <input type="hidden" id="editDriveId" name="drive_id" />
+          <div class="form-group">
+            <label for="editDriveName">Drive name <span class="req">*</span></label>
+            <input type="text" id="editDriveName" name="drive_name" maxlength="160"
+              placeholder="e.g. Community Lifesaver Drive" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDriveDate">Date <span class="req">*</span></label>
+              <input type="date" id="editDriveDate" name="drive_date" required />
+            </div>
+            <div class="form-group">
+              <label for="editDriveTargetUnits">Target donor slots <span class="req">*</span></label>
+              <input type="number" id="editDriveTargetUnits" name="target_units" min="1" max="10000" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDriveStartTime">Start time</label>
+              <input type="time" id="editDriveStartTime" name="start_time" required />
+            </div>
+            <div class="form-group">
+              <label for="editDriveEndTime">End time</label>
+              <input type="time" id="editDriveEndTime" name="end_time" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editDriveVenue">Venue <span class="req">*</span></label>
+            <input type="text" id="editDriveVenue" name="venue" maxlength="220"
+              placeholder="Facility or collection site" required />
+          </div>
+          <div class="form-group">
+            <label for="editDriveAddress">Address</label>
+            <input type="text" id="editDriveAddress" name="address" placeholder="Street, barangay, municipality" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDriveFocusType">Focus blood type</label>
+              <select id="editDriveFocusType" name="focus_type">
+                <option value="All">All blood types</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editDriveStatus">Status</label>
+              <select id="editDriveStatus" name="status">
+                <option value="scheduled">Scheduled</option>
+                <option value="recruiting">Recruiting</option>
+                <option value="full">Full</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editDriveNotes">Donor instructions <span class="req">*</span></label>
+            <textarea id="editDriveNotes" name="notes" rows="3" maxlength="1000"
+              placeholder="What donors should bring or know before arriving" required></textarea>
+          </div>
+          <div id="editDriveMsg" class="form-msg" role="status" aria-live="polite"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" id="cancelEditDriveBtn">Cancel</button>
+            <button type="submit" class="btn-submit" id="saveEditDriveBtn"><i class="fa-solid fa-check"></i> Save
+              Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== DELETE BLOOD DRIVE MODAL ===== -->
+    <div class="modal-overlay" id="deleteDriveConfirmModal" role="dialog" aria-modal="true"
+      aria-labelledby="deleteDriveConfirmTitle" style="z-index: 300;">
+      <div class="delete-drive-modal modal" style="width:460px; max-width:92vw;">
+
+        <!-- Header -->
+        <div class="modal-header delete-drive-header">
+          <div class="delete-drive-header-content">
+            <div class="delete-drive-icon-wrap">
+              <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div>
+              <h3 id="deleteDriveConfirmTitle" class="delete-drive-title">Delete Blood Drive</h3>
+              <p class="delete-drive-subtitle">This action cannot be undone</p>
+            </div>
+          </div>
+          <button type="button" class="modal-close" id="closeDeleteDriveConfirmBtn"
+            aria-label="Close dialog">&times;</button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body delete-drive-body">
+          <p class="delete-drive-prompt">
+            Are you sure you want to permanently delete this scheduled blood drive?
+          </p>
+
+          <!-- Drive preview card — populated by JS -->
+          <div id="deleteDriveConfirmDetails" class="delete-drive-preview"></div>
+
+          <!-- Warning callout -->
+          <div class="delete-drive-warning">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>All associated donor registrations and alerts will be permanently removed.</span>
+          </div>
+
+          <div id="deleteDriveMsg" class="form-msg" role="status" aria-live="polite"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer delete-drive-footer">
+          <button type="button" class="delete-drive-btn-keep" id="cancelDeleteDriveBtn">
+            <i class="fa-solid fa-shield"></i> Keep Drive
+          </button>
+          <button type="button" class="delete-drive-btn-confirm" id="confirmDeleteDriveBtn">
+            <i class="fa-solid fa-trash-can"></i> Yes, Delete Drive
+          </button>
+        </div>
+
       </div>
     </div>
 
@@ -1470,8 +1736,8 @@
   <!-- ==================== JS ==================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="/supabase-client.js?v=20260915allbloodtypes"></script>
-    <script src="/scripts/pages/admin-dashboard.js?v=20260915simplestatus"></script>
+  <script src="/supabase-client.js?v=20260916drivedetails"></script>
+  <script src="/scripts/pages/admin-dashboard.js?v=20260916donorval"></script>
 
   <script src="/pull-to-refresh.js?v=20260824a" defer></script>
 </body>

@@ -14,10 +14,40 @@
   }
 
   function getNotificationPresentation(type) {
-    if (type === 'donor_appeal') return { icon: 'fa-bell', style: 'warning' };
-    if (type === 'pledge_received') return { icon: 'fa-hand-holding-heart', style: 'match' };
-    if (type === 'request_updated') return { icon: 'fa-file-circle-check', style: 'info' };
+    const t = String(type || '').toLowerCase();
+    if (t === 'donor_appeal') return { icon: 'fa-bell', style: 'warning' };
+    if (t === 'pledge_received' || t === 'request_fulfilled') return { icon: 'fa-hand-holding-heart', style: 'match' };
+    if (t === 'request_updated' || t === 'request_approved') return { icon: 'fa-file-circle-check', style: 'info' };
+    if (t.includes('drive') || t === 'blood_drive_scheduled' || t === 'blood_drive_reminder' || t === 'blood_drive_update') {
+      return { icon: 'fa-calendar-check', style: 'drive' };
+    }
+    if (t === 'donor_match' || t === 'match_found') {
+      return { icon: 'fa-heart-pulse', style: 'match' };
+    }
     return { icon: 'fa-bell', style: 'info' };
+  }
+
+  function getNotificationTarget(notification) {
+    const type = String(notification?.notification_type || '').toLowerCase();
+    const title = String(notification?.title || '').toLowerCase();
+    const message = String(notification?.message || '').toLowerCase();
+
+    if (
+      notification?.drive_id ||
+      type.includes('drive') ||
+      title.includes('blood drive') ||
+      title.includes('bloodlet') ||
+      message.includes('blood drive') ||
+      message.includes('open blood drives')
+    ) {
+      return 'account_dashboard.html#section-drives';
+    }
+
+    if (type === 'donor_match' || type === 'match_found' || title.includes('match found')) {
+      return 'recipient_donor_map.html';
+    }
+
+    return 'account_dashboard.html#section-requests';
   }
 
   function formatNotificationTime(value) {
@@ -45,11 +75,12 @@
       if (!list) return;
 
       const presentation = getNotificationPresentation(notification.notification_type);
+      const targetUrl = getNotificationTarget(notification);
       const item = document.createElement('article');
       item.className = `full-notification${notification.read_at ? '' : ' unread'}`;
       item.dataset.id = `db-${notification.notification_id}`;
       item.dataset.databaseId = String(notification.notification_id);
-      item.dataset.target = 'account_dashboard.html#section-requests';
+      item.dataset.target = targetUrl;
       item.tabIndex = 0;
       item.setAttribute('role', 'link');
       item.innerHTML = `

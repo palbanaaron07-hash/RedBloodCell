@@ -18,8 +18,8 @@ where u.auth_user_id = au.id
   and u.username is null
   and nullif(trim(au.raw_user_meta_data->>'username'), '') is not null;
 
--- Secure function to resolve email for authentication by email or username
-create or replace function blood_bank.resolve_login_identifier(identifier text)
+-- Secure function to resolve email for authentication by email or username in public schema (required for Supabase client RPC)
+create or replace function public.resolve_login_identifier(identifier text)
 returns table (
   email text,
   user_found boolean
@@ -92,6 +92,20 @@ begin
 
   return query select null::text, false;
 end;
+$$;
+
+grant execute on function public.resolve_login_identifier(text) to anon, authenticated, service_role;
+
+-- Alias in blood_bank schema
+create or replace function blood_bank.resolve_login_identifier(identifier text)
+returns table (
+  email text,
+  user_found boolean
+)
+language sql
+security definer
+as $$
+  select * from public.resolve_login_identifier(identifier);
 $$;
 
 grant execute on function blood_bank.resolve_login_identifier(text) to anon, authenticated, service_role;

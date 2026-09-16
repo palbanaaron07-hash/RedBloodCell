@@ -68,7 +68,7 @@ async function loadInAppNotifications() {
     item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
     item.dataset.notificationId = `db-${notification.notification_id}`;
     item.dataset.dynamicNotification = 'true';
-    item.href = notification.notification_type === 'blood_drive_scheduled'
+    item.href = (notification.drive_id || String(notification.notification_type || '').includes('drive') || String(notification.title || '').toLowerCase().includes('blood drive'))
       ? 'account_dashboard.html#section-drives'
       : 'account_dashboard.html#section-requests';
     item.innerHTML = `<i class="fa-solid fa-bell"></i><div><strong>${escapeHtml(formatFrontendBrand(notification.title || 'Coordinator donor appeal'))}</strong><p>${escapeHtml(formatFrontendBrand(notification.message || ''))}</p></div>`;
@@ -87,10 +87,10 @@ function isMobileHeader() {
 function focusBoholMap() {
   if (!boholMap || typeof L === 'undefined') return;
 
-  const boholCenter = [9.8506, 124.1435];
+  const boholCenter = [9.8500, 124.1800];
   const boholBounds = L.latLngBounds(
-    [9.30, 123.55],
-    [10.35, 124.60]
+    [9.40, 123.65],
+    [10.28, 124.68]
   );
   const boholViewBounds = boholBounds.pad(0.06);
 
@@ -1169,7 +1169,7 @@ function renderAccountRoleControls(profile) {
   if (donorViewText) donorViewText.textContent = hasDonor ? 'Donor View' : 'Become a Donor';
 
   const overviewLoading = document.getElementById('accountOverviewLoading');
-  if (overviewLoading) overviewLoading.hidden = true;
+  if (overviewLoading) { overviewLoading.hidden = true; overviewLoading.style.display = 'none'; }
   const recipientOverview = document.getElementById('recipientOverviewState');
   if (recipientOverview) recipientOverview.hidden = hasDonor;
   sectionTitles.dashboard.title = hasDonor ? 'Donor Center' : 'Recipient Overview';
@@ -1515,10 +1515,14 @@ async function loadDonorDashboard(force = false) {
   const historyElement = document.getElementById('donorDonationHistory');
   if (historyElement && (!donorDashboardData || force)) {
     historyElement.innerHTML = `
-      <div class="donor-empty-state loading">
-        <i class="fa-solid fa-spinner fa-spin"></i>
-        <p>Loading donation records...</p>
-      </div>`;
+      <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:55%"></span><span class="skeleton skeleton-text-sm" style="width:38%"></span></div></div>
+      <div class="skeleton-history-row"><span class="skeleton skeleton-circle" style="width:32px;height:32px;flex-shrink:0"></span><div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="skeleton skeleton-text" style="width:50%"></span><span class="skeleton skeleton-text-sm" style="width:33%"></span></div></div>`;
+  }
+  const matchElement = document.getElementById('donorMatchingRequests');
+  if (matchElement && (!donorDashboardData || force)) {
+    matchElement.innerHTML = `
+      <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:40px;height:40px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:55%"></span><span class="skeleton skeleton-text" style="width:40%"></span></div></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:60px;height:20px"></span><span class="skeleton skeleton-pill" style="width:80px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:90%"></span></div>
+      <div class="skeleton-request-card"><div class="skeleton-request-header"><span class="skeleton skeleton-circle" style="width:40px;height:40px"></span><div style="flex:1;display:flex;flex-direction:column;gap:7px"><span class="skeleton skeleton-text-lg" style="width:48%"></span><span class="skeleton skeleton-text" style="width:36%"></span></div></div><div class="skeleton-request-pills"><span class="skeleton skeleton-pill" style="width:56px;height:20px"></span><span class="skeleton skeleton-pill" style="width:74px;height:20px"></span></div><span class="skeleton skeleton-text" style="width:85%"></span></div>`;
   }
 
   const message = document.getElementById('donorDashboardMessage');
@@ -1629,6 +1633,27 @@ function applyProfileToUI(profile) {
 
   currentProfile = profile;
   renderAccountRoleControls(profile);
+
+  const profileSkeleton = document.getElementById('profileLoadingSkeleton');
+  if (profileSkeleton) {
+    profileSkeleton.hidden = true;
+    profileSkeleton.style.display = 'none';
+  }
+  const profileSnap = document.getElementById('profileSnapContent');
+  if (profileSnap) {
+    profileSnap.hidden = false;
+    profileSnap.style.display = '';
+  }
+  const compatSkeleton = document.getElementById('compatLoadingSkeleton');
+  if (compatSkeleton) {
+    compatSkeleton.hidden = true;
+    compatSkeleton.style.display = 'none';
+  }
+  const compatContent = document.getElementById('compatContent');
+  if (compatContent) {
+    compatContent.hidden = false;
+    compatContent.style.display = '';
+  }
   const patientBloodType = (
     profile.blood_type ||
     profile.blood_type_needed ||
@@ -1865,6 +1890,10 @@ function openProfileModal() {
   if (msg) {
     msg.textContent = '';
     msg.className = 'form-msg';
+  }
+  const formEl = document.getElementById('profileForm');
+  if (formEl) {
+    formEl.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
   }
   const modal = document.getElementById('profileModal');
   if (modal) modal.classList.add('active');
@@ -3238,6 +3267,24 @@ document.getElementById('editRequestForm').addEventListener('submit', async (e) 
   }
 });
 
+// Real-time phone sanitizer for profile form
+const profilePhoneInput = document.getElementById('profilePhoneInput');
+if (profilePhoneInput) {
+  profilePhoneInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+    e.target.classList.remove('is-invalid');
+  });
+}
+
+// Clear is-invalid on input / change for profile form fields
+['profileFirstNameInput', 'profileMiddleNameInput', 'profileLastNameInput', 'profileBloodTypeInput', 'profileGenderInput', 'profileAddressInput'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', () => el.classList.remove('is-invalid'));
+    el.addEventListener('change', () => el.classList.remove('is-invalid'));
+  }
+});
+
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -3255,10 +3302,106 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
     address: String(formData.get('address') || '').trim()
   };
 
-  if (!payload.first_name || !payload.last_name || !payload.blood_type) {
-    msg.textContent = 'First name, last name, and blood type are required.';
+  const fnInput = document.getElementById('profileFirstNameInput');
+  const mnInput = document.getElementById('profileMiddleNameInput');
+  const lnInput = document.getElementById('profileLastNameInput');
+  const btInput = document.getElementById('profileBloodTypeInput');
+  const phInput = document.getElementById('profilePhoneInput');
+  const addrInput = document.getElementById('profileAddressInput');
+
+  // Reset any previous invalid highlights
+  e.target.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+  const showProfileError = (errorMessage, inputEl) => {
+    msg.textContent = errorMessage;
     msg.className = 'form-msg error';
+    if (inputEl) {
+      inputEl.classList.add('is-invalid');
+      inputEl.focus();
+    }
+  };
+
+  const NAME_REGEX = /^[a-zA-Z\u00C0-\u024F\s'-]+$/;
+  const MIDDLE_NAME_REGEX = /^[a-zA-Z\u00C0-\u024F\s'.-]*$/;
+  const VALID_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const PH_MOBILE_REGEX = /^09\d{9}$/;
+
+  // 1. First Name validation
+  if (!payload.first_name) {
+    showProfileError('First name is required.', fnInput);
     return;
+  }
+  if (payload.first_name.length < 2) {
+    showProfileError('First name must be at least 2 characters.', fnInput);
+    return;
+  }
+  if (payload.first_name.length > 50) {
+    showProfileError('First name cannot exceed 50 characters.', fnInput);
+    return;
+  }
+  if (!NAME_REGEX.test(payload.first_name)) {
+    showProfileError('First name can only contain letters, spaces, and hyphens.', fnInput);
+    return;
+  }
+
+  // 2. Middle Name validation (optional)
+  if (payload.middle_name) {
+    if (payload.middle_name.length > 50) {
+      showProfileError('Middle name cannot exceed 50 characters.', mnInput);
+      return;
+    }
+    if (!MIDDLE_NAME_REGEX.test(payload.middle_name)) {
+      showProfileError('Middle name can only contain letters, spaces, hyphens, and periods.', mnInput);
+      return;
+    }
+  }
+
+  // 3. Last Name validation
+  if (!payload.last_name) {
+    showProfileError('Last name is required.', lnInput);
+    return;
+  }
+  if (payload.last_name.length < 2) {
+    showProfileError('Last name must be at least 2 characters.', lnInput);
+    return;
+  }
+  if (payload.last_name.length > 50) {
+    showProfileError('Last name cannot exceed 50 characters.', lnInput);
+    return;
+  }
+  if (!NAME_REGEX.test(payload.last_name)) {
+    showProfileError('Last name can only contain letters, spaces, and hyphens.', lnInput);
+    return;
+  }
+
+  // 4. Blood Type validation
+  if (!payload.blood_type || !VALID_BLOOD_TYPES.includes(payload.blood_type.toUpperCase())) {
+    showProfileError('Please select a valid blood type.', btInput);
+    return;
+  }
+
+  // 5. Phone Number validation (if provided, must be valid 11-digit Philippine mobile starting with 09)
+  if (payload.phone) {
+    if (!PH_MOBILE_REGEX.test(payload.phone)) {
+      showProfileError('Phone number must be an 11-digit mobile number starting with 09 (e.g., 09123456789).', phInput);
+      return;
+    }
+  }
+
+  // 6. Address validation (optional, but if provided must be reasonable length and format)
+  if (payload.address) {
+    if (payload.address.length < 5) {
+      showProfileError('Address must be at least 5 characters long.', addrInput);
+      return;
+    }
+    if (payload.address.length > 150) {
+      showProfileError('Address cannot exceed 150 characters.', addrInput);
+      return;
+    }
+    if (!/[a-zA-Z]/.test(payload.address)) {
+      showProfileError('Please enter a valid address with street or location name.', addrInput);
+      return;
+    }
   }
 
   saveBtn.disabled = true;

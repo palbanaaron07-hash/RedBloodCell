@@ -529,7 +529,7 @@
       selectedLocalityCode = '';
       barangayInput.value = '';
       populateLocationOptions(barangayOptions, []);
-      barangayInput.placeholder = 'Select a city or municipality first';
+      barangayInput.placeholder = 'Select a city first';
       setLocationHelp(barangayHelp, message);
     }
 
