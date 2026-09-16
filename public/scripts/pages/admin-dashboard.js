@@ -971,7 +971,11 @@ function getReportsSnapshot() {
   };
 
   requests.forEach((row) => {
-    const normalized = normalizeRequestStatus(row.status);
+    const lifecycle = getCommunityLifecycleInfo(row);
+    let normalized = normalizeRequestStatus(row.status);
+    if (lifecycle.status === 'expired' && normalized !== 'fulfilled') {
+      normalized = 'cancelled';
+    }
     if (Object.prototype.hasOwnProperty.call(statusCounts, normalized)) {
       statusCounts[normalized] += 1;
     }
@@ -1003,7 +1007,7 @@ function getSimplifiedRequestStatusRows(statusCounts) {
     { label: 'Fulfilled', count: counts.fulfilled || 0 },
     {
       label: 'Closed',
-      count: (counts.rejected || 0) + (counts.cancelled || 0)
+      count: (counts.rejected || 0) + (counts.cancelled || 0) + (counts.expired || 0)
     }
   ];
 }
@@ -1219,7 +1223,11 @@ function renderReportsSection() {
   };
 
   requests.forEach((row) => {
-    const normalized = normalizeRequestStatus(row.status);
+    const lifecycle = getCommunityLifecycleInfo(row);
+    let normalized = normalizeRequestStatus(row.status);
+    if (lifecycle.status === 'expired' && normalized !== 'fulfilled') {
+      normalized = 'cancelled';
+    }
     if (Object.prototype.hasOwnProperty.call(statusCounts, normalized)) {
       statusCounts[normalized] += 1;
     }
@@ -1295,7 +1303,7 @@ function normalizeRequestStatus(status) {
   const raw = String(status || '').trim().toLowerCase();
   if (['approved', 'processing', 'in progress', 'in_progress'].includes(raw)) return 'approved';
   if (['needs clarification', 'needs_clarification', 'clarification'].includes(raw)) return 'needs_clarification';
-  if (['cancelled', 'canceled'].includes(raw)) return 'cancelled';
+  if (['cancelled', 'canceled', 'expired'].includes(raw)) return 'cancelled';
   if (['rejected', 'declined'].includes(raw)) return 'rejected';
   if (['fulfilled', 'complete', 'completed', 'done', 'closed'].includes(raw)) return 'fulfilled';
   return 'pending';
