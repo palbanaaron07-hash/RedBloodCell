@@ -31,6 +31,12 @@ jobs:
           if [ -f ".htaccess" ]; then
             cp .htaccess dist/
           fi
+          if [ -f "default.php" ]; then
+            cp default.php dist/
+          fi
+          if [ -f "index.php" ]; then
+            cp index.php dist/
+          fi
           if [ -d "api" ]; then
             cp -r api dist/
           fi
