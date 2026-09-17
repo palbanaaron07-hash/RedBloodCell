@@ -41,6 +41,20 @@ jobs:
             cp -r api dist/
           fi
 
+      - name: DEBUG - List FTP directory structure
+        run: |
+          echo "=== ROOT DIRECTORY ==="
+          curl -s --list-only "ftp://${{ secrets.FTP_SERVER }}/" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || echo "(failed to list root)"
+          echo ""
+          echo "=== public_html/ ==="
+          curl -s --list-only "ftp://${{ secrets.FTP_SERVER }}/public_html/" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || echo "(no public_html/)"
+          echo ""
+          echo "=== public_html/bloodconnect/ ==="
+          curl -s --list-only "ftp://${{ secrets.FTP_SERVER }}/public_html/bloodconnect/" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || echo "(no public_html/bloodconnect/)"
+          echo ""
+          echo "=== domains/ ==="
+          curl -s --list-only "ftp://${{ secrets.FTP_SERVER }}/domains/" --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" || echo "(no domains/)"
+
       - name: Deploy to FTP Server
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
