@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -26,8 +26,11 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Copy PHP API to Build Output (if exists)
+      - name: Copy Server Config and PHP API
         run: |
+          if [ -f ".htaccess" ]; then
+            cp .htaccess dist/
+          fi
           if [ -d "api" ]; then
             cp -r api dist/
           fi
@@ -38,6 +41,6 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR || 'public_html/' }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './' }}
           local-dir: ./dist/
           dangerous-clean-slate: false
