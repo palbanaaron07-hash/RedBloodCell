@@ -41,12 +41,26 @@ jobs:
             cp -r api dist/
           fi
 
-      - name: Deploy to FTP Server
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: public_html/bloodconnect/
-          local-dir: ./dist/
-          dangerous-clean-slate: false
+      - name: Deploy to FTP Server (both paths)
+        run: |
+          sudo apt-get install -y lftp > /dev/null 2>&1
+
+          # Upload to public_html/bloodconnect/
+          echo "=== Deploying to public_html/bloodconnect/ ==="
+          lftp -e "
+            set ssl:verify-certificate false;
+            set ftp:ssl-allow yes;
+            mirror --reverse --delete --verbose ./dist/ /public_html/bloodconnect/;
+            bye
+          " -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
+
+          # Also upload to FTP root
+          echo "=== Deploying to FTP root ==="
+          lftp -e "
+            set ssl:verify-certificate false;
+            set ftp:ssl-allow yes;
+            mirror --reverse --delete --verbose ./dist/ /;
+            bye
+          " -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}"
+
+          echo "=== Done ==="

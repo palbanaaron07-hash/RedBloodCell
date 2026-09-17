@@ -2,4 +2,7 @@ DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # If default.php is requested, serve index.html instead
+  RewriteRule ^default\.php$ index.html [L]
 </IfModule>
