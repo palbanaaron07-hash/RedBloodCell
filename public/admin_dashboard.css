@@ -853,6 +853,12 @@ img {
   font-size: .78rem;
   font-weight: 800;
   box-shadow: 0 2px 8px rgba(185, 28, 28, .3);
+  transition: transform var(--transition);
+}
+
+.header-profile:hover .header-profile-avatar {
+  transform: scale(1.06);
+}
 .header-profile-info strong {
   display: block;
   font-size: .82rem;
